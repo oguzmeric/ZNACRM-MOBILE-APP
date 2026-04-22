@@ -1,84 +1,161 @@
-# CRM Mobil
+# 📱 ZNA CRM Mobile
 
-Saha teknisyenleri ve satış ekibi için React Native + Expo mobil uygulama. Mevcut **crm-app** (web) ile **aynı Supabase** backend'ini paylaşır.
+Saha teknisyenleri ve yönetim ekibi için kurumsal CRM mobil uygulaması. **React Native + Expo** ile geliştirildi, **Supabase** backend üzerinde çalışır.
 
-## Modüller
+[![Expo SDK](https://img.shields.io/badge/Expo-SDK%2054-000020?logo=expo&logoColor=white)](https://expo.dev)
+[![React Native](https://img.shields.io/badge/React%20Native-0.81-61DAFB?logo=react&logoColor=white)](https://reactnative.dev)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
+[![License](https://img.shields.io/badge/license-Private-red)](#)
 
-| Modül | Kullanıcı | Durum |
-|---|---|---|
-| Giriş / Profil | Tüm | ✅ İskelet |
-| Görevler (görüntüle + ata) | Tüm | 🔜 Placeholder |
-| Servis Talepleri | Teknisyen | 🔜 Placeholder |
-| Tara — S/N · Barkod · QR + OCR | Teknisyen | 🔜 Placeholder |
-| Aracımdaki Stok | Teknisyen | 🔜 Placeholder |
-| Teklif (hazırla + email) | Satışçı | 🔜 Placeholder |
-| Müşteriler | Tüm | 🔜 Placeholder |
+---
 
-## Kurulum
+## ✨ Özellikler
+
+### 👷 Teknisyen Modu
+- **Görev & Servis takibi** — bana atanan işler, durum geçişleri, fotoğraf eki, not geçmişi
+- **Tara** — QR / Barkod / DataMatrix / PDF417 okuma + fener + zoom + haptic feedback
+- **Stok yönetimi** — S/N'li cihazlar ve sarf malzemeleri, depo hareketleri
+- **Servis formu** — 3 tip (Servis / Bakım / Arıza) PDF üretimi, önizleme, e-posta, yazıcıya gönderme
+- **Müşteri / Lokasyon / Cihaz** — çok lokasyonlu müşteriler, cihaz ağacı
+- **Malzeme planı** — teslim al → sahada kullan → otomatik stok düşümü
+- **Müşteri imzası** — servis kapatma için dokunmatik imza
+
+### 🧑‍💼 Admin Modu (Teknik Müdür / Genel Müdür / Yazılım Geliştirmeci)
+- **Yönetim Paneli** — KPI kartları: Onay Bekleyen, Aktif Servis, Min-Stok Altı, Açık Destek
+- **Onay Kuyruğu** — teknisyen tamamladığı servisleri onayla / reddet (gerekçe ile)
+- **Personel Takip** — saha personeli + her birinin aktif iş sayısı + detay (gittiği lokasyonlar, kullandığı malzemeler)
+- **Stok Raporu** — min seviye altı uyarılar, toplam kalem sayıları
+- **Destek Talepleri** — kullanıcı sorunlarına cevap yazma + kapatma
+
+### 🎨 UX
+- **Gündüz / Gece modu** — tüm ekranlarda otomatik
+- **Bildirim rozetleri** — modül kartlarında açık talep sayısı
+- **Canlı Supabase senkron** — fokus aldığında otomatik yenileme
+- **EAS Update OTA** — JS değişikliklerini mağaza onayı olmadan canlıya al
+
+### 🔒 App Store Uyumlu
+- Hesabı Sil (App Store kuralı gereği)
+- Gizlilik Politikası ekranı
+- Kullanım Koşulları ekranı
+- Profilden yasal bağlantılar erişimi
+
+---
+
+## 🚀 Kurulum
 
 ```bash
-cd crm-mobile
+git clone https://github.com/oguzmeric/ZNACRM-MOBILE-APP.git
+cd ZNACRM-MOBILE-APP
 npm install
 cp .env.example .env
-# .env içine Supabase URL ve ANON KEY yaz (web crm-app ile aynı)
-npm start
+# .env içine Supabase URL ve ANON KEY yaz
+npx expo start
 ```
 
-Telefonuna **Expo Go** uygulamasını indir, terminalde çıkan QR kodu okut.
+Telefonunda **Expo Go** uygulamasını indir, terminalde çıkan QR kodu tara.
 
-## Android'e çıkış
+---
 
-### 1) Geliştirme — Expo Go (en hızlı)
-- `npm start` → telefon Expo Go'da QR kodu oku → app hemen açılır.
-- Kamera, lokasyon, image-picker Expo Go'da çalışır.
+## 🏗️ Teknoloji Yığını
 
-### 2) Test — APK (mağaza onayı yok)
-```bash
-npm install -g eas-cli
-eas login
-eas build:configure
-eas build --platform android --profile preview
-```
-- ~15 dk sonra EAS bir APK linki verir.
-- WhatsApp/email ile teknisyene gönder, kurulum (3. parti uygulama izni gerekir).
-- Aylık 30 ücretsiz build.
+| Katman | Araç |
+|---|---|
+| Frontend | React Native 0.81 + Expo SDK 54 |
+| Dil | JavaScript (JSX) |
+| Navigasyon | `@react-navigation/native-stack` |
+| Backend | Supabase (Postgres + Storage) |
+| Auth | Custom (kullanici_adi + sifre üzerinden) |
+| State | React Context API + AsyncStorage |
+| Kamera / Barkod | `expo-camera` |
+| PDF | `expo-print` + HTML template |
+| Paylaşım | `expo-sharing` + `expo-mail-composer` |
+| Görsel | `expo-image-picker`, `expo-asset` |
+| Titreşim | `expo-haptics` |
+| Tema | `ThemeContext` — darkColors / lightColors paletleri |
+| Dağıtım | EAS Build (Android APK/AAB), EAS Update (OTA) |
 
-### 3) Yayın — Play Store
-```bash
-eas build --platform android --profile production   # AAB üretir
-eas submit --platform android                       # Play Store'a yükler
-```
-- Önce **Google Play Developer hesabı** ($25 tek seferlik) gerekli.
-- İlk yayın 1-3 gün incelemede.
+---
 
-## iOS
-
-- Expo Go ile geliştirme: hemen çalışır (App Store'dan Expo Go indir).
-- Yayın: **Apple Developer** hesabı gerekli ($99/yıl).
-- `eas build --platform ios --profile production` → TestFlight veya App Store.
-
-## Klasör yapısı
+## 📂 Proje Yapısı
 
 ```
 src/
-├── lib/           # supabase client, mapper (snake↔camel)
-├── context/       # AuthContext (oturum + kullanıcı/rol)
-├── navigation/    # RootNavigator (login vs ana stack)
-├── screens/       # Ekranlar (Login, Home, vs.)
-├── components/    # Tekrar kullanılan parçalar
-├── services/      # Supabase çağrıları (gorevService, servisService, vb.)
-└── utils/         # Yardımcılar (sync queue, format, vb.)
+├── components/         # Yeniden kullanılabilir parçalar (Avatar, Modallar, ScreenContainer)
+├── context/            # AuthContext, ThemeContext
+├── lib/                # supabase client, mapper (snake ↔ camel)
+├── navigation/         # RootNavigator (teknisyen / admin / auth stack'leri)
+├── screens/
+│   ├── admin/          # Admin paneli ekranları (6 adet)
+│   └── *.js            # Teknisyen ekranları (30+ adet)
+├── services/           # Supabase çağrı katmanı (13 servis dosyası)
+├── templates/          # HTML template üreticileri (servis formu)
+├── utils/              # format, servis sabitleri, rol kontrolü
+└── theme.js            # Renk paleti + spacing + shadow tanımları
 ```
 
-## Sıradaki adımlar
+---
 
-1. Supabase migration: `musteri_lokasyonlari`, `stok_kalemleri`, `stok_kalemi_hareketleri` tabloları.
-2. `services/` katmanı (web'deki `servisService`, `gorevService` vb. mobil için uyarlama).
-3. Tara ekranı: `expo-camera` ile barkod/QR + OCR fallback.
-4. Teklif ekranı + Supabase Edge Function (PDF + email — Resend).
+## 📦 Dağıtım
 
-## Notlar
+### EAS Update (OTA — JS değişiklikleri için)
+```bash
+npx eas-cli update --branch main --message "Değişiklik açıklaması"
+```
+Kullanıcılara anında dağıtır, mağaza onayı yok.
 
-- **Aynı Supabase**: web ve mobil aynı tabloları okur/yazar; herhangi bir teknisyen telefonda durum güncellerse web'de anlık görünür.
-- **Rol kontrolü**: `kullanicilar.rol` alanı menü/ekran erişimini belirler. Şu an "görev atama" herkese açık (ileride kısıtlanabilir).
-- **OCR (üretici S/N etiketi)**: ML Kit native modül gerektirir → Expo Go'da çalışmaz, sadece **EAS Dev Build** ile aktif olur. Önce barkod/QR scanner devreye alınacak, OCR ikinci aşamada.
+### EAS Build (Native değişiklikler için)
+```bash
+npx eas-cli build --profile production --platform android
+npx eas-cli build --profile production --platform ios
+```
+Android: APK / AAB üretir. iOS için **Apple Developer hesabı** ($99/yıl) gerekli.
+
+### Mağazaya yükleme
+```bash
+npx eas-cli submit --platform android   # Play Store
+npx eas-cli submit --platform ios       # App Store / TestFlight
+```
+
+---
+
+## 🗄️ Supabase Şeması (Özet)
+
+Ana tablolar:
+- `kullanicilar` — rol + unvan + durum + foto_url
+- `musteriler` / `musteri_kisileri` / `musteri_lokasyonlari`
+- `servis_talepleri` — durum akışı: `bekliyor → inceleniyor → atandi → devam_ediyor → tamamlandi → onaylandi/reddedildi`
+- `gorevler` — atanan iş + notlar + fotoğraflar
+- `stok_kalemleri` (S/N'li) + `stok_urunler` (sarf/bulk)
+- `servis_malzeme_plani` — planlı / teslim / kullanılan miktarlar
+- `teklifler` + satırlar (jsonb)
+- `destek_talepleri` — kullanıcıdan gelen sorunlar
+
+---
+
+## 🔐 Roller
+
+| Unvan | Admin Paneli | Sayım | Servis |
+|---|---|---|---|
+| Teknisyen | ❌ | ❌ | ✅ |
+| Depo Sorumlusu | ❌ | ✅ | ❌ |
+| Admin | ❌ | ✅ | ✅ |
+| Teknik Müdür | ✅ | ✅ | ✅ |
+| Genel Müdür | ✅ | ❌ | ❌ |
+| Yazılım Geliştirmeci | ✅ | ✅ | ✅ |
+
+---
+
+## 📝 Lisans
+
+Özel. ZNA Teknoloji'nin iç kullanımı için geliştirilmiştir.
+
+---
+
+## 👤 Geliştirici
+
+**Oğuz Meriç** — Yazılım Geliştirmeci  
+📧 destek@zna.com.tr
+
+---
+
+> Bu uygulama **crm-app** (web) ile aynı Supabase backend'ini paylaşır — teknisyen mobilde güncelleme yaptığında web'de anlık görünür.
