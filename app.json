@@ -1,0 +1,93 @@
+{
+  "expo": {
+    "name": "ZNA CRM",
+    "slug": "crm-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo.jpeg",
+    "userInterfaceStyle": "dark",
+    "primaryColor": "#2563eb",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/logo.jpeg",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0f1e"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.crm.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Ürün barkod ve seri numaralarını okumak için kamera gerekir.",
+        "NSPhotoLibraryUsageDescription": "Servis raporlarına foto eklemek için galeri erişimi gerekir.",
+        "NSLocationWhenInUseUsageDescription": "Cihazın takıldığı lokasyonu kaydetmek için konum gerekir."
+      }
+    },
+    "android": {
+      "package": "com.crm.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.jpeg",
+        "backgroundColor": "#0a0f1e"
+      },
+      "splash": {
+        "backgroundColor": "#0a0f1e",
+        "image": "./assets/logo.jpeg",
+        "resizeMode": "contain"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "CRM Mobil, ürün barkod/S-N etiketlerini okumak için kameraya erişmek istiyor."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Servis raporlarına foto eklemek için galeri erişimi.",
+          "cameraPermission": "Servis raporlarına foto çekmek için kamera erişimi."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Cihaz lokasyon log'u için konum erişimi gerekir."
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-mail-composer",
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b2a861c4-b54d-4ac0-b51f-9c2e4c6aa0d4"
+      }
+    },
+    "owner": "oguzmericc",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/b2a861c4-b54d-4ac0-b51f-9c2e4c6aa0d4"
+    }
+  }
+}
