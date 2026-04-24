@@ -22,13 +22,29 @@ export const AuthProvider = ({ children }) => {
   const [mod, setMod] = useState('teknisyen')
 
   // Uygulama açılışında oturumu yükle
+  //
+  // ÖNEMLİ: Eski custom auth döneminden kalma AsyncStorage profili olabilir
+  // ama Supabase Auth session yok → RLS tüm sorguları reddedeceği için
+  // kullanıcıya hiçbir veri gözükmez. Bu durumu tespit edip zorla çıkış
+  // yapıyoruz (yeniden giriş → supabase.auth session oluşur).
   useEffect(() => {
     ;(async () => {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY)
-        if (raw) setKullanici(JSON.parse(raw))
         const m = await AsyncStorage.getItem(MODE_KEY)
         if (m === 'admin' || m === 'teknisyen') setMod(m)
+
+        if (raw) {
+          // Supabase Auth session gerçekten var mı? Yoksa stale profil
+          const { data: { session } } = await supabase.auth.getSession()
+          if (!session?.user) {
+            console.warn('[Auth] AsyncStorage profili var ama Supabase session yok — yeniden giriş gerekli')
+            await AsyncStorage.removeItem(STORAGE_KEY)
+            setKullanici(null)
+          } else {
+            setKullanici(JSON.parse(raw))
+          }
+        }
       } catch (e) {
         console.warn('[Auth] AsyncStorage okunamadı', e)
       } finally {
