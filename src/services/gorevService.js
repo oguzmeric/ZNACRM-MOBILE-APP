@@ -1,20 +1,17 @@
-import { supabase } from '../lib/supabase'
+import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 
 export const gorevleriGetir = async () => {
-  const { data } = await supabase
-    .from('gorevler')
-    .select('*')
-    .order('olusturma_tarih', { ascending: false })
+  const data = await tumSayfalariCek('gorevler', (q) =>
+    q.order('olusturma_tarih', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 
 export const banaAtananGorevler = async (kullaniciId) => {
-  const { data } = await supabase
-    .from('gorevler')
-    .select('*')
-    .eq('atanan_id', kullaniciId)
-    .order('olusturma_tarih', { ascending: false })
+  const data = await tumSayfalariCek('gorevler', (q) =>
+    q.eq('atanan_id', kullaniciId).order('olusturma_tarih', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 
@@ -29,11 +26,9 @@ export const banaAtananAktifGorevSayisi = async (kullaniciId) => {
 }
 
 export const atadigimGorevler = async (kullaniciAd) => {
-  const { data } = await supabase
-    .from('gorevler')
-    .select('*')
-    .eq('olusturan_ad', kullaniciAd)
-    .order('olusturma_tarih', { ascending: false })
+  const data = await tumSayfalariCek('gorevler', (q) =>
+    q.eq('olusturan_ad', kullaniciAd).order('olusturma_tarih', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 

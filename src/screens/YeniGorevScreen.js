@@ -18,6 +18,7 @@ import { useTheme } from '../context/ThemeContext'
 import { kullanicilariGetir } from '../services/kullaniciService'
 import { musterileriGetir } from '../services/musteriService'
 import { gorevEkle } from '../services/gorevService'
+import { trIcerir } from '../utils/trSearch'
 
 const ONCELIKLER = [
   { id: 'dusuk', label: 'Düşük' },
@@ -52,11 +53,8 @@ export default function YeniGorevScreen({ navigation }) {
 
   const filtrelenmisMusteriler = useMemo(() => {
     if (!musteriArama.trim()) return musteriler
-    const q = musteriArama.toLowerCase()
     return musteriler.filter((m) =>
-      [m.firma, m.ad, m.soyad, m.telefon, m.kod]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q))
+      trIcerir([m.firma, m.ad, m.soyad, m.telefon, m.kod], musteriArama)
     )
   }, [musteriler, musteriArama])
 

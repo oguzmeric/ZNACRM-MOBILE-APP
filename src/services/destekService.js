@@ -1,12 +1,10 @@
-import { supabase } from '../lib/supabase'
+import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 
 export const kullaniciDestekTalepleriniGetir = async (kullaniciId) => {
-  const { data } = await supabase
-    .from('destek_talepleri')
-    .select('*')
-    .eq('kullanici_id', kullaniciId)
-    .order('olusturma_tarih', { ascending: false })
+  const data = await tumSayfalariCek('destek_talepleri', (q) =>
+    q.eq('kullanici_id', kullaniciId).order('olusturma_tarih', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 
@@ -35,10 +33,9 @@ export const destekTalepEkle = async (talep) => {
 
 // Admin panelinde tüm destek talepleri
 export const tumDestekTalepleriGetir = async () => {
-  const { data } = await supabase
-    .from('destek_talepleri')
-    .select('*')
-    .order('olusturma_tarih', { ascending: false })
+  const data = await tumSayfalariCek('destek_talepleri', (q) =>
+    q.order('olusturma_tarih', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 

@@ -28,6 +28,7 @@ import { musteriCihazlariniGetir } from '../services/stokKalemiService'
 import { servisTalepEkle, sonrakiTalepNo } from '../services/servisService'
 import { malzemePlanEkle } from '../services/servisMalzemeService'
 import { servisEkiYukle } from '../services/servisEkService'
+import { trIcerir } from '../utils/trSearch'
 import MalzemePlanModal from '../components/MalzemePlanModal'
 import {
   ANA_TURLER,
@@ -155,11 +156,8 @@ export default function YeniServisTalebiScreen({ navigation }) {
 
   const filtrelenmisMusteriler = useMemo(() => {
     if (!musteriArama.trim()) return musteriler
-    const q = musteriArama.toLowerCase()
     return musteriler.filter((m) =>
-      [m.firma, m.ad, m.soyad, m.telefon, m.kod]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q))
+      trIcerir([m.firma, m.ad, m.soyad, m.telefon, m.kod], musteriArama)
     )
   }, [musteriler, musteriArama])
 
@@ -315,12 +313,13 @@ export default function YeniServisTalebiScreen({ navigation }) {
                 style={[styles.input, { flex: 1, backgroundColor: colors.surface }]}
                 onPress={() => setKisiPickerOpen(true)}
                 activeOpacity={0.7}
-                disabled={kisiler.length === 0}
               >
                 <Text style={{ color: kisi ? colors.textPrimary : colors.textFaded }} numberOfLines={1}>
                   {kisi
                     ? `${kisi.ad ?? ''} ${kisi.soyad ?? ''}${kisi.unvan ? ` · ${kisi.unvan}` : ''}`.trim()
-                    : kisiler.length === 0 ? 'Bu müşteride kayıtlı kişi yok' : 'Kişi seç...'}
+                    : kisiler.length === 0
+                      ? '+ Kişi ekle'
+                      : `Kişi seç... (${kisiler.length})`}
                 </Text>
               </TouchableOpacity>
               {!!kisi && (
@@ -778,12 +777,34 @@ export default function YeniServisTalebiScreen({ navigation }) {
                 <Text style={{ color: colors.textMuted, fontSize: 16 }}>Kapat</Text>
               </TouchableOpacity>
             </View>
+            {!!musteri && (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  padding: 14,
+                  margin: 12,
+                  borderRadius: 10,
+                  backgroundColor: colors.primary + '22',
+                  borderWidth: 1,
+                  borderColor: colors.primary,
+                }}
+                onPress={() => {
+                  setKisiPickerOpen(false)
+                  navigation.navigate('YeniKişi', { musteriId: musteri.id })
+                }}
+              >
+                <Text style={{ color: colors.primary, fontWeight: '700' }}>+ Yeni Kişi Ekle</Text>
+              </TouchableOpacity>
+            )}
             <FlatList
               data={kisiler}
               keyExtractor={(k) => String(k.id)}
               ListEmptyComponent={
                 <Text style={{ color: colors.textFaded, textAlign: 'center', marginTop: 24 }}>
-                  Bu müşteride kayıtlı kişi yok.
+                  Bu müşteride kayıtlı kişi yok. Üstteki butonla ekleyebilirsin.
                 </Text>
               }
               renderItem={({ item }) => (

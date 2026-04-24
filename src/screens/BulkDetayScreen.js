@@ -22,6 +22,7 @@ import {
   bulkHareketEkle,
 } from '../services/stokUrunService'
 import { musterileriGetir } from '../services/musteriService'
+import { trIcerir } from '../utils/trSearch'
 import { tarihSaatFormat } from '../utils/format'
 import { sayimYapabilir } from '../utils/yetki'
 
@@ -194,11 +195,8 @@ function IslemModal({ visible, islem, urun, kullanici, onClose, onDone }) {
 
   const filtrelenmisMusteriler = useMemo(() => {
     if (!musteriArama.trim()) return musteriler
-    const q = musteriArama.toLowerCase()
     return musteriler.filter((m) =>
-      [m.firma, m.ad, m.soyad, m.telefon, m.kod]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q))
+      trIcerir([m.firma, m.ad, m.soyad, m.telefon, m.kod], musteriArama)
     )
   }, [musteriler, musteriArama])
 

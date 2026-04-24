@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import ScreenContainer from '../../components/ScreenContainer'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
-import { adminKpiGetir } from '../../services/adminStatsService'
+import { adminKpiGetir, aktiviteFeed } from '../../services/adminStatsService'
+import { tarihSaatFormat } from '../../utils/format'
 
 export default function AdminDashboardScreen({ navigation }) {
   const { kullanici, modDegistir } = useAuth()
@@ -14,12 +15,14 @@ export default function AdminDashboardScreen({ navigation }) {
   const insets = useSafeAreaInsets()
 
   const [kpi, setKpi] = useState({ onayBekleyen: null, aktifServis: null, kronikAriza: null, minStokAlti: null, acikDestek: 0, onayKuyrugu: 0 })
+  const [olaylar, setOlaylar] = useState([])
   const [yukleniyor, setYukleniyor] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const yukle = useCallback(async () => {
-    const veri = await adminKpiGetir()
+    const [veri, feed] = await Promise.all([adminKpiGetir(), aktiviteFeed(20)])
     setKpi(veri)
+    setOlaylar(feed ?? [])
     setYukleniyor(false)
   }, [])
 
@@ -71,14 +74,22 @@ export default function AdminDashboardScreen({ navigation }) {
           {/* Placeholder KPI kartları — sonraki adımda veri bağlanacak */}
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>⚡ Özet</Text>
           <View style={styles.kpiGrid}>
-            <KpiCard sayi={kpiDeger(kpi.onayBekleyen)} label="Onay Bekleyen" ikon="check-circle" renk="#f59e0b" />
+            <KpiCard sayi={kpiDeger(kpi.onayBekleyen)} label="Atanmamış" ikon="user-x" renk="#f59e0b" />
             <KpiCard sayi={kpiDeger(kpi.aktifServis)} label="Aktif Servis" ikon="briefcase" renk="#2563eb" />
+            <KpiCard sayi={kpiDeger(kpi.kronikAriza)} label="Kronik Arıza" ikon="alert-triangle" renk="#ef4444" />
             <KpiCard sayi={kpiDeger(kpi.minStokAlti)} label="Min-Stok Altı" ikon="package" renk="#a855f7" />
-            <KpiCard sayi={kpiDeger(kpi.acikDestek)} label="Açık Destek" ikon="help-circle" renk="#3b82f6" />
           </View>
 
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>🗂️ Modüller</Text>
           <View style={styles.moduleGrid}>
+            <ModuleCard
+              title="Servis Atama"
+              hint="Atanmamış talepleri ata"
+              ikon="user-plus"
+              renk="#f59e0b"
+              badge={kpi.onayBekleyen}
+              onPress={() => navigation.navigate('AdminServisAtama')}
+            />
             <ModuleCard
               title="Personel Takip"
               hint="Kim nerede, üstünde ne var"
@@ -109,7 +120,62 @@ export default function AdminDashboardScreen({ navigation }) {
               badge={kpi.acikDestek}
               onPress={() => navigation.navigate('AdminDestekTalepleri')}
             />
+            <ModuleCard
+              title="Kronik Arıza"
+              hint="3+ arıza yaşayan cihazlar"
+              ikon="alert-triangle"
+              renk="#ef4444"
+              badge={kpi.kronikAriza}
+              onPress={() => navigation.navigate('AdminKronikAriza')}
+            />
+            <ModuleCard
+              title="Görevler"
+              hint="Atama + takip"
+              ikon="clipboard"
+              renk="#0ea5e9"
+              onPress={() => navigation.navigate('Görevler')}
+            />
+            <ModuleCard
+              title="Raporlar"
+              hint="İstatistikler & trend"
+              ikon="bar-chart-2"
+              renk="#06b6d4"
+              onPress={() => navigation.navigate('AdminRaporlar')}
+            />
           </View>
+
+          {/* Aktivite feed */}
+          <Text style={[styles.sectionLabel, { color: colors.textMuted, marginTop: 8 }]}>📡 Son Aktiviteler</Text>
+          {olaylar.length === 0 ? (
+            <Text style={[styles.bos, { color: colors.textFaded }]}>Henüz aktivite yok.</Text>
+          ) : (
+            olaylar.map((o) => (
+              <TouchableOpacity
+                key={o.id}
+                style={[styles.olayKart, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                onPress={() => o.rota && navigation.navigate(o.rota.name, o.rota.params)}
+                activeOpacity={o.rota ? 0.7 : 1}
+                disabled={!o.rota}
+              >
+                <View style={[styles.olayIkon, { backgroundColor: o.renk + '22' }]}>
+                  <Feather name={o.ikon} size={14} color={o.renk} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.olayMetin, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {o.metin}
+                  </Text>
+                  {!!o.altMetin && (
+                    <Text style={[styles.olayAlt, { color: colors.textMuted }]} numberOfLines={1}>
+                      {o.altMetin}
+                    </Text>
+                  )}
+                </View>
+                <Text style={[styles.olayTarih, { color: colors.textFaded }]} numberOfLines={1}>
+                  {tarihSaatFormat(o.tarih)}
+                </Text>
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
 
         {/* Sabit alt bilgi */}
@@ -251,6 +317,27 @@ const styles = StyleSheet.create({
   },
   moduleTitle: { fontSize: 14, fontWeight: '700' },
   moduleHint: { fontSize: 11, marginTop: 4 },
+
+  olayKart: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+  olayIkon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  olayMetin: { fontSize: 12, fontWeight: '700' },
+  olayAlt: { fontSize: 11, marginTop: 2 },
+  olayTarih: { fontSize: 10, fontWeight: '600' },
+  bos: { fontSize: 12, fontStyle: 'italic', paddingVertical: 10 },
 
   badge: {
     position: 'absolute',

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import ScreenContainer from '../../components/ScreenContainer'
 import { useTheme } from '../../context/ThemeContext'
 import { supabase } from '../../lib/supabase'
-import { arrayToCamel } from '../../lib/mapper'
+import { arrayToCamel, toCamel } from '../../lib/mapper'
 import { banaAtananTalepler } from '../../services/servisService'
+import { kullaniciAktiflikGuncelle } from '../../services/kullaniciService'
 import { durumBul } from '../../utils/servisConstants'
 import { tarihSaatFormat } from '../../utils/format'
 
@@ -13,16 +14,26 @@ export default function AdminPersonelDetayScreen({ route, navigation }) {
   const { kullaniciId, ad } = route.params
   const { colors } = useTheme()
 
+  const [kullaniciBilgi, setKullaniciBilgi] = useState(null)
   const [talepler, setTalepler] = useState([])
   const [malzemeler, setMalzemeler] = useState([])
   const [lokasyonlar, setLokasyonlar] = useState([])
   const [loading, setLoading] = useState(true)
+  const [guncelleniyor, setGuncelleniyor] = useState(false)
 
   useEffect(() => {
     navigation.setOptions({ title: ad ?? 'Personel Detayı' })
   }, [navigation, ad])
 
   const yukle = useCallback(async () => {
+    // Kullanıcı bilgisi
+    const { data: k } = await supabase
+      .from('kullanicilar')
+      .select('*')
+      .eq('id', kullaniciId)
+      .maybeSingle()
+    if (k) setKullaniciBilgi(toCamel(k))
+
     // Atanan tüm talepler (aktif + geçmiş)
     const atanan = (await banaAtananTalepler(kullaniciId)) ?? []
     setTalepler(atanan)
@@ -71,6 +82,35 @@ export default function AdminPersonelDetayScreen({ route, navigation }) {
 
   useEffect(() => { yukle() }, [yukle])
 
+  const aktiflikDegistir = () => {
+    if (!kullaniciBilgi) return
+    const simdiAktif = !kullaniciBilgi.hesapSilindi
+    const yeniAktif = !simdiAktif
+    Alert.alert(
+      yeniAktif ? 'Aktif Et' : 'Pasife Al',
+      yeniAktif
+        ? `${kullaniciBilgi.ad} tekrar aktif edilsin mi? Giriş yapabilecek.`
+        : `${kullaniciBilgi.ad} pasife alınsın mı? Giriş yapamaz ama geçmiş veri korunur.`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: yeniAktif ? 'Aktif Et' : 'Pasife Al',
+          style: yeniAktif ? 'default' : 'destructive',
+          onPress: async () => {
+            setGuncelleniyor(true)
+            const ok = await kullaniciAktiflikGuncelle(kullaniciBilgi.id, yeniAktif)
+            setGuncelleniyor(false)
+            if (!ok) {
+              Alert.alert('Hata', 'Güncellenemedi.')
+              return
+            }
+            yukle()
+          },
+        },
+      ]
+    )
+  }
+
   if (loading) {
     return (
       <ScreenContainer>
@@ -85,6 +125,38 @@ export default function AdminPersonelDetayScreen({ route, navigation }) {
   return (
     <ScreenContainer>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        {/* Hesap durumu */}
+        {kullaniciBilgi && (
+          <View style={[styles.durumBlok, {
+            backgroundColor: colors.surface,
+            borderColor: kullaniciBilgi.hesapSilindi ? colors.danger : colors.success,
+          }]}>
+            <Feather
+              name={kullaniciBilgi.hesapSilindi ? 'user-x' : 'user-check'}
+              size={16}
+              color={kullaniciBilgi.hesapSilindi ? colors.danger : colors.success}
+            />
+            <Text style={[styles.durumText, {
+              color: kullaniciBilgi.hesapSilindi ? colors.danger : colors.success,
+            }]}>
+              {kullaniciBilgi.hesapSilindi ? 'Pasif' : 'Aktif'}
+            </Text>
+            <TouchableOpacity
+              style={[styles.toggleBtn, {
+                backgroundColor: kullaniciBilgi.hesapSilindi ? colors.success : colors.danger,
+                opacity: guncelleniyor ? 0.5 : 1,
+              }]}
+              onPress={aktiflikDegistir}
+              disabled={guncelleniyor}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.toggleText}>
+                {kullaniciBilgi.hesapSilindi ? 'Aktif Et' : 'Pasife Al'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Özet */}
         <View style={styles.ozetRow}>
           <Ozet sayi={aktif.length} label="Aktif" renk={colors.warning} colors={colors} />
@@ -191,6 +263,23 @@ function Ozet({ sayi, label, renk, colors }) {
 }
 
 const styles = StyleSheet.create({
+  durumBlok: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    marginBottom: 16,
+  },
+  durumText: { fontSize: 14, fontWeight: '800', flex: 1 },
+  toggleBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  toggleText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
   ozetRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   ozetKart: {
     flex: 1,

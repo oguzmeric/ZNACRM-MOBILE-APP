@@ -21,6 +21,7 @@ import {
 } from '../services/teklifService'
 import { tarihFormat } from '../utils/format'
 import { paraFormat } from '../utils/paraFormat'
+import { trIcerir } from '../utils/trSearch'
 
 const SEKMELER = [
   { id: 'takipte', label: 'Takipte' },
@@ -62,11 +63,8 @@ export default function TekliflerScreen({ navigation }) {
 
   const filtrelenmis = useMemo(() => {
     if (!arama.trim()) return teklifler
-    const q = arama.toLowerCase()
     return teklifler.filter((t) =>
-      [t.teklifNo, t.firmaAdi, t.konu, t.musteriYetkilisi]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q))
+      trIcerir([t.teklifNo, t.firmaAdi, t.konu, t.musteriYetkilisi], arama)
     )
   }, [teklifler, arama])
 

@@ -1,11 +1,10 @@
-import { supabase } from '../lib/supabase'
+import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 
 export const musterileriGetir = async () => {
-  const { data } = await supabase
-    .from('musteriler')
-    .select('*')
-    .order('olusturma_tarih', { ascending: false })
+  const data = await tumSayfalariCek('musteriler', (q) =>
+    q.order('olusturma_tarih', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 

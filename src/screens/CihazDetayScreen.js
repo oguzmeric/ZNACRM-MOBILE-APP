@@ -35,6 +35,7 @@ import { musterileriGetir, musteriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { kullanicilariGetir } from '../services/kullaniciService'
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
+import { trIcerir } from '../utils/trSearch'
 import { useTheme } from '../context/ThemeContext'
 import CihazTeknikBilgiModal from '../components/CihazTeknikBilgiModal'
 
@@ -629,11 +630,8 @@ function TakModal({ visible, onClose, kalem, kullanici, onDone }) {
 
   const filtrelenmis = useMemo(() => {
     if (!musteriArama.trim()) return musteriler
-    const q = musteriArama.toLowerCase()
     return musteriler.filter((m) =>
-      [m.firma, m.ad, m.soyad, m.telefon, m.kod]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q))
+      trIcerir([m.firma, m.ad, m.soyad, m.telefon, m.kod], musteriArama)
     )
   }, [musteriler, musteriArama])
 

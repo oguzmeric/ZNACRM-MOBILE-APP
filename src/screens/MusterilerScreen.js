@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import { useFocusEffect } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
-import { musterileriGetir, musteriAra } from '../services/musteriService'
+import { musterileriGetir } from '../services/musteriService'
+import { trIcerir } from '../utils/trSearch'
 
 export default function MusterilerScreen({ navigation }) {
   const { colors } = useTheme()
@@ -23,26 +24,28 @@ export default function MusterilerScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false)
 
   const yukle = useCallback(async () => {
-    const data = arama.trim() ? await musteriAra(arama) : await musterileriGetir()
+    const data = await musterileriGetir()
     setMusteriler(data ?? [])
-  }, [arama])
+  }, [])
 
   useEffect(() => {
     setLoading(true)
     yukle().finally(() => setLoading(false))
-  }, [])
-
-  // Arama değişince debounce
-  useEffect(() => {
-    const t = setTimeout(() => yukle(), 300)
-    return () => clearTimeout(t)
-  }, [arama, yukle])
+  }, [yukle])
 
   useFocusEffect(
     useCallback(() => {
       yukle()
     }, [yukle])
   )
+
+  // Türkçe büyük/küçük + aksan fark etmeksizin client-side filtre
+  const filtrelenmis = useMemo(() => {
+    if (!arama.trim()) return musteriler
+    return musteriler.filter((m) =>
+      trIcerir([m.firma, m.ad, m.soyad, m.telefon, m.email, m.kod, m.sehir, m.adres], arama)
+    )
+  }, [arama, musteriler])
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -62,13 +65,18 @@ export default function MusterilerScreen({ navigation }) {
           autoCapitalize="none"
           autoCorrect={false}
         />
+        <Text style={[styles.sonucSayi, { color: colors.textFaded }]}>
+          {arama.trim()
+            ? `${filtrelenmis.length} sonuç · toplam ${musteriler.length}`
+            : `${musteriler.length} müşteri`}
+        </Text>
       </View>
 
       {loading ? (
         <ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} />
       ) : (
         <FlatList
-          data={musteriler}
+          data={filtrelenmis}
           keyExtractor={(m) => String(m.id)}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           refreshControl={
@@ -126,6 +134,12 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     fontSize: 14,
+  },
+  sonucSayi: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 6,
+    marginLeft: 4,
   },
   card: {
     backgroundColor: 'rgba(30, 41, 59, 0.7)',

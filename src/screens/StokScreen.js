@@ -23,6 +23,7 @@ import {
   durumBul,
   DURUMLAR,
 } from '../services/stokKalemiService'
+import { trIcerir } from '../utils/trSearch'
 import { tarihFormat } from '../utils/format'
 
 const SEKMELER = [
@@ -68,21 +69,15 @@ export default function StokScreen({ navigation }) {
     } else if (aktifSekme === 'bana') {
       veri = await teknisyenStoktariniGetir(kullanici.id)
       if (arama.trim()) {
-        const q = arama.toLowerCase()
         veri = (veri ?? []).filter((k) =>
-          [k.seriNo, k.barkod, k.marka, k.model, k.stokKodu]
-            .filter(Boolean)
-            .some((s) => String(s).toLowerCase().includes(q))
+          trIcerir([k.seriNo, k.barkod, k.marka, k.model, k.stokKodu], arama)
         )
       }
     } else {
       veri = await kalemleriDurumaGoreGetir(aktifSekme)
       if (arama.trim()) {
-        const q = arama.toLowerCase()
         veri = (veri ?? []).filter((k) =>
-          [k.seriNo, k.barkod, k.marka, k.model, k.stokKodu]
-            .filter(Boolean)
-            .some((s) => String(s).toLowerCase().includes(q))
+          trIcerir([k.seriNo, k.barkod, k.marka, k.model, k.stokKodu], arama)
         )
       }
     }
@@ -156,10 +151,7 @@ export default function StokScreen({ navigation }) {
         <FlatList
           data={(modeller ?? []).filter((m) => {
             if (!arama.trim()) return true
-            const q = arama.toLowerCase()
-            return [m.stokKodu, m.marka, m.model]
-              .filter(Boolean)
-              .some((s) => String(s).toLowerCase().includes(q))
+            return trIcerir([m.stokKodu, m.marka, m.model], arama)
           })}
           keyExtractor={(m) => m.stokKodu}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}

@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 
 export const DURUMLAR = [
@@ -16,16 +16,13 @@ export const durumBul = (id) => DURUMLAR.find((d) => d.id === id)
 // Tüm kalemleri getir (Stok ekranı için)
 // S/N'li cihazlar (stok_kalemleri) + sarf malzemeler (stok_urunler'da S/N karşılığı olmayanlar)
 export const tumKalemleriGetir = async () => {
-  const [kalemlerRes, urunlerRes] = await Promise.all([
-    supabase
-      .from('stok_kalemleri')
-      .select('*')
-      .order('guncelleme_tarih', { ascending: false }),
-    supabase.from('stok_urunler').select('*'),
+  const [kalemlerRaw, urunlerRaw] = await Promise.all([
+    tumSayfalariCek('stok_kalemleri', (q) => q.order('guncelleme_tarih', { ascending: false })),
+    tumSayfalariCek('stok_urunler'),
   ])
 
-  const kalemler = arrayToCamel(kalemlerRes.data) ?? []
-  const urunler = arrayToCamel(urunlerRes.data) ?? []
+  const kalemler = arrayToCamel(kalemlerRaw) ?? []
+  const urunler = arrayToCamel(urunlerRaw) ?? []
 
   const seriKodlar = new Set(kalemler.map((k) => k.stokKodu).filter(Boolean))
   const sarflar = urunler
@@ -40,16 +37,15 @@ export const tumKalemleriGetir = async () => {
 //   tip = 'seri'  → S/N takipli, A/B/C kırılımı var
 //   tip = 'bulk'  → Toplu (kablo, vida vs.), sadece stok_miktari var
 export const modellerOzetiniGetir = async () => {
-  const [urunlerRes, kalemlerRes] = await Promise.all([
-    supabase.from('stok_urunler').select('*'),
-    supabase
-      .from('stok_kalemleri')
-      .select('stok_kodu, marka, model, durum, guncelleme_tarih')
-      .order('guncelleme_tarih', { ascending: false }),
+  const [urunlerRaw, kalemlerRaw] = await Promise.all([
+    tumSayfalariCek('stok_urunler'),
+    tumSayfalariCek('stok_kalemleri', (q) =>
+      q.order('guncelleme_tarih', { ascending: false })
+    ),
   ])
 
-  const urunler = arrayToCamel(urunlerRes.data) ?? []
-  const kalemler = kalemlerRes.data ?? []
+  const urunler = arrayToCamel(urunlerRaw) ?? []
+  const kalemler = kalemlerRaw ?? []
 
   // Önce stok_kalemleri'ni stok_kodu bazında grupla
   const kalemMap = new Map()
@@ -149,11 +145,9 @@ export const modelKalemleriniGetir = async (stokKodu) => {
 
 // Belirli duruma göre kalemler
 export const kalemleriDurumaGoreGetir = async (durum) => {
-  const { data } = await supabase
-    .from('stok_kalemleri')
-    .select('*')
-    .eq('durum', durum)
-    .order('guncelleme_tarih', { ascending: false })
+  const data = await tumSayfalariCek('stok_kalemleri', (q) =>
+    q.eq('durum', durum).order('guncelleme_tarih', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 
@@ -179,12 +173,9 @@ export const lokasyonCihazlariniGetir = async (musteriLokasyonId) => {
 
 // Teknisyenin üzerindeki ürünler (zimmetli)
 export const teknisyenStoktariniGetir = async (teknisyenId) => {
-  const { data } = await supabase
-    .from('stok_kalemleri')
-    .select('*')
-    .eq('teknisyen_id', teknisyenId)
-    .eq('durum', 'teknisyende')
-    .order('guncelleme_tarih', { ascending: false })
+  const data = await tumSayfalariCek('stok_kalemleri', (q) =>
+    q.eq('teknisyen_id', teknisyenId).eq('durum', 'teknisyende').order('guncelleme_tarih', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 

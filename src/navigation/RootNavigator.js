@@ -38,8 +38,12 @@ import MalzemeKullanScreen from '../screens/MalzemeKullanScreen'
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen'
 import AdminPersonelTakipScreen from '../screens/admin/AdminPersonelTakipScreen'
 import AdminPersonelDetayScreen from '../screens/admin/AdminPersonelDetayScreen'
+import AdminYeniPersonelScreen from '../screens/admin/AdminYeniPersonelScreen'
 import AdminOnayKuyruguScreen from '../screens/admin/AdminOnayKuyruguScreen'
+import AdminServisAtamaScreen from '../screens/admin/AdminServisAtamaScreen'
 import AdminStokRaporuScreen from '../screens/admin/AdminStokRaporuScreen'
+import AdminKronikArizaScreen from '../screens/admin/AdminKronikArizaScreen'
+import AdminRaporlarScreen from '../screens/admin/AdminRaporlarScreen'
 import AdminDestekTalepleriScreen from '../screens/admin/AdminDestekTalepleriScreen'
 import { yonetimPaneliErisimi } from '../utils/yetki'
 
@@ -103,8 +107,24 @@ export default function RootNavigator() {
             <Stack.Screen name="DestekDetay" component={DestekDetayScreen} options={{ title: 'Talep Detayı' }} />
             <Stack.Screen name="AdminPersonelTakip" component={AdminPersonelTakipScreen} options={{ title: 'Personel Takip' }} />
             <Stack.Screen name="AdminPersonelDetay" component={AdminPersonelDetayScreen} options={{ title: 'Personel Detayı' }} />
+            <Stack.Screen name="AdminYeniPersonel" component={AdminYeniPersonelScreen} options={{ title: 'Yeni Personel' }} />
             <Stack.Screen name="AdminOnayKuyrugu" component={AdminOnayKuyruguScreen} options={{ title: 'Onay Kuyruğu' }} />
+            <Stack.Screen name="AdminServisAtama" component={AdminServisAtamaScreen} options={{ title: 'Servis Atama' }} />
+            <Stack.Screen name="YeniServisTalebi" component={YeniServisTalebiScreen} options={{ title: 'Yeni Servis Talebi' }} />
+            <Stack.Screen name="YeniKişi" component={KisiFormScreen} options={{ title: 'Yeni İlgili Kişi' }} />
+            <Stack.Screen name="KişiDüzenle" component={KisiFormScreen} options={{ title: 'Kişiyi Düzenle' }} />
+            <Stack.Screen name="YeniLokasyon" component={LokasyonFormScreen} options={{ title: 'Yeni Lokasyon' }} />
+            <Stack.Screen name="LokasyonDuzenle" component={LokasyonFormScreen} options={{ title: 'Lokasyonu Düzenle' }} />
+            <Stack.Screen name="Müşteriler" component={MusterilerScreen} />
+            <Stack.Screen name="MüşteriDetay" component={MusteriDetayScreen} options={{ title: 'Müşteri Detayı' }} />
+            <Stack.Screen name="YeniMüşteri" component={YeniMusteriScreen} options={{ title: 'Yeni Müşteri' }} />
+            <Stack.Screen name="MüşteriDüzenle" component={YeniMusteriScreen} options={{ title: 'Müşteriyi Düzenle' }} />
+            <Stack.Screen name="Görevler" component={GorevlerScreen} />
+            <Stack.Screen name="GörevDetay" component={GorevDetayScreen} options={{ title: 'Görev Detayı' }} />
+            <Stack.Screen name="YeniGörev" component={YeniGorevScreen} options={{ title: 'Yeni Görev' }} />
             <Stack.Screen name="AdminStokRaporu" component={AdminStokRaporuScreen} options={{ title: 'Stok Raporu' }} />
+            <Stack.Screen name="AdminKronikAriza" component={AdminKronikArizaScreen} options={{ title: 'Kronik Arıza' }} />
+            <Stack.Screen name="AdminRaporlar" component={AdminRaporlarScreen} options={{ title: 'Raporlar' }} />
             <Stack.Screen name="AdminDestekTalepleri" component={AdminDestekTalepleriScreen} options={{ title: 'Destek Talepleri' }} />
             <Stack.Screen name="ServisDetay" component={ServisTalebiDetayScreen} options={{ title: 'Servis Detayı' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />

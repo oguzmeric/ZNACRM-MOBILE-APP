@@ -1,20 +1,17 @@
-import { supabase } from '../lib/supabase'
+import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 
 export const servisTalepleriniGetir = async () => {
-  const { data } = await supabase
-    .from('servis_talepleri')
-    .select('*')
-    .order('olusturma_tarihi', { ascending: false })
+  const data = await tumSayfalariCek('servis_talepleri', (q) =>
+    q.order('olusturma_tarihi', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 
 export const banaAtananTalepler = async (kullaniciId) => {
-  const { data } = await supabase
-    .from('servis_talepleri')
-    .select('*')
-    .eq('atanan_kullanici_id', kullaniciId)
-    .order('olusturma_tarihi', { ascending: false })
+  const data = await tumSayfalariCek('servis_talepleri', (q) =>
+    q.eq('atanan_kullanici_id', kullaniciId).order('olusturma_tarihi', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 
@@ -32,11 +29,9 @@ export const banaAtananAktifTalepSayisi = async (kullaniciId) => {
 }
 
 export const acikTalepler = async () => {
-  const { data } = await supabase
-    .from('servis_talepleri')
-    .select('*')
-    .not('durum', 'in', KAPALI_DURUMLAR)
-    .order('olusturma_tarihi', { ascending: false })
+  const data = await tumSayfalariCek('servis_talepleri', (q) =>
+    q.not('durum', 'in', KAPALI_DURUMLAR).order('olusturma_tarihi', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 
@@ -131,13 +126,40 @@ export const notEkle = async (id, metin, kullaniciAd) => {
   return servisTalepGuncelle(id, { notlar: yeniNotlar })
 }
 
+// Admin: atanmamış servis talepleri — durum='bekliyor' olanlar
+export const atanmamisTalepler = async () => {
+  const data = await tumSayfalariCek('servis_talepleri', (q) =>
+    q.eq('durum', 'bekliyor').order('olusturma_tarihi', { ascending: false })
+  )
+  return arrayToCamel(data)
+}
+
+// Servis talebine teknisyen ata + durumu 'atandi' yap + geçmişe kayıt
+export const servisAta = async (id, kullanici, atayanAd) => {
+  const mevcut = await servisTalepGetir(id)
+  if (!mevcut) return null
+  const yeniGecmis = [
+    ...(mevcut.durumGecmisi ?? []),
+    {
+      durum: 'atandi',
+      kullanici: atayanAd ?? '',
+      tarih: new Date().toISOString(),
+      not: `${kullanici.ad} üzerine atandı`,
+    },
+  ]
+  return servisTalepGuncelle(id, {
+    atananKullaniciId: kullanici.id,
+    atananKullaniciAd: kullanici.ad,
+    durum: 'atandi',
+    durumGecmisi: yeniGecmis,
+  })
+}
+
 // Admin: onay kuyruğu — teknisyenin tamamladığı servisler
 export const tamamlananTalepler = async () => {
-  const { data } = await supabase
-    .from('servis_talepleri')
-    .select('*')
-    .eq('durum', 'tamamlandi')
-    .order('guncelleme_tarihi', { ascending: false })
+  const data = await tumSayfalariCek('servis_talepleri', (q) =>
+    q.eq('durum', 'tamamlandi').order('guncelleme_tarihi', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 

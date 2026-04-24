@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 
 export const ONAY_DURUMLARI = [
@@ -11,19 +11,16 @@ export const ONAY_DURUMLARI = [
 export const onayDurumuBul = (id) => ONAY_DURUMLARI.find((d) => d.id === id)
 
 export const teklifleriGetir = async () => {
-  const { data } = await supabase
-    .from('teklifler')
-    .select('*')
-    .order('olusturma_tarih', { ascending: false })
+  const data = await tumSayfalariCek('teklifler', (q) =>
+    q.order('olusturma_tarih', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 
 export const benimTekliflerim = async (hazirlayanAd) => {
-  const { data } = await supabase
-    .from('teklifler')
-    .select('*')
-    .eq('hazirlayan', hazirlayanAd)
-    .order('olusturma_tarih', { ascending: false })
+  const data = await tumSayfalariCek('teklifler', (q) =>
+    q.eq('hazirlayan', hazirlayanAd).order('olusturma_tarih', { ascending: false })
+  )
   return arrayToCamel(data)
 }
 

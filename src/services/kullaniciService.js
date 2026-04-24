@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel } from '../lib/mapper'
 
 // Web ile aynı: kullanici_adi + sifre ile direkt sorgu (custom auth)
@@ -15,12 +15,54 @@ export const kullaniciGirisKontrol = async (kullaniciAdi, sifre) => {
 }
 
 export const kullanicilariGetir = async () => {
-  const { data } = await supabase.from('kullanicilar').select('*').order('id')
+  const data = await tumSayfalariCek('kullanicilar', (q) => q.order('id'))
   return arrayToCamel(data)
 }
 
 export const kullaniciDurumGuncelle = async (id, durum) => {
   await supabase.from('kullanicilar').update({ durum }).eq('id', id)
+}
+
+// Admin: yeni kullanıcı ekle
+export const kullaniciEkle = async (veri) => {
+  // Kullanıcı adı benzersiz olmalı
+  const { data: mevcut } = await supabase
+    .from('kullanicilar')
+    .select('id')
+    .eq('kullanici_adi', veri.kullaniciAdi)
+    .maybeSingle()
+  if (mevcut) return { ok: false, hata: 'Bu kullanıcı adı zaten var.' }
+
+  const { data, error } = await supabase
+    .from('kullanicilar')
+    .insert({
+      ad: veri.ad,
+      kullanici_adi: veri.kullaniciAdi,
+      sifre: veri.sifre,
+      unvan: veri.unvan ?? null,
+      telefon: veri.telefon ?? null,
+      email: veri.email ?? null,
+      durum: 'cevrimdisi',
+    })
+    .select()
+    .single()
+  if (error) {
+    console.error('kullaniciEkle hata:', error.message)
+    return { ok: false, hata: error.message }
+  }
+  return { ok: true, kullanici: toCamel(data) }
+}
+
+// Admin: kullanıcıyı pasife al / tekrar aktif et
+export const kullaniciAktiflikGuncelle = async (id, aktif) => {
+  const { error } = await supabase
+    .from('kullanicilar')
+    .update({
+      hesap_silindi: !aktif,
+      silinme_tarihi: aktif ? null : new Date().toISOString(),
+    })
+    .eq('id', id)
+  return !error
 }
 
 // Şifre değiştir — önce mevcut şifre doğrula, sonra yenisini yaz

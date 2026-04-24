@@ -51,7 +51,7 @@ export default function AdminPersonelTakipScreen({ navigation }) {
       <FlatList
         data={liste}
         keyExtractor={(k) => String(k.id)}
-        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />}
         ListEmptyComponent={
           <Text style={{ color: colors.textFaded, textAlign: 'center', marginTop: 40 }}>
@@ -77,6 +77,15 @@ export default function AdminPersonelTakipScreen({ navigation }) {
           </TouchableOpacity>
         )}
       />
+
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => navigation.navigate('AdminYeniPersonel')}
+        activeOpacity={0.85}
+      >
+        <Feather name="user-plus" size={18} color="#fff" />
+        <Text style={styles.fabText}>Yeni Personel</Text>
+      </TouchableOpacity>
     </ScreenContainer>
   )
 }
@@ -105,4 +114,22 @@ const styles = StyleSheet.create({
   rozet: { alignItems: 'center', minWidth: 44 },
   rozetSayi: { fontSize: 18, fontWeight: '800' },
   rozetLabel: { fontSize: 10, fontWeight: '600', marginTop: 2, textTransform: 'uppercase' },
+
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 28,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  fabText: { color: '#fff', fontWeight: '700' },
 })

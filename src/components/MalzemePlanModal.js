@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { modellerOzetiniGetir } from '../services/stokKalemiService'
+import { trIcerir } from '../utils/trSearch'
 
 // Malzeme planına yeni satır ekleme modalı.
 // Stok kataloğundan ürün seç → adet gir → kaydet
@@ -57,17 +58,17 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave }) 
   }, [visible, initial])
 
   const filtrelenmis = useMemo(() => {
-    // Sadece depoda/stokta olan ürünler — sahada/arızada/teknisyende olanlar hariç
-    const depodaOlanlar = urunler.filter((u) => {
-      if (u.tip === 'seri') return (u.depoda ?? 0) > 0
-      return (u.stokMiktari ?? 0) > 0
+    // Tüm ürünler — stok yok olanlar da listelense "stok: 0" olarak görünsün
+    const sirali = [...urunler].sort((a, b) => {
+      // Önce stokta olanlar
+      const aVar = a.tip === 'seri' ? (a.depoda ?? 0) > 0 : (a.stokMiktari ?? 0) > 0
+      const bVar = b.tip === 'seri' ? (b.depoda ?? 0) > 0 : (b.stokMiktari ?? 0) > 0
+      if (aVar !== bVar) return aVar ? -1 : 1
+      return 0
     })
-    if (!arama.trim()) return depodaOlanlar
-    const q = arama.toLowerCase()
-    return depodaOlanlar.filter((u) =>
-      [u.stokKodu, u.stokAdi, u.marka]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q))
+    if (!arama.trim()) return sirali
+    return sirali.filter((u) =>
+      trIcerir([u.stokKodu, u.stokAdi, u.marka], arama)
     )
   }, [urunler, arama])
 
