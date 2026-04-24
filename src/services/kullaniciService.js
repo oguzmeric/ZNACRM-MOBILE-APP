@@ -1,17 +1,35 @@
 import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel } from '../lib/mapper'
 
-// Web ile aynı: kullanici_adi + sifre ile direkt sorgu (custom auth)
+// Web ile AYNI flow: Supabase Auth → başarılı ise kullanicilar tablosundan
+// profil çek (auth_id ile eşleme). Eski `kullanicilar.sifre` kolonu migration
+// 001'de kaldırıldı — artık direkt şifre eşleşmesi kullanılmıyor.
+const kullaniciAdiToEmail = (kullaniciAdi) =>
+  `${kullaniciAdi.toLowerCase().replace(/[^a-z0-9]/g, '')}@zna.local`
+
 export const kullaniciGirisKontrol = async (kullaniciAdi, sifre) => {
-  const { data, error } = await supabase
+  const email = kullaniciAdiToEmail(kullaniciAdi)
+  const { data: authData, error: authError } =
+    await supabase.auth.signInWithPassword({ email, password: sifre })
+  if (authError || !authData?.user) {
+    console.warn('[kullaniciGirisKontrol] auth hata:', authError?.message)
+    return null
+  }
+  const { data: profil, error: pErr } = await supabase
     .from('kullanicilar')
     .select('*')
-    .eq('kullanici_adi', kullaniciAdi)
-    .eq('sifre', sifre)
+    .eq('auth_id', authData.user.id)
     .single()
-  if (error) return null
-  if (data?.hesap_silindi) return null
-  return toCamel(data) || null
+  if (pErr || !profil) {
+    console.warn('[kullaniciGirisKontrol] profil bulunamadı:', pErr?.message)
+    await supabase.auth.signOut()
+    return null
+  }
+  if (profil.hesap_silindi) {
+    await supabase.auth.signOut()
+    return null
+  }
+  return toCamel(profil)
 }
 
 export const kullanicilariGetir = async () => {

@@ -61,6 +61,8 @@ export const AuthProvider = ({ children }) => {
     if (kullanici?.id) {
       kullaniciDurumGuncelle(kullanici.id, 'cevrimdisi').catch(() => {})
     }
+    // Supabase Auth oturumunu da kapat — yoksa AsyncStorage'da token kalır
+    try { await supabase.auth.signOut() } catch (e) { console.warn('[cikisYap]', e) }
     setKullanici(null)
     setMod('teknisyen')
     await AsyncStorage.removeItem(STORAGE_KEY)
