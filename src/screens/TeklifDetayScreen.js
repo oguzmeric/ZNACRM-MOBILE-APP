@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Linking,
   Alert,
+  Modal,
   ActivityIndicator,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
@@ -32,6 +33,7 @@ export default function TeklifDetayScreen({ route, navigation }) {
   const { colors } = useTheme()
   const [teklif, setTeklif] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [seciliGecmis, setSeciliGecmis] = useState(null)
 
   const yukle = useCallback(async () => {
     const t = await teklifGetir(id)
@@ -227,8 +229,10 @@ export default function TeklifDetayScreen({ route, navigation }) {
                 const fark = sonrakiToplam - h.genelToplam
                 const farkRenk = fark > 0 ? colors.danger : fark < 0 ? colors.success : colors.textMuted
                 return (
-                  <View
+                  <TouchableOpacity
                     key={i}
+                    onPress={() => setSeciliGecmis(h)}
+                    activeOpacity={0.7}
                     style={[
                       styles.gecmisSatir,
                       i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -244,7 +248,7 @@ export default function TeklifDetayScreen({ route, navigation }) {
                         {Array.isArray(h.satirlar) ? ` · ${h.satirlar.length} satır` : ''}
                       </Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
+                    <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
                       <Text style={[styles.gecmisToplam, { color: colors.textPrimary }]}>
                         {paraFormat(h.genelToplam, h.paraBirimi)}
                       </Text>
@@ -254,7 +258,8 @@ export default function TeklifDetayScreen({ route, navigation }) {
                         </Text>
                       )}
                     </View>
-                  </View>
+                    <Feather name="chevron-right" size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
                 )
               })}
             </View>
@@ -311,6 +316,62 @@ export default function TeklifDetayScreen({ route, navigation }) {
           <Text style={[styles.silText, { color: colors.danger }]}>Teklifi Sil</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Eski revizyon detayını gösteren modal */}
+      <Modal visible={!!seciliGecmis} animationType="slide" onRequestClose={() => setSeciliGecmis(null)} transparent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, maxHeight: '85%' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <View>
+                <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '800' }}>
+                  Revizyon {seciliGecmis?.revizyon}
+                </Text>
+                <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                  {tarihFormat(seciliGecmis?.snapshotTarihi ?? seciliGecmis?.tarih)}
+                  {seciliGecmis?.snapshotAlan ? ` · ${seciliGecmis.snapshotAlan}` : ''}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setSeciliGecmis(null)}>
+                <Feather name="x" size={22} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+              {Array.isArray(seciliGecmis?.satirlar) && seciliGecmis.satirlar.length > 0 ? (
+                seciliGecmis.satirlar.map((s, i) => {
+                  const h = satirHesapla(s)
+                  return (
+                    <View key={i} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 13 }} numberOfLines={2}>
+                        {s.stokAdi ?? '—'}
+                      </Text>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                        <Text style={{ color: colors.textMuted, fontSize: 11 }}>
+                          {Number(s.miktar ?? 0)} {s.birim ?? ''} × {paraFormat(s.birimFiyat, seciliGecmis.paraBirimi)}
+                          {Number(s.iskonto) > 0 ? ` · -%${s.iskonto}` : ''}
+                          {Number(s.kdv) > 0 ? ` · KDV %${s.kdv}` : ''}
+                        </Text>
+                        <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 13 }}>
+                          {paraFormat(h.netTutar, seciliGecmis.paraBirimi)}
+                        </Text>
+                      </View>
+                    </View>
+                  )
+                })
+              ) : (
+                <Text style={{ color: colors.textMuted, fontStyle: 'italic', textAlign: 'center', paddingVertical: 24 }}>
+                  Bu revizyonda satır bulunamadı.
+                </Text>
+              )}
+              <View style={{ marginTop: 14, padding: 12, borderRadius: 10, backgroundColor: colors.success + '22' }}>
+                <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700' }}>O ANKİ GENEL TOPLAM</Text>
+                <Text style={{ color: colors.success, fontSize: 22, fontWeight: '900', marginTop: 4 }}>
+                  {paraFormat(seciliGecmis?.genelToplam ?? 0, seciliGecmis?.paraBirimi)}
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   )
 }
