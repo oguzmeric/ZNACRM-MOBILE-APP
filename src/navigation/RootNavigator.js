@@ -26,6 +26,9 @@ import ServisTalepleriScreen from '../screens/ServisTalepleriScreen'
 import ServisTalebiDetayScreen from '../screens/ServisTalebiDetayScreen'
 import YeniServisTalebiScreen from '../screens/YeniServisTalebiScreen'
 import LokasyonFormScreen from '../screens/LokasyonFormScreen'
+import GorusmelerScreen from '../screens/GorusmelerScreen'
+import YeniGorusmeScreen from '../screens/YeniGorusmeScreen'
+import GorusmeDetayScreen from '../screens/GorusmeDetayScreen'
 import TaraScreen from '../screens/TaraScreen'
 import CihazDetayScreen from '../screens/CihazDetayScreen'
 import YeniCihazScreen from '../screens/YeniCihazScreen'
@@ -49,6 +52,7 @@ import AdminRaporlarScreen from '../screens/admin/AdminRaporlarScreen'
 import AdminDestekTalepleriScreen from '../screens/admin/AdminDestekTalepleriScreen'
 import AdminMenuYetkileriScreen from '../screens/admin/AdminMenuYetkileriScreen'
 import AdminAktivitelerScreen from '../screens/admin/AdminAktivitelerScreen'
+import AdminPersonelStokScreen from '../screens/admin/AdminPersonelStokScreen'
 import { yonetimPaneliErisimi } from '../utils/yetki'
 
 const Stack = createNativeStackNavigator()
@@ -84,7 +88,11 @@ function TeknisyenTabs() {
         headerTintColor: colors.textPrimary,
       })}
     >
-      <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
+      <Tab.Screen
+        name="Ana Sayfa"
+        component={HomeScreen}
+        options={{ tabBarStyle: { display: 'none' } }}
+      />
       <Tab.Screen name="Görevler" component={GorevlerScreen} options={{ headerShown: true, title: 'Görevler' }} />
       <Tab.Screen name="Servisler" component={ServisTalepleriScreen} options={{ headerShown: true, title: 'Servisler' }} />
       <Tab.Screen name="Tara" component={TaraScreen} options={{ headerShown: true, title: 'Cihaz Tara', headerStyle: { backgroundColor: '#000' }, headerTintColor: '#fff' }} />
@@ -172,6 +180,7 @@ export default function RootNavigator() {
             <Stack.Screen name="AdminDestekTalepleri" component={AdminDestekTalepleriScreen} options={{ title: 'Destek Talepleri' }} />
             <Stack.Screen name="AdminMenuYetkileri" component={AdminMenuYetkileriScreen} options={{ title: 'Menü Yetkileri' }} />
             <Stack.Screen name="AdminAktiviteler" component={AdminAktivitelerScreen} options={{ title: 'Tüm Aktiviteler' }} />
+            <Stack.Screen name="AdminPersonelStok" component={AdminPersonelStokScreen} options={{ title: 'Üzerindeki Stok' }} />
             <Stack.Screen name="ServisDetay" component={ServisTalebiDetayScreen} options={{ title: 'Servis Detayı' }} />
             <Stack.Screen name="Servisler" component={ServisTalepleriScreen} options={{ title: 'Servis Talepleri' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
@@ -208,6 +217,9 @@ export default function RootNavigator() {
             <Stack.Screen name="GizlilikPolitikasi" component={GizlilikPolitikasiScreen} options={{ title: 'Gizlilik Politikası' }} />
             <Stack.Screen name="KullanimKosullari" component={KullanimKosullariScreen} options={{ title: 'Kullanım Koşulları' }} />
             <Stack.Screen name="HesabiSil" component={HesabiSilScreen} options={{ title: 'Hesabı Sil' }} />
+            <Stack.Screen name="Gorusmeler" component={GorusmelerScreen} options={{ title: 'Görüşmelerim' }} />
+            <Stack.Screen name="YeniGorusme" component={YeniGorusmeScreen} options={{ title: 'Yeni Görüşme' }} />
+            <Stack.Screen name="GorusmeDetay" component={GorusmeDetayScreen} options={{ title: 'Görüşme Detayı' }} />
           </>
         )}
       </Stack.Navigator>

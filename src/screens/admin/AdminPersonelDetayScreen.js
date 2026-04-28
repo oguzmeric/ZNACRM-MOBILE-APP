@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { arrayToCamel, toCamel } from '../../lib/mapper'
 import { banaAtananTalepler } from '../../services/servisService'
 import { kullaniciAktiflikGuncelle, adminSifreSifirla, geciciSifreUret } from '../../services/kullaniciService'
+import { teknisyenStoktariniGetir } from '../../services/stokKalemiService'
 import { Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import { durumBul } from '../../utils/servisConstants'
 import { tarihSaatFormat } from '../../utils/format'
@@ -19,6 +20,7 @@ export default function AdminPersonelDetayScreen({ route, navigation }) {
   const [talepler, setTalepler] = useState([])
   const [malzemeler, setMalzemeler] = useState([])
   const [lokasyonlar, setLokasyonlar] = useState([])
+  const [uzerindeStok, setUzerindeStok] = useState([])
   const [loading, setLoading] = useState(true)
   const [guncelleniyor, setGuncelleniyor] = useState(false)
 
@@ -77,6 +79,10 @@ export default function AdminPersonelDetayScreen({ route, navigation }) {
         .map(([lokasyon, sayi]) => ({ lokasyon, sayi }))
         .sort((a, b) => b.sayi - a.sayi)
     )
+
+    // Üzerindeki stok (durum: teknisyende)
+    const stok = await teknisyenStoktariniGetir(kullaniciId)
+    setUzerindeStok(stok ?? [])
 
     setLoading(false)
   }, [kullaniciId])
@@ -239,6 +245,45 @@ export default function AdminPersonelDetayScreen({ route, navigation }) {
               <Text style={[styles.lokAd, { color: colors.textPrimary }]} numberOfLines={1}>{l.lokasyon}</Text>
               <Text style={[styles.lokSayi, { color: colors.textMuted }]}>{l.sayi}×</Text>
             </View>
+          ))
+        )}
+
+        {/* Üzerindeki stok */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 10 }}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted, marginBottom: 0 }]}>
+            📦 Üzerindeki Stok ({uzerindeStok.length})
+          </Text>
+          {uzerindeStok.length > 5 && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AdminPersonelStok', { kullaniciId, ad })}
+              activeOpacity={0.7}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            >
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Tümünü Gör</Text>
+              <Feather name="chevron-right" size={14} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
+        {uzerindeStok.length === 0 ? (
+          <Text style={[styles.bos, { color: colors.textFaded }]}>Bu personelde stok yok.</Text>
+        ) : (
+          uzerindeStok.slice(0, 5).map((s) => (
+            <TouchableOpacity
+              key={s.id}
+              style={[styles.malzemeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={() => navigation.navigate('CihazDetay', { kalemId: s.id })}
+              activeOpacity={0.8}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.malzemeAd, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {s.marka ?? ''} {s.model ?? ''}
+                </Text>
+                <Text style={[styles.malzemeKodu, { color: colors.textFaded }]} numberOfLines={1}>
+                  S/N: {s.seriNo ?? '—'}{s.stokKodu ? ` · ${s.stokKodu}` : ''}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.textFaded} />
+            </TouchableOpacity>
           ))
         )}
 

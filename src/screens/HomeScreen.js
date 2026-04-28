@@ -122,6 +122,14 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => navigation.navigate('Müşteriler')}
               />
             )}
+            {gorunur('gorusmeler') && (
+              <Tile
+                title="Görüşmelerim"
+                hint="Yeni & geçmiş"
+                icon={<Feather name="message-circle" size={28} color="#fbbf24" />}
+                onPress={() => navigation.navigate('Gorusmeler')}
+              />
+            )}
           </View>
         </View>
 

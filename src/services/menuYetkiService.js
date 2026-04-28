@@ -3,13 +3,14 @@ import { arrayToCamel } from '../lib/mapper'
 
 // Menü anahtarları — HomeScreen'deki tile'lar + destek shortcut
 export const MENU_LISTESI = [
-  { anahtar: 'gorevler',  ad: 'Görevler' },
-  { anahtar: 'servisler', ad: 'Servisler' },
-  { anahtar: 'tara',      ad: 'Tara' },
-  { anahtar: 'stok',      ad: 'Stok' },
-  { anahtar: 'teklif',    ad: 'Teklif' },
-  { anahtar: 'musteriler',ad: 'Müşteriler' },
-  { anahtar: 'destek',    ad: 'Destek' },
+  { anahtar: 'gorevler',   ad: 'Görevler' },
+  { anahtar: 'servisler',  ad: 'Servisler' },
+  { anahtar: 'tara',       ad: 'Tara' },
+  { anahtar: 'stok',       ad: 'Stok' },
+  { anahtar: 'teklif',     ad: 'Teklif' },
+  { anahtar: 'musteriler', ad: 'Müşteriler' },
+  { anahtar: 'gorusmeler', ad: 'Görüşmelerim' },
+  { anahtar: 'destek',     ad: 'Destek' },
 ]
 
 // Yetki yönetiminde gizlenecek admin unvanları — kendi yetkisini kısıtlamasın
