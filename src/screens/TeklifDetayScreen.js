@@ -215,6 +215,52 @@ export default function TeklifDetayScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* Revizyon geçmişi */}
+        {Array.isArray(teklif.revizyonGecmisi) && teklif.revizyonGecmisi.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, { marginTop: 20, color: colors.textMuted }]}>
+              📜 Revizyon Geçmişi ({teklif.revizyonGecmisi.length})
+            </Text>
+            <View style={[styles.gecmisKart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {teklif.revizyonGecmisi.slice().reverse().map((h, i, arr) => {
+                const sonrakiToplam = i === 0 ? toplam.genelToplam : arr[i - 1].genelToplam
+                const fark = sonrakiToplam - h.genelToplam
+                const farkRenk = fark > 0 ? colors.danger : fark < 0 ? colors.success : colors.textMuted
+                return (
+                  <View
+                    key={i}
+                    style={[
+                      styles.gecmisSatir,
+                      i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.gecmisLabel, { color: colors.textPrimary }]}>
+                        Revizyon {h.revizyon}
+                      </Text>
+                      <Text style={[styles.gecmisAlt, { color: colors.textMuted }]}>
+                        {tarihFormat(h.snapshotTarihi ?? h.tarih)}
+                        {h.snapshotAlan ? ` · ${h.snapshotAlan}` : ''}
+                        {Array.isArray(h.satirlar) ? ` · ${h.satirlar.length} satır` : ''}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={[styles.gecmisToplam, { color: colors.textPrimary }]}>
+                        {paraFormat(h.genelToplam, h.paraBirimi)}
+                      </Text>
+                      {fark !== 0 && (
+                        <Text style={[styles.gecmisFark, { color: farkRenk }]}>
+                          {fark > 0 ? '↑ +' : '↓ '}{paraFormat(Math.abs(fark), h.paraBirimi)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                )
+              })}
+            </View>
+          </>
+        )}
+
         {/* Durum değiştir */}
         <Text style={[styles.sectionLabel, { marginTop: 20, color: colors.textMuted }]}>Durumu Değiştir</Text>
         <View style={styles.durumGrid}>
@@ -292,6 +338,12 @@ function ToplamSatiri({ label, deger, renk, bold, colors }) {
 }
 
 const styles = StyleSheet.create({
+  gecmisKart: { borderRadius: 12, borderWidth: 1, marginTop: 6 },
+  gecmisSatir: { flexDirection: 'row', alignItems: 'center', padding: 12 },
+  gecmisLabel: { fontSize: 13, fontWeight: '700' },
+  gecmisAlt: { fontSize: 11, marginTop: 2 },
+  gecmisToplam: { fontSize: 14, fontWeight: '800' },
+  gecmisFark: { fontSize: 11, fontWeight: '700', marginTop: 2 },
   teklifNo: { color: '#60a5fa', fontWeight: '700', fontSize: 14 },
   durumBadge: {
     alignSelf: 'flex-start',

@@ -16,6 +16,8 @@ import { useFocusEffect } from '@react-navigation/native'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { Feather } from '@expo/vector-icons'
 import { Image } from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
+import { servisEkiYukle } from '../services/servisEkService'
 import MalzemePlanModal from '../components/MalzemePlanModal'
 import ImzaModal from '../components/ImzaModal'
 import {
@@ -53,6 +55,7 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [updating, setUpdating] = useState(false)
   const [yeniNot, setYeniNot] = useState('')
   const [notKaydediliyor, setNotKaydediliyor] = useState(false)
+  const [fotoYukleniyor, setFotoYukleniyor] = useState(false)
 
   // Malzeme planı
   const [malzemePlani, setMalzemePlani] = useState([])
@@ -94,9 +97,12 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     setDuzenlenenPlan(null)
   }
 
-  const imzaKaydet = async (base64) => {
+  const imzaKaydet = async (base64, teslimAlanAd) => {
     try {
-      const guncel = await servisTalepGuncelle(id, { musteriImza: base64 })
+      const guncel = await servisTalepGuncelle(id, {
+        musteriImza: base64,
+        teslimAlanAd: teslimAlanAd ?? null,
+      })
       if (!guncel) {
         throw new Error('Veritabanı güncellenemedi')
       }
@@ -188,6 +194,75 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     } else {
       Alert.alert('Hata', 'Not eklenemedi.')
     }
+  }
+
+  // Atanan teknisyen veya admin foto ekleyebilir
+  const fotoYetkisi = adminModu || (talep && kullanici && talep.atananKullaniciId === kullanici.id)
+
+  const fotoSec = (kaynak) => {
+    if (!fotoYetkisi) return
+    const acilis = kaynak === 'kamera'
+      ? ImagePicker.launchCameraAsync
+      : ImagePicker.launchImageLibraryAsync
+    return acilis({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })
+  }
+
+  const fotoEkle = async (kaynak) => {
+    try {
+      // İzin
+      if (kaynak === 'kamera') {
+        const izin = await ImagePicker.requestCameraPermissionsAsync()
+        if (!izin.granted) {
+          Alert.alert('İzin gerekli', 'Kamera erişimi reddedildi.')
+          return
+        }
+      } else {
+        const izin = await ImagePicker.requestMediaLibraryPermissionsAsync()
+        if (!izin.granted) {
+          Alert.alert('İzin gerekli', 'Galeri erişimi reddedildi.')
+          return
+        }
+      }
+
+      const sonuc = await fotoSec(kaynak)
+      if (!sonuc || sonuc.canceled || !sonuc.assets?.[0]?.uri) return
+
+      setFotoYukleniyor(true)
+      const yuklenen = await servisEkiYukle(talep.id, sonuc.assets[0].uri)
+      if (!yuklenen.ok) {
+        setFotoYukleniyor(false)
+        Alert.alert('Yüklenemedi', yuklenen.hata ?? 'Bilinmeyen hata')
+        return
+      }
+
+      // Mevcut dosyalar dizisine ekle
+      const yeniDosya = {
+        url: yuklenen.url,
+        ad: `Foto-${Date.now()}`,
+        tip: 'image',
+        ekleyen: kullanici?.ad ?? null,
+        eklenme: new Date().toISOString(),
+      }
+      const yeniDosyalar = [...(talep.dosyalar ?? []), yeniDosya]
+      const guncel = await servisTalepGuncelle(talep.id, { dosyalar: yeniDosyalar })
+      setFotoYukleniyor(false)
+      if (guncel) {
+        setTalep(guncel)
+      } else {
+        Alert.alert('Kaydedilemedi', 'Foto yüklendi ama talep güncellenemedi.')
+      }
+    } catch (e) {
+      setFotoYukleniyor(false)
+      Alert.alert('Hata', String(e?.message ?? e))
+    }
+  }
+
+  const fotoSecimSor = () => {
+    Alert.alert('Fotoğraf Ekle', 'Kaynak seç', [
+      { text: 'Kamera', onPress: () => fotoEkle('kamera') },
+      { text: 'Galeri', onPress: () => fotoEkle('galeri') },
+      { text: 'Vazgeç', style: 'cancel' },
+    ])
   }
 
   const sil = () => {
@@ -684,6 +759,7 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         visible={imzaModalOpen}
         onClose={() => setImzaModalOpen(false)}
         onKaydet={imzaKaydet}
+        baslangicAd={talep?.teslimAlanAd ?? talep?.ilgiliKisi ?? ''}
       />
 
       <ServisFormuOnizleModal

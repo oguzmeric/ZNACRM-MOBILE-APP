@@ -67,6 +67,37 @@ export const teklifGuncelle = async (id, guncellenmis) => {
   return toCamel(data)
 }
 
+// Revize oluştur: önce mevcut hali geçmişe al, sonra yeni revizyon numarası
+export const teklifRevize = async (id, yeniVeri) => {
+  // Mevcut teklifi çek
+  const mevcut = await teklifGetir(id)
+  if (!mevcut) return null
+
+  // Toplamı hesapla
+  const { genelToplam } = teklifToplamHesapla(mevcut.satirlar ?? [], Number(mevcut.genelIskonto) || 0)
+
+  // Snapshot — sadece kritik alanlar (boyut için)
+  const snapshot = {
+    revizyon: mevcut.revizyon ?? 0,
+    tarih: mevcut.tarih ?? null,
+    genelToplam,
+    paraBirimi: mevcut.paraBirimi ?? 'TL',
+    satirlar: mevcut.satirlar ?? [],
+    snapshotTarihi: new Date().toISOString(),
+    snapshotAlan: yeniVeri.hazirlayan ?? mevcut.hazirlayan ?? null,
+  }
+
+  const yeniGecmis = [...(mevcut.revizyonGecmisi ?? []), snapshot]
+  const yeniRevizyon = (mevcut.revizyon ?? 0) + 1
+
+  return teklifGuncelle(id, {
+    ...yeniVeri,
+    revizyon: yeniRevizyon,
+    revizyonGecmisi: yeniGecmis,
+    onayDurumu: 'revizyon',
+  })
+}
+
 export const teklifDurumGuncelle = (id, onayDurumu) =>
   teklifGuncelle(id, { onayDurumu })
 

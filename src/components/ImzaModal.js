@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
   Modal,
   Alert,
   ActivityIndicator,
@@ -14,18 +15,27 @@ import Signature from 'react-native-signature-canvas'
 // Müşteri imza modal — signature-canvas kendi dahili butonlarını kullanıyor
 // (Kaydet/Temizle) böylece onOK/onClear event'leri garanti çalışır.
 
-export default function ImzaModal({ visible, onClose, onKaydet }) {
+export default function ImzaModal({ visible, onClose, onKaydet, baslangicAd = '' }) {
   const ref = useRef()
   const [kaydediliyor, setKaydediliyor] = useState(false)
+  const [adSoyad, setAdSoyad] = useState(baslangicAd)
+
+  useEffect(() => {
+    if (visible) setAdSoyad(baslangicAd ?? '')
+  }, [visible, baslangicAd])
 
   const imzaAlindi = async (base64) => {
     if (!base64 || base64.length < 100) {
       Alert.alert('Boş İmza', 'İmza algılanamadı, lütfen daha belirgin çiz.')
       return
     }
+    if (!adSoyad.trim()) {
+      Alert.alert('Eksik', 'Teslim alan kişinin adı soyadı gerekli.')
+      return
+    }
     setKaydediliyor(true)
     try {
-      await onKaydet?.(base64)
+      await onKaydet?.(base64, adSoyad.trim())
       onClose?.()
     } catch (e) {
       Alert.alert('Hata', 'İmza kaydedilemedi: ' + (e?.message ?? 'bilinmeyen'))
@@ -64,8 +74,21 @@ export default function ImzaModal({ visible, onClose, onKaydet }) {
         </View>
 
         <Text style={styles.aciklama}>
-          Aşağıdaki alana parmakla imza at, sonra "Kaydet"e dokun.
+          Teslim alan kişinin ad soyadını yaz, alana parmakla imzala, "Kaydet"e dokun.
         </Text>
+
+        <View style={styles.adKutu}>
+          <Text style={styles.adLabel}>TESLİM ALAN AD SOYAD *</Text>
+          <TextInput
+            style={styles.adInput}
+            value={adSoyad}
+            onChangeText={setAdSoyad}
+            placeholder="Tam ad soyad (örn: Ahmet Yılmaz)"
+            placeholderTextColor="#64748b"
+            autoCapitalize="words"
+            editable={!kaydediliyor}
+          />
+        </View>
 
         <View style={styles.imzaAlan}>
           <Signature
@@ -168,4 +191,26 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   onayText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  adKutu: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  adLabel: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+  adInput: {
+    backgroundColor: '#1e293b',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
 })

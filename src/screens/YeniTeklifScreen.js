@@ -24,6 +24,7 @@ import {
   teklifEkle,
   teklifGetir,
   teklifGuncelle,
+  teklifRevize,
   sonrakiTeklifNo,
   satirHesapla,
   teklifToplamHesapla,
@@ -196,11 +197,10 @@ export default function YeniTeklifScreen({ route, navigation }) {
 
     let sonuc
     if (editMode) {
-      // Revize modu — revizyon numarasını artır, durumu "takipte" yap
-      sonuc = await teklifGuncelle(editId, {
+      // Revize modu — eski hali geçmişe kaydet, yeni revizyon
+      sonuc = await teklifRevize(editId, {
         ...veri,
-        revizyon: mevcutRevizyon + 1,
-        onayDurumu: 'takipte',
+        hazirlayan: kullanici?.ad ?? null,
       })
     } else {
       sonuc = await teklifEkle({

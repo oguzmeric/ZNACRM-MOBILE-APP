@@ -97,6 +97,16 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
     : `<div class="imza-bos">İmza alınmadı</div>`
 
   // Forma özel bloklar
+  // Notlar birleştirilip "Yapılan Müdahale" alanına yazılır (yeni → eski)
+  const notlarMetni = Array.isArray(talep.notlar) && talep.notlar.length > 0
+    ? talep.notlar
+        .slice()
+        .sort((a, b) => new Date(b.tarih ?? 0) - new Date(a.tarih ?? 0))
+        .map((n) => `• ${n.icerik ?? n.metin ?? ''}`)
+        .filter(Boolean)
+        .join('\n')
+    : ''
+
   const arizaBlogu = profil.tip === 'ariza' ? `
     <div class="blok">
       <div class="baslik">Arıza Tanımı</div>
@@ -107,20 +117,16 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
     <div class="grid2">
       <div class="kart">
         <h3>Kök Sebep / Tespit</h3>
-        <div class="bos-cizgiler">
-          <div></div><div></div><div></div>
+        <div class="aciklama-kutu" style="min-height:60px;background:#fff;border-left:none;border:1px solid #e2e8f0;">
+          ${escapeHtml(talep.kokSebep ?? '').replace(/\n/g, '<br>') || '&nbsp;'}
         </div>
       </div>
       <div class="kart">
         <h3>Yapılan Müdahale</h3>
-        <div class="bos-cizgiler">
-          <div></div><div></div><div></div>
+        <div class="aciklama-kutu" style="min-height:60px;background:#fff;border-left:none;border:1px solid #e2e8f0;white-space:pre-line;">
+          ${escapeHtml(talep.yapilanMudahale ?? notlarMetni).replace(/\n/g, '<br>') || '&nbsp;'}
         </div>
       </div>
-    </div>
-    <div class="blok">
-      <div class="baslik">Test Sonuçları</div>
-      <div class="aciklama-kutu" style="min-height:50px;background:#fff;"></div>
     </div>
   ` : ''
 
@@ -335,29 +341,30 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
   .imza-kutu {
     border: 1px solid #cbd5e1;
     border-radius: 8px;
-    padding: 10px;
-    min-height: 120px;
+    padding: 12px;
+    min-height: 200px;
   }
   .imza-kutu .imza-baslik {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 800;
     color: #64748b;
     text-transform: uppercase;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     letter-spacing: 0.6px;
   }
   .imza-kutu .imza-img {
-    max-width: 100%;
-    max-height: 70px;
+    width: 100%;
+    height: 130px;
+    object-fit: contain;
     display: block;
   }
   .imza-bos {
-    height: 70px;
+    height: 130px;
     border: 1px dashed #cbd5e1;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 11px;
     color: #94a3b8;
     border-radius: 4px;
   }
@@ -470,11 +477,11 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
         </div>
       </div>
       <div class="imza-kutu">
-        <div class="imza-baslik">Müşteri Onayı</div>
+        <div class="imza-baslik">Teslim Alan / Müşteri Onayı</div>
         ${imzaSection}
         <div class="imza-ad">
           <div class="imza-ad-label">Ad Soyad</div>
-          ${escapeHtml(talep.ilgiliKisi ?? '-')}
+          ${escapeHtml(talep.teslimAlanAd ?? talep.ilgiliKisi ?? '-')}
         </div>
       </div>
     </div>
