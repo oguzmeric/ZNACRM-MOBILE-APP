@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Sentry from '@sentry/react-native'
 import { supabase } from '../lib/supabase'
 import { toCamel } from '../lib/mapper'
 import { kullaniciGirisKontrol, kullaniciDurumGuncelle } from '../services/kullaniciService'
@@ -42,7 +43,12 @@ export const AuthProvider = ({ children }) => {
             await AsyncStorage.removeItem(STORAGE_KEY)
             setKullanici(null)
           } else {
-            setKullanici(JSON.parse(raw))
+            const k = JSON.parse(raw)
+            setKullanici(k)
+            // Sentry'ye kullanıcı bilgisi ekle (hata raporlarında kim olduğu görünsün)
+            try {
+              Sentry.setUser({ id: String(k.id), username: k.kullaniciAdi, email: k.email })
+            } catch (_) {}
           }
         }
       } catch (e) {

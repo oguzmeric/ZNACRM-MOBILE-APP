@@ -1,6 +1,8 @@
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { ActivityIndicator, View } from 'react-native'
+import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import LoginScreen from '../screens/LoginScreen'
@@ -45,9 +47,51 @@ import AdminStokRaporuScreen from '../screens/admin/AdminStokRaporuScreen'
 import AdminKronikArizaScreen from '../screens/admin/AdminKronikArizaScreen'
 import AdminRaporlarScreen from '../screens/admin/AdminRaporlarScreen'
 import AdminDestekTalepleriScreen from '../screens/admin/AdminDestekTalepleriScreen'
+import AdminMenuYetkileriScreen from '../screens/admin/AdminMenuYetkileriScreen'
+import AdminAktivitelerScreen from '../screens/admin/AdminAktivitelerScreen'
 import { yonetimPaneliErisimi } from '../utils/yetki'
 
 const Stack = createNativeStackNavigator()
+const Tab = createBottomTabNavigator()
+
+function TeknisyenTabs() {
+  const { colors } = useTheme()
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          paddingTop: 6,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarIcon: ({ color, size }) => {
+          const ikonAd = {
+            'Ana Sayfa': 'home',
+            'Görevler': 'check-square',
+            'Servisler': 'tool',
+            'Tara': 'maximize',
+            'Profil': 'user',
+          }[route.name]
+          return <Feather name={ikonAd ?? 'circle'} size={size} color={color} />
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        headerStyle: { backgroundColor: colors.bg },
+        headerTitleStyle: { color: colors.textPrimary, fontWeight: '700' },
+        headerTintColor: colors.textPrimary,
+      })}
+    >
+      <Tab.Screen name="Ana Sayfa" component={HomeScreen} />
+      <Tab.Screen name="Görevler" component={GorevlerScreen} options={{ headerShown: true, title: 'Görevler' }} />
+      <Tab.Screen name="Servisler" component={ServisTalepleriScreen} options={{ headerShown: true, title: 'Servisler' }} />
+      <Tab.Screen name="Tara" component={TaraScreen} options={{ headerShown: true, title: 'Cihaz Tara', headerStyle: { backgroundColor: '#000' }, headerTintColor: '#fff' }} />
+      <Tab.Screen name="Profil" component={ProfilScreen} />
+    </Tab.Navigator>
+  )
+}
 
 export default function RootNavigator() {
   const { kullanici, loading, mod } = useAuth()
@@ -126,25 +170,25 @@ export default function RootNavigator() {
             <Stack.Screen name="AdminKronikAriza" component={AdminKronikArizaScreen} options={{ title: 'Kronik Arıza' }} />
             <Stack.Screen name="AdminRaporlar" component={AdminRaporlarScreen} options={{ title: 'Raporlar' }} />
             <Stack.Screen name="AdminDestekTalepleri" component={AdminDestekTalepleriScreen} options={{ title: 'Destek Talepleri' }} />
+            <Stack.Screen name="AdminMenuYetkileri" component={AdminMenuYetkileriScreen} options={{ title: 'Menü Yetkileri' }} />
+            <Stack.Screen name="AdminAktiviteler" component={AdminAktivitelerScreen} options={{ title: 'Tüm Aktiviteler' }} />
             <Stack.Screen name="ServisDetay" component={ServisTalebiDetayScreen} options={{ title: 'Servis Detayı' }} />
+            <Stack.Screen name="Servisler" component={ServisTalepleriScreen} options={{ title: 'Servis Talepleri' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
           </>
         ) : (
           <>
-            <Stack.Screen name="Ana Sayfa" component={HomeScreen} />
-            <Stack.Screen name="Profil" component={ProfilScreen} options={{ title: 'Profil' }} />
+            {/* Bottom tab — Ana Sayfa + Görevler + Servisler + Tara + Profil */}
+            <Stack.Screen name="TeknisyenAna" component={TeknisyenTabs} options={{ headerShown: false }} />
             <Stack.Screen name="DestekListe" component={DestekListeScreen} options={{ title: 'Destek Taleplerim' }} />
             <Stack.Screen name="YeniDestek" component={YeniDestekScreen} options={{ title: 'Yeni Destek Talebi' }} />
             <Stack.Screen name="DestekDetay" component={DestekDetayScreen} options={{ title: 'Talep Detayı' }} />
-            <Stack.Screen name="Görevler" component={GorevlerScreen} />
             <Stack.Screen name="GörevDetay" component={GorevDetayScreen} options={{ title: 'Görev Detayı' }} />
             <Stack.Screen name="YeniGörev" component={YeniGorevScreen} options={{ title: 'Yeni Görev' }} />
-            <Stack.Screen name="Servisler" component={ServisTalepleriScreen} options={{ title: 'Servis Talepleri' }} />
             <Stack.Screen name="ServisDetay" component={ServisTalebiDetayScreen} options={{ title: 'Servis Detayı' }} />
             <Stack.Screen name="YeniServisTalebi" component={YeniServisTalebiScreen} options={{ title: 'Yeni Servis Talebi' }} />
             <Stack.Screen name="MalzemeTeslimAl" component={MalzemeTeslimAlScreen} options={{ title: 'Malzeme Teslim Al' }} />
             <Stack.Screen name="MalzemeKullan" component={MalzemeKullanScreen} options={{ title: 'Sahada Kullan' }} />
-            <Stack.Screen name="Tara" component={TaraScreen} options={{ title: 'Cihaz Tara', headerStyle: { backgroundColor: '#000' } }} />
             <Stack.Screen name="CihazDetay" component={CihazDetayScreen} options={{ title: 'Cihaz Detayı' }} />
             <Stack.Screen name="YeniCihaz" component={YeniCihazScreen} options={{ title: 'Yeni Cihaz Kaydı' }} />
             <Stack.Screen name="Stok" component={StokScreen} />

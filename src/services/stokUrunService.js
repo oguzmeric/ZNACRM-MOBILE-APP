@@ -3,6 +3,18 @@ import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 
 // Bulk ürün katalog işlemleri (stok_urunler) ve hareket geçmişi (stok_hareketleri)
 
+export const tumStokUrunleriniGetir = async () => {
+  const { data, error } = await supabase
+    .from('stok_urunler')
+    .select('*')
+    .order('stok_adi', { ascending: true })
+  if (error) {
+    console.warn('[stokUrun] liste hatası:', error.message)
+    return []
+  }
+  return arrayToCamel(data ?? [])
+}
+
 export const stokUrunGetir = async (stokKodu) => {
   const { data } = await supabase
     .from('stok_urunler')

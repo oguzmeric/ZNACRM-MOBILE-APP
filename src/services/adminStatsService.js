@@ -153,10 +153,11 @@ export const aktiviteFeed = async (limit = 20) => {
 }
 
 // Dönem bazlı istatistik — bugün, 7 gün, 30 gün, bu ay, tüm zamanlar
-export const donemIstatistigi = async (baslangicTarihi) => {
+export const donemIstatistigi = async (baslangicTarihi, atananAd = null) => {
   const baslangic = baslangicTarihi ? baslangicTarihi.toISOString() : null
   let q = supabase.from('servis_talepleri').select('durum, ana_tur, olusturma_tarihi, atanan_kullanici_ad')
   if (baslangic) q = q.gte('olusturma_tarihi', baslangic)
+  if (atananAd) q = q.eq('atanan_kullanici_ad', atananAd)
   const { data } = await q.range(0, 19999)
   if (!data) return null
 

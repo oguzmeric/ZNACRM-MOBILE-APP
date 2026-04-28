@@ -13,7 +13,7 @@ const escapeHtml = (s) =>
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
 
-export function raporHtml({ istatistik, donem, logoBase64 = null }) {
+export function raporHtml({ istatistik, donem, logoBase64 = null, filtreEtiketi = null }) {
   if (!istatistik) return '<p>Veri yok.</p>'
 
   const durumRows = Object.entries(istatistik.durumSay)
@@ -164,7 +164,7 @@ export function raporHtml({ istatistik, donem, logoBase64 = null }) {
       </div>
       <div class="baslik">
         <h1>YÖNETİM RAPORU</h1>
-        <div class="alt">${DONEM_LABEL[donem] ?? donem} · ${tarihStr} ${saatStr}</div>
+        <div class="alt">${DONEM_LABEL[donem] ?? donem} · ${tarihStr} ${saatStr}${filtreEtiketi ? ` · ${escapeHtml(filtreEtiketi)}` : ''}</div>
       </div>
     </header>
 

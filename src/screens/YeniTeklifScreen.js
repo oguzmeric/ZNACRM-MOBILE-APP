@@ -32,6 +32,7 @@ import TakvimPicker from '../components/TakvimPicker'
 import { tarihFormat } from '../utils/format'
 import { paraFormat } from '../utils/paraFormat'
 import { trIcerir } from '../utils/trSearch'
+import { tumStokUrunleriniGetir } from '../services/stokUrunService'
 
 const PARA_BIRIMLERI = ['TL', 'USD', 'EUR']
 const ODEME_SECENEKLERI = ['Peşin', '30 Gün', '60 Gün', 'Havale/EFT', 'Çek', 'Diğer']
@@ -613,6 +614,10 @@ function SatirModal({ visible, onClose, initial, onSave, paraBirimi }) {
   const [iskonto, setIskonto] = useState('0')
   const [kdv, setKdv] = useState('20')
 
+  // Ürün kataloğu (autocomplete için)
+  const [katalog, setKatalog] = useState([])
+  const [oneriGoster, setOneriGoster] = useState(false)
+
   useEffect(() => {
     if (visible) {
       setStokAdi(initial?.stokAdi ?? '')
@@ -622,8 +627,30 @@ function SatirModal({ visible, onClose, initial, onSave, paraBirimi }) {
       setBirimFiyat(String(initial?.birimFiyat ?? '0'))
       setIskonto(String(initial?.iskonto ?? '0'))
       setKdv(String(initial?.kdv ?? '20'))
+      setOneriGoster(false)
+      // Katalog'u bir kez yükle
+      if (katalog.length === 0) {
+        tumStokUrunleriniGetir().then((urunler) => setKatalog(urunler))
+      }
     }
   }, [visible, initial])
+
+  const oneriler = useMemo(() => {
+    if (!oneriGoster) return []
+    const q = stokAdi.trim()
+    if (!q) return katalog.slice(0, 20)
+    return katalog
+      .filter((u) => trIcerir([u.stokAdi, u.stokKodu], stokAdi))
+      .slice(0, 20)
+  }, [katalog, stokAdi, oneriGoster])
+
+  const urunSec = (u) => {
+    setStokAdi(u.stokAdi ?? '')
+    setStokKodu(u.stokKodu ?? '')
+    if (u.birim) setBirim(u.birim)
+    if (u.satisFiyati != null) setBirimFiyat(String(u.satisFiyati))
+    setOneriGoster(false)
+  }
 
   const kaydet = () => {
     if (!stokAdi.trim()) {
@@ -670,10 +697,63 @@ function SatirModal({ visible, onClose, initial, onSave, paraBirimi }) {
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
               value={stokAdi}
-              onChangeText={setStokAdi}
-              placeholder="Ürün / hizmet adı"
+              onChangeText={(t) => { setStokAdi(t); setOneriGoster(true) }}
+              onFocus={() => setOneriGoster(true)}
+              placeholder="Ürün adını yazmaya başla, listeden seç…"
               placeholderTextColor={colors.textFaded}
             />
+            {oneriGoster && (
+              <View
+                style={{
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  marginTop: -4,
+                  marginBottom: 8,
+                  overflow: 'hidden',
+                  maxHeight: 280,
+                }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 11 }}>
+                    {katalog.length === 0 ? 'Yükleniyor…' : `${oneriler.length} ürün`}
+                  </Text>
+                  <TouchableOpacity onPress={() => setOneriGoster(false)} activeOpacity={0.7}>
+                    <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>Kapat</Text>
+                  </TouchableOpacity>
+                </View>
+                {oneriler.length === 0 ? (
+                  <Text style={{ padding: 14, color: colors.textMuted, fontSize: 12, fontStyle: 'italic' }}>
+                    {katalog.length === 0 ? 'Katalog yükleniyor…' : 'Eşleşen ürün yok. Elle yazmaya devam edebilirsin.'}
+                  </Text>
+                ) : (
+                  <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled style={{ maxHeight: 240 }}>
+                    {oneriler.map((u) => (
+                      <TouchableOpacity
+                        key={u.stokKodu ?? u.id}
+                        onPress={() => urunSec(u)}
+                        activeOpacity={0.7}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 10,
+                          borderBottomWidth: 1,
+                          borderBottomColor: colors.border,
+                        }}
+                      >
+                        <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>
+                          {u.stokAdi}
+                        </Text>
+                        <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                          {u.stokKodu ? `${u.stokKodu} · ` : ''}{u.birim ?? 'Adet'}
+                          {u.satisFiyati != null ? ` · ${u.satisFiyati} ${paraBirimi ?? '₺'}` : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            )}
 
             <View style={styles.row2}>
               <View style={{ flex: 1 }}>

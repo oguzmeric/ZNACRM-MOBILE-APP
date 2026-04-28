@@ -6,7 +6,8 @@ import { useTheme } from '../../context/ThemeContext'
 import { supabase } from '../../lib/supabase'
 import { arrayToCamel, toCamel } from '../../lib/mapper'
 import { banaAtananTalepler } from '../../services/servisService'
-import { kullaniciAktiflikGuncelle } from '../../services/kullaniciService'
+import { kullaniciAktiflikGuncelle, adminSifreSifirla, geciciSifreUret } from '../../services/kullaniciService'
+import { Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
 import { durumBul } from '../../utils/servisConstants'
 import { tarihSaatFormat } from '../../utils/format'
 
@@ -82,6 +83,37 @@ export default function AdminPersonelDetayScreen({ route, navigation }) {
 
   useEffect(() => { yukle() }, [yukle])
 
+  // Şifre sıfırlama modal state
+  const [sifreModalAcik, setSifreModalAcik] = useState(false)
+  const [yeniSifre, setYeniSifre] = useState('')
+  const [sifreKaydediliyor, setSifreKaydediliyor] = useState(false)
+
+  const sifreModalAc = () => {
+    setYeniSifre(geciciSifreUret(8))
+    setSifreModalAcik(true)
+  }
+
+  const sifreyiSifirla = async () => {
+    if (!kullaniciBilgi?.id) return
+    if (yeniSifre.trim().length < 6) {
+      Alert.alert('Geçersiz', 'Şifre en az 6 karakter olmalı.')
+      return
+    }
+    setSifreKaydediliyor(true)
+    const sonuc = await adminSifreSifirla(kullaniciBilgi.id, yeniSifre.trim())
+    setSifreKaydediliyor(false)
+    if (!sonuc.ok) {
+      Alert.alert('Sıfırlanamadı', sonuc.hata ?? 'Bilinmeyen hata')
+      return
+    }
+    setSifreModalAcik(false)
+    Alert.alert(
+      'Şifre Sıfırlandı',
+      `${kullaniciBilgi.ad} kullanıcısının yeni şifresi:\n\n${yeniSifre.trim()}\n\nBu şifreyi kullanıcıya iletin. Giriş yaptıktan sonra Profil → Şifre Değiştir'den kendi şifresini belirleyebilir.`,
+      [{ text: 'Tamam', style: 'default' }]
+    )
+  }
+
   const aktiflikDegistir = () => {
     if (!kullaniciBilgi) return
     const simdiAktif = !kullaniciBilgi.hesapSilindi
@@ -155,6 +187,36 @@ export default function AdminPersonelDetayScreen({ route, navigation }) {
               </Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {/* Şifre Sıfırla butonu */}
+        {kullaniciBilgi && !kullaniciBilgi.hesapSilindi && (
+          <TouchableOpacity
+            onPress={sifreModalAc}
+            activeOpacity={0.85}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+              padding: 14,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+              marginBottom: 14,
+            }}
+          >
+            <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#f59e0b22', alignItems: 'center', justifyContent: 'center' }}>
+              <Feather name="key" size={16} color="#f59e0b" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 14 }}>Şifre Sıfırla</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                Yeni geçici şifre üret veya yaz
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
         )}
 
         {/* Özet */}
@@ -249,6 +311,79 @@ export default function AdminPersonelDetayScreen({ route, navigation }) {
           })
         )}
       </ScrollView>
+
+      {/* Şifre Sıfırla Modal */}
+      <Modal visible={sifreModalAcik} animationType="slide" transparent onRequestClose={() => setSifreModalAcik(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+          <View style={{ padding: 20, borderTopLeftRadius: 18, borderTopRightRadius: 18, backgroundColor: colors.surface, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.border }}>
+            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>Şifre Sıfırla</Text>
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
+              {kullaniciBilgi?.ad} için yeni şifre belirle.
+            </Text>
+
+            <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textMuted, marginTop: 16, letterSpacing: 0.5 }}>YENİ ŞİFRE</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+              <TextInput
+                value={yeniSifre}
+                onChangeText={setYeniSifre}
+                placeholder="En az 6 karakter"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={{
+                  flex: 1,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  fontSize: 14,
+                  color: colors.textPrimary,
+                  backgroundColor: colors.surfaceDark,
+                }}
+              />
+              <TouchableOpacity
+                onPress={() => setYeniSifre(geciciSifreUret(8))}
+                activeOpacity={0.8}
+                style={{
+                  paddingHorizontal: 12,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surfaceDark,
+                  justifyContent: 'center',
+                }}
+              >
+                <Feather name="refresh-cw" size={16} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={{ fontSize: 11, color: '#f59e0b', marginTop: 8 }}>
+              ⚠ Yeni şifreyi kullanıcıya iletmen gerekecek. Kayıtsız bir yere not alma.
+            </Text>
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+              <TouchableOpacity
+                onPress={() => setSifreModalAcik(false)}
+                activeOpacity={0.8}
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Vazgeç</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={sifreyiSifirla}
+                activeOpacity={0.8}
+                disabled={sifreKaydediliyor}
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, backgroundColor: '#f59e0b', borderColor: '#f59e0b', alignItems: 'center', opacity: sifreKaydediliyor ? 0.6 : 1 }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
+                  {sifreKaydediliyor ? 'Sıfırlanıyor…' : 'Sıfırla'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScreenContainer>
   )
 }

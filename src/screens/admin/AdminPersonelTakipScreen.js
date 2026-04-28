@@ -16,7 +16,9 @@ export default function AdminPersonelTakipScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false)
 
   const yukle = useCallback(async () => {
-    const kisiler = (await kullanicilariGetir()) ?? []
+    const tum = (await kullanicilariGetir()) ?? []
+    // Müşteri portal kullanıcılarını ele — sadece personel görünsün
+    const kisiler = tum.filter((k) => k.tip !== 'musteri' && !k.musteriId)
     const zengin = await Promise.all(
       kisiler.map(async (k) => {
         const [servis, gorev] = await Promise.all([

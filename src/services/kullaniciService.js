@@ -72,6 +72,40 @@ export const kullaniciEkle = async (veri) => {
 }
 
 // Admin: kullanıcıyı pasife al / tekrar aktif et
+// Admin: başka bir kullanıcının şifresini sıfırla (RPC)
+export const adminSifreSifirla = async (kullaniciId, yeniSifre) => {
+  const { error } = await supabase.rpc('admin_sifre_sifirla', {
+    hedef_id: kullaniciId,
+    yeni_sifre: yeniSifre,
+  })
+  if (error) return { ok: false, hata: error.message }
+  return { ok: true }
+}
+
+// Rastgele geçici şifre üret (8 karakter — harf+rakam)
+export const geciciSifreUret = (uzunluk = 8) => {
+  const harfler = 'ABCDEFGHJKLMNPQRSTUVWXYZ' // I, O karıştırıcı çıkarıldı
+  const kucuk = 'abcdefghijkmnpqrstuvwxyz'
+  const rakam = '23456789'
+  const tum = harfler + kucuk + rakam
+  let s = ''
+  for (let i = 0; i < uzunluk; i++) s += tum[Math.floor(Math.random() * tum.length)]
+  return s
+}
+
+// Bir kullanıcının unvanını güncelle (admin işlemi)
+export const kullaniciUnvanGuncelle = async (id, unvan) => {
+  const { error } = await supabase
+    .from('kullanicilar')
+    .update({ unvan: (unvan ?? '').trim() || null })
+    .eq('id', id)
+  if (error) {
+    console.error('[kullaniciUnvanGuncelle] hata:', error.message)
+    return false
+  }
+  return true
+}
+
 export const kullaniciAktiflikGuncelle = async (id, aktif) => {
   const { error } = await supabase
     .from('kullanicilar')

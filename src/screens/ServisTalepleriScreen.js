@@ -27,10 +27,13 @@ const SEKMELER = [
   { id: 'tumu', label: 'Tümü' },
 ]
 
-export default function ServisTalepleriScreen({ navigation }) {
+export default function ServisTalepleriScreen({ navigation, route }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
-  const [aktifSekme, setAktifSekme] = useState('bana')
+  const ilkSekme = route?.params?.sekme && SEKMELER.some((s) => s.id === route.params.sekme)
+    ? route.params.sekme
+    : 'bana'
+  const [aktifSekme, setAktifSekme] = useState(ilkSekme)
   const [talepler, setTalepler] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)

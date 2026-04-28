@@ -20,7 +20,7 @@ export default function AdminDashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false)
 
   const yukle = useCallback(async () => {
-    const [veri, feed] = await Promise.all([adminKpiGetir(), aktiviteFeed(20)])
+    const [veri, feed] = await Promise.all([adminKpiGetir(), aktiviteFeed(5)])
     setKpi(veri)
     setOlaylar(feed ?? [])
     setYukleniyor(false)
@@ -71,13 +71,37 @@ export default function AdminDashboardScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Placeholder KPI kartları — sonraki adımda veri bağlanacak */}
+          {/* KPI kartları — tıklanınca ilgili ekrana git */}
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>⚡ Özet</Text>
           <View style={styles.kpiGrid}>
-            <KpiCard sayi={kpiDeger(kpi.onayBekleyen)} label="Atanmamış" ikon="user-x" renk="#f59e0b" />
-            <KpiCard sayi={kpiDeger(kpi.aktifServis)} label="Aktif Servis" ikon="briefcase" renk="#2563eb" />
-            <KpiCard sayi={kpiDeger(kpi.kronikAriza)} label="Kronik Arıza" ikon="alert-triangle" renk="#ef4444" />
-            <KpiCard sayi={kpiDeger(kpi.minStokAlti)} label="Min-Stok Altı" ikon="package" renk="#a855f7" />
+            <KpiCard
+              sayi={kpiDeger(kpi.onayBekleyen)}
+              label="Atanmamış"
+              ikon="user-x"
+              renk="#f59e0b"
+              onPress={() => navigation.navigate('AdminServisAtama')}
+            />
+            <KpiCard
+              sayi={kpiDeger(kpi.aktifServis)}
+              label="Aktif Servis"
+              ikon="briefcase"
+              renk="#2563eb"
+              onPress={() => navigation.navigate('Servisler', { sekme: 'acik' })}
+            />
+            <KpiCard
+              sayi={kpiDeger(kpi.kronikAriza)}
+              label="Kronik Arıza"
+              ikon="alert-triangle"
+              renk="#ef4444"
+              onPress={() => navigation.navigate('AdminKronikAriza')}
+            />
+            <KpiCard
+              sayi={kpiDeger(kpi.minStokAlti)}
+              label="Min-Stok Altı"
+              ikon="package"
+              renk="#a855f7"
+              onPress={() => navigation.navigate('AdminStokRaporu')}
+            />
           </View>
 
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>🗂️ Modüller</Text>
@@ -142,10 +166,27 @@ export default function AdminDashboardScreen({ navigation }) {
               renk="#06b6d4"
               onPress={() => navigation.navigate('AdminRaporlar')}
             />
+            <ModuleCard
+              title="Menü Yetkileri"
+              hint="Kim hangi menüyü görsün"
+              ikon="sliders"
+              renk="#8b5cf6"
+              onPress={() => navigation.navigate('AdminMenuYetkileri')}
+            />
           </View>
 
-          {/* Aktivite feed */}
-          <Text style={[styles.sectionLabel, { color: colors.textMuted, marginTop: 8 }]}>📡 Son Aktiviteler</Text>
+          {/* Aktivite feed — son 5 + Tümünü Gör */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted, marginBottom: 0 }]}>📡 Son Aktiviteler</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AdminAktiviteler')}
+              activeOpacity={0.7}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 }}
+            >
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Tümünü Gör</Text>
+              <Feather name="chevron-right" size={14} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
           {olaylar.length === 0 ? (
             <Text style={[styles.bos, { color: colors.textFaded }]}>Henüz aktivite yok.</Text>
           ) : (
@@ -196,16 +237,21 @@ export default function AdminDashboardScreen({ navigation }) {
   )
 }
 
-function KpiCard({ sayi, label, ikon, renk }) {
+function KpiCard({ sayi, label, ikon, renk, onPress }) {
   const { colors } = useTheme()
+  const Wrap = onPress ? TouchableOpacity : View
   return (
-    <View style={[styles.kpiCard, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: renk }]}>
+    <Wrap
+      style={[styles.kpiCard, { backgroundColor: colors.surface, borderColor: colors.border, borderLeftColor: renk }]}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+    >
       <View style={styles.kpiHeaderRow}>
         <Feather name={ikon} size={16} color={renk} />
         <Text style={[styles.kpiSayi, { color: renk }]}>{sayi}</Text>
       </View>
       <Text style={[styles.kpiLabel, { color: colors.textSecondary }]}>{label}</Text>
-    </View>
+    </Wrap>
   )
 }
 

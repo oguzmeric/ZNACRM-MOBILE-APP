@@ -15,11 +15,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.crm.mobile",
+      "bundleIdentifier": "com.zna.crmmobile",
       "infoPlist": {
         "NSCameraUsageDescription": "Ürün barkod ve seri numaralarını okumak için kamera gerekir.",
         "NSPhotoLibraryUsageDescription": "Servis raporlarına foto eklemek için galeri erişimi gerekir.",
-        "NSLocationWhenInUseUsageDescription": "Cihazın takıldığı lokasyonu kaydetmek için konum gerekir."
+        "NSLocationWhenInUseUsageDescription": "Cihazın takıldığı lokasyonu kaydetmek için konum gerekir.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -40,12 +41,6 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -53,6 +48,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.0"
+          }
+        }
+      ],
       "expo-secure-store",
       [
         "expo-camera",
@@ -75,7 +78,15 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-mail-composer",
-      "expo-asset"
+      "expo-asset",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "crm-mobile",
+          "organization": "oguzmeric"
+        }
+      ]
     ],
     "extra": {
       "eas": {
@@ -87,7 +98,8 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/b2a861c4-b54d-4ac0-b51f-9c2e4c6aa0d4"
+      "url": "https://u.expo.dev/b2a861c4-b54d-4ac0-b51f-9c2e4c6aa0d4",
+      "fallbackToCacheTimeout": 0
     }
   }
 }
