@@ -28,6 +28,7 @@ import {
   sonrakiTeklifNo,
   satirHesapla,
   teklifToplamHesapla,
+  teklifleriGetir,
 } from '../services/teklifService'
 import TakvimPicker from '../components/TakvimPicker'
 import { tarihFormat } from '../utils/format'
@@ -171,10 +172,52 @@ export default function YeniTeklifScreen({ route, navigation }) {
     setSatirEditIndex(null)
   }
 
+  // Aynı stokKodu + miktar başka firmaya teklif edilmişse kullanıcıyı uyar.
+  // Web ile aynı kural — sadece kod eşleşmesi yetersiz, adet de tutmalı.
+  const benzerTeklifKontrol = async (yeniFirmaAdi) => {
+    const stokMiktarKey = (s) => `${s?.stokKodu || ''}@${Number(s?.miktar) || 0}`
+    const yeniKeyler = new Set(
+      satirlar.filter(s => s?.stokKodu).map(stokMiktarKey)
+    )
+    if (yeniKeyler.size === 0) return true // çakışma kontrolü gereksiz, geç
+
+    const tumTeklifler = await teklifleriGetir()
+    const cakisanlar = (tumTeklifler || []).filter(t => {
+      if (editMode && t.id?.toString() === editId?.toString()) return false
+      if (!t.firmaAdi || t.firmaAdi.trim().toLowerCase() === yeniFirmaAdi.trim().toLowerCase()) return false
+      const tKeyler = new Set((t.satirlar || []).filter(s => s?.stokKodu).map(stokMiktarKey))
+      for (const k of yeniKeyler) if (tKeyler.has(k)) return true
+      return false
+    })
+
+    if (cakisanlar.length === 0) return true
+
+    // Promise tabanlı Alert: kullanıcı seçim yapana kadar bekle
+    return new Promise((resolve) => {
+      const ilk = cakisanlar[0]
+      const baslik = cakisanlar.length === 1
+        ? `Aynı ürün ve adet "${ilk.firmaAdi}" firmasına da teklif edilmiş (${ilk.teklifNo || '#' + ilk.id}).`
+        : `${cakisanlar.length} farklı firmaya aynı ürün ve adetle teklif verilmiş.`
+      Alert.alert(
+        '⚠️ Benzer teklif bulundu',
+        `${baslik}\n\nYine de kaydetmek istiyor musun?`,
+        [
+          { text: 'Vazgeç', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Yine de Kaydet', style: 'destructive', onPress: () => resolve(true) },
+        ],
+        { cancelable: true, onDismiss: () => resolve(false) },
+      )
+    })
+  }
+
   const kaydet = async () => {
     if (!musteri) return Alert.alert('Eksik', 'Müşteri seç.')
     if (!konu.trim()) return Alert.alert('Eksik', 'Konu gir.')
     if (satirlar.length === 0) return Alert.alert('Eksik', 'En az bir satır ekle.')
+
+    const firmaAdi = musteri.firma || `${musteri.ad ?? ''} ${musteri.soyad ?? ''}`.trim()
+    const onay = await benzerTeklifKontrol(firmaAdi)
+    if (!onay) return
 
     setKaydediliyor(true)
 
