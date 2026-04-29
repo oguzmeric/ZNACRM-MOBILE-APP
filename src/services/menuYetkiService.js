@@ -41,15 +41,19 @@ export const yetkiyeUygunKullanicilar = async () => {
   const { data, error } = await supabase
     .from('kullanicilar')
     .select('*')
-    .or('hesap_silindi.is.null,hesap_silindi.eq.false')
     .order('ad', { ascending: true })
   if (error) {
     console.warn('[menuYetki] kullanıcı listesi hatası:', error.message)
     return []
   }
   const tum = arrayToCamel(data ?? [])
-  // Sadece müşteri portal kullanıcılarını ele
-  return tum.filter((k) => !adminMi(k.unvan) && k.tip !== 'musteri' && !k.musteriId)
+  return tum.filter((k) => {
+    if (k.hesapSilindi === true) return false
+    if (adminMi(k.unvan)) return false
+    if (k.tip === 'musteri') return false
+    if (k.musteriId) return false
+    return true
+  })
 }
 
 // Upsert: bir kullanıcı + menü için gorunur değerini set et
