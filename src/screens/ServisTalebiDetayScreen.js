@@ -62,6 +62,8 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [yapilanMudahale, setYapilanMudahale] = useState('')
   const [tespitKaydediliyor, setTespitKaydediliyor] = useState(false)
   const [mudahaleKaydediliyor, setMudahaleKaydediliyor] = useState(false)
+  const [tespitDuzenle, setTespitDuzenle] = useState(false)
+  const [mudahaleDuzenle, setMudahaleDuzenle] = useState(false)
 
   // Malzeme planı
   const [malzemePlani, setMalzemePlani] = useState([])
@@ -98,7 +100,8 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     setTespitKaydediliyor(false)
     if (guncel) {
       setTalep(guncel)
-      Alert.alert('Kaydedildi', 'Tespit kaydedildi.')
+      setTespit(guncel.kokSebep ?? '')
+      setTespitDuzenle(false)
     } else {
       Alert.alert('Hata', 'Kaydedilemedi.')
     }
@@ -110,10 +113,20 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     setMudahaleKaydediliyor(false)
     if (guncel) {
       setTalep(guncel)
-      Alert.alert('Kaydedildi', 'Yapılan müdahale kaydedildi.')
+      setYapilanMudahale(guncel.yapilanMudahale ?? '')
+      setMudahaleDuzenle(false)
     } else {
       Alert.alert('Hata', 'Kaydedilemedi.')
     }
+  }
+
+  const tespitVazgec = () => {
+    setTespit(talep?.kokSebep ?? '')
+    setTespitDuzenle(false)
+  }
+  const mudahaleVazgec = () => {
+    setYapilanMudahale(talep?.yapilanMudahale ?? '')
+    setMudahaleDuzenle(false)
   }
 
   const malzemeKaydet = async (plan) => {
@@ -717,79 +730,87 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         </View>
 
         {/* Tespit (PDF'te "Tespit" başlığı altında görünür) */}
-        <Text style={[styles.sectionLabel, { marginTop: 24, color: colors.textMuted }]}>
-          🔎 Tespit
-        </Text>
-        <View style={[{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 }]}>
-          <TextInput
-            value={tespit}
-            onChangeText={setTespit}
-            placeholder="Sorunun kök sebebi / tespit edilen durum"
-            placeholderTextColor={colors.textFaded}
-            multiline
-            textAlignVertical="top"
-            style={{ minHeight: 70, color: colors.textPrimary, fontSize: 13 }}
-          />
-          <TouchableOpacity
-            onPress={tespitKaydet}
-            disabled={tespitKaydediliyor || tespit === (talep.kokSebep ?? '')}
-            activeOpacity={0.85}
-            style={{
-              marginTop: 8,
-              alignSelf: 'flex-end',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              paddingHorizontal: 14,
-              paddingVertical: 8,
-              borderRadius: 8,
-              backgroundColor: colors.primary,
-              opacity: tespitKaydediliyor || tespit === (talep.kokSebep ?? '') ? 0.4 : 1,
-            }}
-          >
-            <Feather name="check" size={14} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>
-              {tespitKaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 8 }}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted, marginBottom: 0 }]}>
+            🔎 Tespit
+          </Text>
+          {!tespitDuzenle && (
+            <TouchableOpacity onPress={() => setTespitDuzenle(true)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Feather name="edit-2" size={12} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Düzenle</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+          {tespitDuzenle ? (
+            <>
+              <TextInput
+                value={tespit}
+                onChangeText={setTespit}
+                placeholder="Tespit edilen durum / sorunun sebebi"
+                placeholderTextColor={colors.textFaded}
+                multiline
+                autoFocus
+                textAlignVertical="top"
+                style={{ minHeight: 80, color: colors.textPrimary, fontSize: 13 }}
+              />
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                <TouchableOpacity onPress={tespitVazgec} disabled={tespitKaydediliyor} activeOpacity={0.85} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                  <Text style={{ color: colors.textMuted, fontWeight: '700', fontSize: 12 }}>Vazgeç</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={tespitKaydet} disabled={tespitKaydediliyor} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: colors.primary, opacity: tespitKaydediliyor ? 0.6 : 1 }}>
+                  <Feather name="check" size={14} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{tespitKaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <Text style={{ color: talep.kokSebep ? colors.textPrimary : colors.textFaded, fontSize: 13, lineHeight: 18, fontStyle: talep.kokSebep ? 'normal' : 'italic' }}>
+              {talep.kokSebep || 'Henüz tespit girilmedi. Düzenle ile ekleyebilirsin.'}
             </Text>
-          </TouchableOpacity>
+          )}
         </View>
 
         {/* Yapılan Müdahale */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
-          🛠 Yapılan Müdahale
-        </Text>
-        <View style={[{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 }]}>
-          <TextInput
-            value={yapilanMudahale}
-            onChangeText={setYapilanMudahale}
-            placeholder="Yapılan işlem / müdahale detayı"
-            placeholderTextColor={colors.textFaded}
-            multiline
-            textAlignVertical="top"
-            style={{ minHeight: 70, color: colors.textPrimary, fontSize: 13 }}
-          />
-          <TouchableOpacity
-            onPress={mudahaleKaydet}
-            disabled={mudahaleKaydediliyor || yapilanMudahale === (talep.yapilanMudahale ?? '')}
-            activeOpacity={0.85}
-            style={{
-              marginTop: 8,
-              alignSelf: 'flex-end',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              paddingHorizontal: 14,
-              paddingVertical: 8,
-              borderRadius: 8,
-              backgroundColor: colors.primary,
-              opacity: mudahaleKaydediliyor || yapilanMudahale === (talep.yapilanMudahale ?? '') ? 0.4 : 1,
-            }}
-          >
-            <Feather name="check" size={14} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>
-              {mudahaleKaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted, marginBottom: 0 }]}>
+            🛠 Yapılan Müdahale
+          </Text>
+          {!mudahaleDuzenle && (
+            <TouchableOpacity onPress={() => setMudahaleDuzenle(true)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Feather name="edit-2" size={12} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Düzenle</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+          {mudahaleDuzenle ? (
+            <>
+              <TextInput
+                value={yapilanMudahale}
+                onChangeText={setYapilanMudahale}
+                placeholder="Yapılan işlem / müdahale detayı"
+                placeholderTextColor={colors.textFaded}
+                multiline
+                autoFocus
+                textAlignVertical="top"
+                style={{ minHeight: 80, color: colors.textPrimary, fontSize: 13 }}
+              />
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                <TouchableOpacity onPress={mudahaleVazgec} disabled={mudahaleKaydediliyor} activeOpacity={0.85} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
+                  <Text style={{ color: colors.textMuted, fontWeight: '700', fontSize: 12 }}>Vazgeç</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={mudahaleKaydet} disabled={mudahaleKaydediliyor} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: colors.primary, opacity: mudahaleKaydediliyor ? 0.6 : 1 }}>
+                  <Feather name="check" size={14} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{mudahaleKaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <Text style={{ color: talep.yapilanMudahale ? colors.textPrimary : colors.textFaded, fontSize: 13, lineHeight: 18, fontStyle: talep.yapilanMudahale ? 'normal' : 'italic' }}>
+              {talep.yapilanMudahale || 'Henüz müdahale girilmedi. Düzenle ile ekleyebilirsin.'}
             </Text>
-          </TouchableOpacity>
+          )}
         </View>
 
         {/* Notlar timeline */}
