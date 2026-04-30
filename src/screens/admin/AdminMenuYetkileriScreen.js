@@ -34,6 +34,10 @@ const UNVAN_SECENEKLERI = [
   'Depo Sorumlusu',
   'Müşteri Temsilcisi',
   'Stajyer',
+  // Yönetim (admin yetkili) — mobil yönetim paneline erişim verir
+  'Teknik Müdür',
+  'Genel Müdür',
+  'Yazılım Geliştirmeci',
 ]
 
 export default function AdminMenuYetkileriScreen() {
