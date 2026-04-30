@@ -44,9 +44,18 @@ export default function ServisTalepleriScreen({ navigation, route }) {
   const yukle = useCallback(async () => {
     if (!kullanici) return
     let veri = []
-    if (aktifSekme === 'bana') veri = await banaAtananTalepler(kullanici.id)
-    else if (aktifSekme === 'acik') veri = await acikTalepler()
-    else veri = await servisTalepleriniGetir()
+    if (aktifSekme === 'bana') {
+      veri = await banaAtananTalepler(kullanici.id)
+    } else if (aktifSekme === 'acik') {
+      // "Açık" = bana atanmış + henüz tamamlanmamış olanlar
+      const benim = await banaAtananTalepler(kullanici.id)
+      veri = (benim ?? []).filter((t) => {
+        const d = (t.durum ?? '').toLowerCase()
+        return d !== 'tamamlandi' && d !== 'onaylandi' && d !== 'iptal' && d !== 'kapali'
+      })
+    } else {
+      veri = await servisTalepleriniGetir()
+    }
     setTalepler(veri ?? [])
   }, [aktifSekme, kullanici])
 
