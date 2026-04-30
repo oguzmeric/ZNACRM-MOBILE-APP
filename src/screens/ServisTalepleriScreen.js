@@ -47,26 +47,31 @@ export default function ServisTalepleriScreen({ navigation, route }) {
     else if (aktifSekme === 'acik') veri = await acikTalepler()
     else veri = await servisTalepleriniGetir()
     setTalepler(veri ?? [])
+  }, [aktifSekme, kullanici])
 
-    // İlk açılışta "Bana" sekmesinde açık servis varsa popup ile uyar
-    if (!acikUyariGosterildi && aktifSekme === 'bana') {
-      const acikSayisi = (veri ?? []).filter((t) => {
+  // Ekran ilk açıldığında — bağımsız olarak bana atanan + açık olanları say,
+  // popup ile uyar (hangi sekmede olursak olalım çalışır)
+  useEffect(() => {
+    if (!kullanici || acikUyariGosterildi) return
+    ;(async () => {
+      const benim = await banaAtananTalepler(kullanici.id)
+      const acikSayisi = (benim ?? []).filter((t) => {
         const d = (t.durum ?? '').toLowerCase()
-        return d === 'acik' || d === 'atandi' || d === 'bekliyor' || d === 'devam_ediyor'
+        return d === 'acik' || d === 'atandi' || d === 'bekliyor' || d === 'devam_ediyor' || d === 'devamediyor'
       }).length
       if (acikSayisi > 0) {
         setAcikUyariGosterildi(true)
         Alert.alert(
           `📋 ${acikSayisi} açık servisin var`,
-          `Sana atanmış ${acikSayisi} aktif servis talebi bulunuyor. "Açık" sekmesinden detayları görebilirsin.`,
+          `Sana atanmış ${acikSayisi} aktif servis talebi bulunuyor. "Açık" sekmesinden listeleyebilirsin.`,
           [
             { text: 'Tamam', style: 'cancel' },
             { text: 'Açık Sekmesine Geç', onPress: () => setAktifSekme('acik') },
           ]
         )
       }
-    }
-  }, [aktifSekme, kullanici, acikUyariGosterildi])
+    })()
+  }, [kullanici, acikUyariGosterildi])
 
   useEffect(() => {
     setLoading(true)
