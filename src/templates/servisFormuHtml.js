@@ -116,7 +116,7 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
     </div>
     <div class="grid2">
       <div class="kart">
-        <h3>Kök Sebep / Tespit</h3>
+        <h3>Tespit</h3>
         <div class="aciklama-kutu" style="min-height:60px;background:#fff;border-left:none;border:1px solid #e2e8f0;">
           ${escapeHtml(talep.kokSebep ?? '').replace(/\n/g, '<br>') || '&nbsp;'}
         </div>
