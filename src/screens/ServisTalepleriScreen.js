@@ -39,6 +39,7 @@ export default function ServisTalepleriScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [acikUyariGosterildi, setAcikUyariGosterildi] = useState(false)
+  const [acikSayisi, setAcikSayisi] = useState(0)
 
   const yukle = useCallback(async () => {
     if (!kullanici) return
@@ -49,29 +50,33 @@ export default function ServisTalepleriScreen({ navigation, route }) {
     setTalepler(veri ?? [])
   }, [aktifSekme, kullanici])
 
-  // Ekran ilk açıldığında — bağımsız olarak bana atanan + açık olanları say,
-  // popup ile uyar (hangi sekmede olursak olalım çalışır)
+  // Bana atanmış açık servis sayısı — banner ve popup için
   useEffect(() => {
-    if (!kullanici || acikUyariGosterildi) return
+    if (!kullanici) return
     ;(async () => {
       const benim = await banaAtananTalepler(kullanici.id)
-      const acikSayisi = (benim ?? []).filter((t) => {
+      const sayi = (benim ?? []).filter((t) => {
         const d = (t.durum ?? '').toLowerCase()
-        return d === 'acik' || d === 'atandi' || d === 'bekliyor' || d === 'devam_ediyor' || d === 'devamediyor'
+        return d !== 'tamamlandi' && d !== 'onaylandi' && d !== 'iptal' && d !== 'kapali'
       }).length
-      if (acikSayisi > 0) {
+      setAcikSayisi(sayi)
+
+      // İlk açılışta popup
+      if (sayi > 0 && !acikUyariGosterildi) {
         setAcikUyariGosterildi(true)
-        Alert.alert(
-          `📋 ${acikSayisi} açık servisin var`,
-          `Sana atanmış ${acikSayisi} aktif servis talebi bulunuyor. "Açık" sekmesinden listeleyebilirsin.`,
-          [
-            { text: 'Tamam', style: 'cancel' },
-            { text: 'Açık Sekmesine Geç', onPress: () => setAktifSekme('acik') },
-          ]
-        )
+        setTimeout(() => {
+          Alert.alert(
+            `📋 ${sayi} açık servisin var`,
+            `Sana atanmış ${sayi} aktif servis talebi bulunuyor.`,
+            [
+              { text: 'Tamam', style: 'cancel' },
+              { text: 'Açık Sekmesine Geç', onPress: () => setAktifSekme('acik') },
+            ]
+          )
+        }, 400)
       }
     })()
-  }, [kullanici, acikUyariGosterildi])
+  }, [kullanici])
 
   useEffect(() => {
     setLoading(true)
@@ -88,6 +93,33 @@ export default function ServisTalepleriScreen({ navigation, route }) {
 
   return (
     <ScreenContainer>
+      {acikSayisi > 0 && aktifSekme !== 'acik' && (
+        <TouchableOpacity
+          onPress={() => setAktifSekme('acik')}
+          activeOpacity={0.85}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+            marginHorizontal: 12,
+            marginTop: 10,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            borderRadius: 10,
+            backgroundColor: '#f59e0b22',
+            borderWidth: 1,
+            borderColor: '#f59e0b',
+          }}
+        >
+          <Feather name="alert-circle" size={18} color="#f59e0b" />
+          <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 13, fontWeight: '700' }}>
+            {acikSayisi} açık servisin var
+          </Text>
+          <Text style={{ color: '#f59e0b', fontWeight: '700', fontSize: 12 }}>
+            Görüntüle →
+          </Text>
+        </TouchableOpacity>
+      )}
       <View style={styles.tabWrap}>
         <View style={[styles.tabs, { backgroundColor: colors.surfaceDark, borderColor: colors.border }]}>
           {SEKMELER.map((s) => (
