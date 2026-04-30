@@ -37,6 +37,7 @@ const UNVAN_SECENEKLERI = [
   // Yönetim (admin yetkili) — mobil yönetim paneline erişim verir
   'Teknik Müdür',
   'Genel Müdür',
+  'Genel Müdür Yardımcısı',
   'Yazılım Geliştirmeci',
 ]
 

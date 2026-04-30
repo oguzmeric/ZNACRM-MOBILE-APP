@@ -14,7 +14,7 @@ export const MENU_LISTESI = [
 ]
 
 // Yetki yönetiminde gizlenecek admin unvanları — kendi yetkisini kısıtlamasın
-const ADMIN_UNVANLARI = ['Genel Müdür', 'Teknik Müdür', 'Yazılım Geliştirmeci']
+const ADMIN_UNVANLARI = ['Genel Müdür', 'Genel Müdür Yardımcısı', 'Teknik Müdür', 'Yazılım Geliştirmeci']
 const norm = (s) => (s ?? '').trim().toLocaleLowerCase('tr-TR')
 const adminMi = (unvan) => ADMIN_UNVANLARI.map(norm).includes(norm(unvan))
 

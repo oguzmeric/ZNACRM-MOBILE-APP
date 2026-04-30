@@ -13,7 +13,7 @@ export const sayimYapabilir = (kullanici) => {
 }
 
 // Yönetim paneline (admin mod) erişim yetkisi olan unvan'lar
-const YONETIM_UNVANLARI = ['Teknik Müdür', 'Genel Müdür', 'Yazılım Geliştirmeci']
+const YONETIM_UNVANLARI = ['Teknik Müdür', 'Genel Müdür', 'Genel Müdür Yardımcısı', 'Yazılım Geliştirmeci']
 
 export const yonetimPaneliErisimi = (kullanici) => {
   if (!kullanici) return false

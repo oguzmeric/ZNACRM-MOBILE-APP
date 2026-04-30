@@ -190,7 +190,7 @@ export default function ProfilScreen({ navigation }) {
               {mod === 'admin' ? (
                 <ActionRow
                   ikon="log-out"
-                  label="Teknisyen Moduna Dön"
+                  label="Personel Görünümü"
                   onPress={() => modDegistir('teknisyen')}
                   son
                 />

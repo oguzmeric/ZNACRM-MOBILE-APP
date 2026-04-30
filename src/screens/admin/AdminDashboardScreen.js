@@ -67,7 +67,7 @@ export default function AdminDashboardScreen({ navigation }) {
             </TouchableOpacity>
             <TouchableOpacity style={[styles.modBtn, { marginLeft: 8 }]} onPress={teknisyeneGec}>
               <Feather name="log-out" size={14} color="#60a5fa" />
-              <Text style={styles.modBtnText}>Teknisyene Dön</Text>
+              <Text style={styles.modBtnText}>Personel Görünümü</Text>
             </TouchableOpacity>
           </View>
 
