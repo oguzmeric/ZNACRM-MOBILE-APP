@@ -107,17 +107,12 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
         .join('\n')
     : ''
 
-  const arizaBlogu = profil.tip === 'ariza' ? `
-    <div class="blok">
-      <div class="baslik">Arıza Tanımı</div>
-      <div class="aciklama-kutu" style="border-left-color:${profil.renk};min-height:60px;">
-        ${escapeHtml(talep.aciklama ?? talep.konu ?? '-')}
-      </div>
-    </div>
+  // Tespit ve Yapılan Müdahale — tüm form tiplerinde gösterilir (ariza/bakim/servis)
+  const tespitMudahaleBloku = `
     <div class="grid2">
       <div class="kart">
         <h3>Tespit</h3>
-        <div class="aciklama-kutu" style="min-height:60px;background:#fff;border-left:none;border:1px solid #e2e8f0;">
+        <div class="aciklama-kutu" style="min-height:60px;background:#fff;border-left:none;border:1px solid #e2e8f0;white-space:pre-line;">
           ${escapeHtml(talep.kokSebep ?? '').replace(/\n/g, '<br>') || '&nbsp;'}
         </div>
       </div>
@@ -128,6 +123,16 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
         </div>
       </div>
     </div>
+  `
+
+  const arizaBlogu = profil.tip === 'ariza' ? `
+    <div class="blok">
+      <div class="baslik">Arıza Tanımı</div>
+      <div class="aciklama-kutu" style="border-left-color:${profil.renk};min-height:60px;">
+        ${escapeHtml(talep.aciklama ?? talep.konu ?? '-')}
+      </div>
+    </div>
+    ${tespitMudahaleBloku}
   ` : ''
 
   const bakimBlogu = profil.tip === 'bakim' ? `
@@ -156,6 +161,7 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
         <div class="bos-cizgiler"><div style="border-bottom:1px solid #0f172a;height:20px;"></div></div>
       </div>
     </div>
+    ${tespitMudahaleBloku}
   ` : ''
 
   return `<!DOCTYPE html>
@@ -441,6 +447,7 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
 
     ${arizaBlogu}
     ${bakimBlogu}
+    ${profil.tip === 'servis' ? tespitMudahaleBloku : ''}
 
     <div class="blok">
       <div class="baslik">Kullanılan Malzemeler</div>

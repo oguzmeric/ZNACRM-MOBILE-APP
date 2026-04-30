@@ -7,6 +7,7 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
@@ -37,6 +38,7 @@ export default function ServisTalepleriScreen({ navigation, route }) {
   const [talepler, setTalepler] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [acikUyariGosterildi, setAcikUyariGosterildi] = useState(false)
 
   const yukle = useCallback(async () => {
     if (!kullanici) return
@@ -45,7 +47,26 @@ export default function ServisTalepleriScreen({ navigation, route }) {
     else if (aktifSekme === 'acik') veri = await acikTalepler()
     else veri = await servisTalepleriniGetir()
     setTalepler(veri ?? [])
-  }, [aktifSekme, kullanici])
+
+    // İlk açılışta "Bana" sekmesinde açık servis varsa popup ile uyar
+    if (!acikUyariGosterildi && aktifSekme === 'bana') {
+      const acikSayisi = (veri ?? []).filter((t) => {
+        const d = (t.durum ?? '').toLowerCase()
+        return d === 'acik' || d === 'atandi' || d === 'bekliyor' || d === 'devam_ediyor'
+      }).length
+      if (acikSayisi > 0) {
+        setAcikUyariGosterildi(true)
+        Alert.alert(
+          `📋 ${acikSayisi} açık servisin var`,
+          `Sana atanmış ${acikSayisi} aktif servis talebi bulunuyor. "Açık" sekmesinden detayları görebilirsin.`,
+          [
+            { text: 'Tamam', style: 'cancel' },
+            { text: 'Açık Sekmesine Geç', onPress: () => setAktifSekme('acik') },
+          ]
+        )
+      }
+    }
+  }, [aktifSekme, kullanici, acikUyariGosterildi])
 
   useEffect(() => {
     setLoading(true)
