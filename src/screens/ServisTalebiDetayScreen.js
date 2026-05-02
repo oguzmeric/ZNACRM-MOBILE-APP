@@ -613,6 +613,91 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
           )}
         </View>
 
+        {/* Durum değiştir — role göre filtre */}
+        <Text style={[styles.sectionLabel, { marginTop: 20, color: colors.textMuted }]}>Durumu Değiştir</Text>
+        <View style={styles.durumGrid}>
+          {DURUM_LISTESI.filter((d) => {
+            // Admin: tüm durumlar + iptal
+            if (adminModu) return true
+            // Teknisyen: sadece iş akışı durumları (onay/ret/iptal admin'e ait)
+            return ['bekliyor', 'inceleniyor', 'atandi', 'devam_ediyor', 'tamamlandi'].includes(d.id)
+          }).map((d) => {
+            const aktif = talep.durum === d.id
+            return (
+              <TouchableOpacity
+                key={d.id}
+                style={[
+                  styles.durumBtn,
+                  { backgroundColor: colors.surface, borderColor: colors.borderStrong },
+                  aktif && { backgroundColor: d.renk, borderColor: d.renk },
+                ]}
+                onPress={() => durumDegistir(d.id)}
+                disabled={updating}
+              >
+                <Text style={[styles.durumBtnText, { color: colors.textSecondary }, aktif && { color: '#fff' }]}>
+                  {d.ikon} {d.isim}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
+        {/* Notlar timeline */}
+        <Text style={[styles.sectionLabel, { marginTop: 12, color: colors.textMuted }]}>
+          Notlar ({(talep.notlar ?? []).length})
+        </Text>
+
+        <View style={styles.notInputRow}>
+          <TextInput
+            style={[styles.notInput, { backgroundColor: colors.surface, color: colors.textPrimary }]}
+            placeholder="Yeni not..."
+            placeholderTextColor={colors.textFaded}
+            value={yeniNot}
+            onChangeText={setYeniNot}
+            multiline
+          />
+          <TouchableOpacity
+            style={[styles.notKaydetBtn, { backgroundColor: colors.success }, (!yeniNot.trim() || notKaydediliyor) && { opacity: 0.4 }]}
+            onPress={notKaydet}
+            disabled={!yeniNot.trim() || notKaydediliyor}
+          >
+            <Text style={styles.notKaydetText}>{notKaydediliyor ? '...' : 'Ekle'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {(talep.notlar ?? []).length === 0 ? (
+          <Text style={[styles.bos, { color: colors.textFaded }]}>Henüz not yok.</Text>
+        ) : (
+          [...(talep.notlar ?? [])].reverse().map((n, i) => (
+            <View key={i} style={[styles.notCard, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.notMetin, { color: colors.textPrimary }]}>{n.metin}</Text>
+              <Text style={[styles.notMeta, { color: colors.textFaded }]}>
+                {n.kullanici ?? '—'} · {tarihSaatFormat(n.tarih)}
+              </Text>
+            </View>
+          ))
+        )}
+
+        {/* Durum geçmişi */}
+        {(talep.durumGecmisi ?? []).length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, { marginTop: 24, color: colors.textMuted }]}>Durum Geçmişi</Text>
+            {[...(talep.durumGecmisi ?? [])].reverse().map((g, i) => {
+              const d = durumBul(g.durum)
+              return (
+                <View key={i} style={[styles.gecmisCard, { backgroundColor: colors.surface }]}>
+                  <Text style={[styles.gecmisDurum, { color: d?.renk ?? colors.textMuted }]}>
+                    {d?.ikon} {d?.isim ?? g.durum}
+                  </Text>
+                  <Text style={[styles.notMeta, { color: colors.textFaded }]}>
+                    {g.kullanici ?? '—'} · {tarihSaatFormat(g.tarih)}
+                  </Text>
+                </View>
+              )
+            })}
+          </>
+        )}
+
         {/* Müşteri imzası */}
         <View style={styles.imzaHeader}>
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>✍️ Müşteri İmzası</Text>
@@ -782,91 +867,6 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
               <Text style={styles.onayBtnText}>Reddet</Text>
             </TouchableOpacity>
           </View>
-        )}
-
-        {/* Durum değiştir — role göre filtre */}
-        <Text style={[styles.sectionLabel, { marginTop: 20, color: colors.textMuted }]}>Durumu Değiştir</Text>
-        <View style={styles.durumGrid}>
-          {DURUM_LISTESI.filter((d) => {
-            // Admin: tüm durumlar + iptal
-            if (adminModu) return true
-            // Teknisyen: sadece iş akışı durumları (onay/ret/iptal admin'e ait)
-            return ['bekliyor', 'inceleniyor', 'atandi', 'devam_ediyor', 'tamamlandi'].includes(d.id)
-          }).map((d) => {
-            const aktif = talep.durum === d.id
-            return (
-              <TouchableOpacity
-                key={d.id}
-                style={[
-                  styles.durumBtn,
-                  { backgroundColor: colors.surface, borderColor: colors.borderStrong },
-                  aktif && { backgroundColor: d.renk, borderColor: d.renk },
-                ]}
-                onPress={() => durumDegistir(d.id)}
-                disabled={updating}
-              >
-                <Text style={[styles.durumBtnText, { color: colors.textSecondary }, aktif && { color: '#fff' }]}>
-                  {d.ikon} {d.isim}
-                </Text>
-              </TouchableOpacity>
-            )
-          })}
-        </View>
-
-        {/* Notlar timeline */}
-        <Text style={[styles.sectionLabel, { marginTop: 12, color: colors.textMuted }]}>
-          Notlar ({(talep.notlar ?? []).length})
-        </Text>
-
-        <View style={styles.notInputRow}>
-          <TextInput
-            style={[styles.notInput, { backgroundColor: colors.surface, color: colors.textPrimary }]}
-            placeholder="Yeni not..."
-            placeholderTextColor={colors.textFaded}
-            value={yeniNot}
-            onChangeText={setYeniNot}
-            multiline
-          />
-          <TouchableOpacity
-            style={[styles.notKaydetBtn, { backgroundColor: colors.success }, (!yeniNot.trim() || notKaydediliyor) && { opacity: 0.4 }]}
-            onPress={notKaydet}
-            disabled={!yeniNot.trim() || notKaydediliyor}
-          >
-            <Text style={styles.notKaydetText}>{notKaydediliyor ? '...' : 'Ekle'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {(talep.notlar ?? []).length === 0 ? (
-          <Text style={[styles.bos, { color: colors.textFaded }]}>Henüz not yok.</Text>
-        ) : (
-          [...(talep.notlar ?? [])].reverse().map((n, i) => (
-            <View key={i} style={[styles.notCard, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.notMetin, { color: colors.textPrimary }]}>{n.metin}</Text>
-              <Text style={[styles.notMeta, { color: colors.textFaded }]}>
-                {n.kullanici ?? '—'} · {tarihSaatFormat(n.tarih)}
-              </Text>
-            </View>
-          ))
-        )}
-
-        {/* Durum geçmişi */}
-        {(talep.durumGecmisi ?? []).length > 0 && (
-          <>
-            <Text style={[styles.sectionLabel, { marginTop: 24, color: colors.textMuted }]}>Durum Geçmişi</Text>
-            {[...(talep.durumGecmisi ?? [])].reverse().map((g, i) => {
-              const d = durumBul(g.durum)
-              return (
-                <View key={i} style={[styles.gecmisCard, { backgroundColor: colors.surface }]}>
-                  <Text style={[styles.gecmisDurum, { color: d?.renk ?? colors.textMuted }]}>
-                    {d?.ikon} {d?.isim ?? g.durum}
-                  </Text>
-                  <Text style={[styles.notMeta, { color: colors.textFaded }]}>
-                    {g.kullanici ?? '—'} · {tarihSaatFormat(g.tarih)}
-                  </Text>
-                </View>
-              )
-            })}
-          </>
         )}
 
         <TouchableOpacity style={[styles.silBtn, { borderColor: colors.danger + '66' }]} onPress={sil}>
