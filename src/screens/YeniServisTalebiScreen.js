@@ -668,18 +668,22 @@ export default function YeniServisTalebiScreen({ navigation }) {
 
         {/* Saat picker */}
         {zamanPickerOpen && (
-          <DateTimePicker
-            value={zamanToDate(uygunZaman)}
-            mode="time"
-            is24Hour
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(e, selected) => {
-              if (Platform.OS !== 'ios') setZamanPickerOpen(false)
-              if (e.type === 'set' && selected) {
-                setUygunZaman(dateToZaman(selected))
-              }
-            }}
-          />
+          <View style={Platform.OS === 'ios' ? { backgroundColor: '#ffffff', borderRadius: 12, marginTop: 8, paddingVertical: 4 } : null}>
+            <DateTimePicker
+              value={zamanToDate(uygunZaman)}
+              mode="time"
+              is24Hour
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              themeVariant="light"
+              textColor="#0f172a"
+              onChange={(e, selected) => {
+                if (Platform.OS !== 'ios') setZamanPickerOpen(false)
+                if (e.type === 'set' && selected) {
+                  setUygunZaman(dateToZaman(selected))
+                }
+              }}
+            />
+          </View>
         )}
 
         {Platform.OS === 'ios' && zamanPickerOpen && (
