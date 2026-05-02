@@ -334,7 +334,7 @@ export default function YeniServisTalebiScreen({ navigation }) {
         {/* Tür */}
         <Text style={[styles.label, { color: colors.textMuted }]}>Tür *</Text>
         <View style={styles.chipRow}>
-          {ANA_TURLER.map((t) => (
+          {ANA_TURLER.filter((t) => t.id !== 'teklif').map((t) => (
             <TouchableOpacity
               key={t.id}
               style={[
