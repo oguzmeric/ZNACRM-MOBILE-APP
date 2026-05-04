@@ -18,9 +18,11 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { kullanicilariGetir } from '../services/kullaniciService'
 import { musterileriGetir } from '../services/musteriService'
+import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { gorevEkle } from '../services/gorevService'
 import { trIcerir } from '../utils/trSearch'
 import TakvimPicker from '../components/TakvimPicker'
+import LokasyonPicker from '../components/LokasyonPicker'
 
 const ONCELIKLER = [
   { id: 'dusuk', label: 'Düşük' },
@@ -47,12 +49,27 @@ export default function YeniGorevScreen({ navigation }) {
   const [musteriPickerOpen, setMusteriPickerOpen] = useState(false)
   const [musteriArama, setMusteriArama] = useState('')
 
+  const [musteriLokasyonlari, setMusteriLokasyonlari] = useState([])
+  const [lokasyonSecili, setLokasyonSecili] = useState(null)
+
   const [kaydediliyor, setKaydediliyor] = useState(false)
 
   useEffect(() => {
     kullanicilariGetir().then((list) => setKullanicilar(list ?? []))
     musterileriGetir().then((list) => setMusteriler(list ?? []))
   }, [])
+
+  // Müşteri değişince lokasyonları yükle
+  useEffect(() => {
+    if (musteri?.id) {
+      musteriLokasyonlariniGetir(musteri.id)
+        .then((l) => setMusteriLokasyonlari(l ?? []))
+        .catch(() => setMusteriLokasyonlari([]))
+    } else {
+      setMusteriLokasyonlari([])
+    }
+    setLokasyonSecili(null)
+  }, [musteri?.id])
 
   const filtrelenmisMusteriler = useMemo(() => {
     if (!musteriArama.trim()) return musteriler
@@ -87,6 +104,7 @@ export default function YeniGorevScreen({ navigation }) {
       bitisTarihi: bitisTarihi || null,
       musteriId: musteri?.id ?? null,
       firmaAdi: musteri ? (musteri.firma || `${musteri.ad ?? ''} ${musteri.soyad ?? ''}`.trim()) : null,
+      lokasyonId: lokasyonSecili?.id ?? null,
     })
     setKaydediliyor(false)
 
@@ -160,6 +178,20 @@ export default function YeniGorevScreen({ navigation }) {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Lokasyon — sadece müşteri seçildiyse */}
+        {musteri?.id && (
+          <>
+            <Text style={[styles.label, { color: colors.textMuted }]}>Lokasyon</Text>
+            <LokasyonPicker
+              musteriId={musteri.id}
+              lokasyonlar={musteriLokasyonlari}
+              onLokasyonlarChange={setMusteriLokasyonlari}
+              secili={lokasyonSecili}
+              onSeciliChange={setLokasyonSecili}
+            />
+          </>
+        )}
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Öncelik</Text>
         <View style={styles.row}>

@@ -17,7 +17,9 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { gorusmeEkle } from '../services/gorusmeService'
 import { musterileriGetir } from '../services/musteriService'
+import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { trIcerir } from '../utils/trSearch'
+import LokasyonPicker from '../components/LokasyonPicker'
 
 // Web ile aynı listeler
 const VARSAYILAN_KONULAR = [
@@ -56,9 +58,25 @@ export default function YeniGorusmeScreen({ navigation, route }) {
   const [musteriler, setMusteriler] = useState([])
   const [oneriGoster, setOneriGoster] = useState(false)
 
+  // Lokasyon
+  const [musteriLokasyonlari, setMusteriLokasyonlari] = useState([])
+  const [lokasyonSecili, setLokasyonSecili] = useState(null)
+
   useEffect(() => {
     musterileriGetir().then((veri) => setMusteriler(veri ?? []))
   }, [])
+
+  // Müşteri ID değişince lokasyonları yükle
+  useEffect(() => {
+    if (musteriId) {
+      musteriLokasyonlariniGetir(musteriId)
+        .then((l) => setMusteriLokasyonlari(l ?? []))
+        .catch(() => setMusteriLokasyonlari([]))
+    } else {
+      setMusteriLokasyonlari([])
+    }
+    setLokasyonSecili(null)
+  }, [musteriId])
 
   const oneriler = useMemo(() => {
     if (!oneriGoster) return []
@@ -101,6 +119,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
       tarih: tarihStr,
       saat: saatStr,
       hazirlayan: kullanici?.ad ?? null,
+      lokasyonId: lokasyonSecili?.id ?? null,
     })
     setKaydediliyor(false)
     if (!sonuc) {
@@ -160,6 +179,20 @@ export default function YeniGorusmeScreen({ navigation, route }) {
                 </ScrollView>
               )}
             </View>
+          )}
+
+          {/* Lokasyon — sadece müşteri seçildiyse */}
+          {musteriId && (
+            <>
+              <Text style={[styles.label, { color: colors.textMuted }]}>Lokasyon</Text>
+              <LokasyonPicker
+                musteriId={musteriId}
+                lokasyonlar={musteriLokasyonlari}
+                onLokasyonlarChange={setMusteriLokasyonlari}
+                secili={lokasyonSecili}
+                onSeciliChange={setLokasyonSecili}
+              />
+            </>
           )}
 
           {/* Muhatap */}
