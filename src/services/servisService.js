@@ -70,6 +70,70 @@ export const servisTalepEkle = async (talep) => {
   return toCamel(data)
 }
 
+// Görevden servis talebi oluştur — iki yönlü FK ile bağlar
+// gorev: { id, baslik, aciklama, musteriId, firmaAdi, lokasyonId?, atananId?, atananAd?, gorusmeId?, bitisTarihi? }
+export const talepOlusturGorevden = async (gorev, kullanici) => {
+  // Lokasyon adını çek (varsa)
+  let lokasyonMetni = ''
+  if (gorev.lokasyonId) {
+    const { data: lok } = await supabase
+      .from('musteri_lokasyonlari').select('ad').eq('id', gorev.lokasyonId).maybeSingle()
+    lokasyonMetni = lok?.ad || ''
+  }
+  // Müşteri kaydı (telefon, vs. için)
+  let musteri = null
+  if (gorev.musteriId) {
+    const { data } = await supabase
+      .from('musteriler').select('*').eq('id', gorev.musteriId).maybeSingle()
+    musteri = data ? toCamel(data) : null
+  }
+
+  const talepNo = await sonrakiTalepNo('TLP')
+  const yeniTalep = {
+    talepNo,
+    musteriId: gorev.musteriId || null,
+    musteriAd: musteri ? `${musteri.ad || ''} ${musteri.soyad || ''}`.trim() : '',
+    firmaAdi: gorev.firmaAdi || musteri?.firma || '',
+    anaTur: 'ariza',
+    altKategori: '',
+    konu: gorev.baslik,
+    aciklama: gorev.aciklama || '',
+    aciliyet: 'normal',
+    lokasyon: lokasyonMetni,
+    cihazTuru: '',
+    ilgiliKisi: musteri ? `${musteri.ad || ''} ${musteri.soyad || ''}`.trim() : kullanici?.ad || '',
+    telefon: musteri?.telefon || '',
+    durum: gorev.atananId ? 'atandi' : 'bekliyor',
+    atananKullaniciId: gorev.atananId || null,
+    atananKullaniciAd: gorev.atananAd || null,
+    planliTarih: gorev.bitisTarihi || null,
+    notlar: [],
+    durumGecmisi: [
+      {
+        durum: 'bekliyor',
+        tarih: new Date().toISOString(),
+        kullaniciAd: kullanici?.ad || '',
+        aciklama: 'Görevden oluşturuldu',
+      },
+    ],
+    musteriOnay: null,
+    gorevId: gorev.id,
+    gorusmeId: gorev.gorusmeId || null,
+  }
+  const yeni = await servisTalepEkle(yeniTalep)
+  if (!yeni) return null
+  // Görev tarafına geri bağla (FK iki yönlü olur)
+  try {
+    await supabase
+      .from('gorevler')
+      .update({ servis_talep_id: yeni.id })
+      .eq('id', gorev.id)
+  } catch (err) {
+    console.error('[talepOlusturGorevden] görev FK güncelleme hatası:', err)
+  }
+  return yeni
+}
+
 export const servisTalepGuncelle = async (id, guncellenmis) => {
   const { id: _id, olusturmaTarihi, guncellemeTarihi, ...rest } = guncellenmis
   const { data, error } = await supabase

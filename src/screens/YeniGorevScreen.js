@@ -20,6 +20,7 @@ import { kullanicilariGetir } from '../services/kullaniciService'
 import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { gorevEkle } from '../services/gorevService'
+import { talepOlusturGorevden } from '../services/servisService'
 import { trIcerir } from '../utils/trSearch'
 import TakvimPicker from '../components/TakvimPicker'
 import LokasyonPicker from '../components/LokasyonPicker'
@@ -51,6 +52,7 @@ export default function YeniGorevScreen({ navigation }) {
 
   const [musteriLokasyonlari, setMusteriLokasyonlari] = useState([])
   const [lokasyonSecili, setLokasyonSecili] = useState(null)
+  const [servisTalebiOlustur, setServisTalebiOlustur] = useState(false)
 
   const [kaydediliyor, setKaydediliyor] = useState(false)
 
@@ -106,11 +108,30 @@ export default function YeniGorevScreen({ navigation }) {
       firmaAdi: musteri ? (musteri.firma || `${musteri.ad ?? ''} ${musteri.soyad ?? ''}`.trim()) : null,
       lokasyonId: lokasyonSecili?.id ?? null,
     })
-    setKaydediliyor(false)
 
     if (!yeni) {
+      setKaydediliyor(false)
       Alert.alert('Hata', 'Görev oluşturulamadı.')
       return
+    }
+
+    // Servis talebi de istendiyse oluştur ve oraya yönlendir
+    if (servisTalebiOlustur && musteri?.id) {
+      try {
+        const servisTalebi = await talepOlusturGorevden(yeni, kullanici)
+        setKaydediliyor(false)
+        if (servisTalebi) {
+          navigation.replace('ServisTalebiDetay', { id: servisTalebi.id })
+          return
+        }
+        Alert.alert('Bilgi', 'Görev oluşturuldu fakat servis talebi oluşturulamadı.')
+      } catch (err) {
+        setKaydediliyor(false)
+        console.error('[talepOlusturGorevden]', err)
+        Alert.alert('Hata', 'Servis talebi oluşturulamadı: ' + (err?.message || 'bilinmeyen'))
+      }
+    } else {
+      setKaydediliyor(false)
     }
     navigation.goBack()
   }
@@ -191,6 +212,44 @@ export default function YeniGorevScreen({ navigation }) {
               onSeciliChange={setLokasyonSecili}
             />
           </>
+        )}
+
+        {/* Servis talebi de oluştur toggle — sadece müşteri seçiliyse */}
+        {musteri?.id && (
+          <TouchableOpacity
+            onPress={() => setServisTalebiOlustur((v) => !v)}
+            activeOpacity={0.7}
+            style={{
+              marginTop: 16,
+              padding: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: servisTalebiOlustur ? colors.primary : colors.border,
+              backgroundColor: servisTalebiOlustur ? `${colors.primary}15` : colors.surface,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            <View style={{
+              width: 22, height: 22, borderRadius: 6,
+              borderWidth: 2, borderColor: servisTalebiOlustur ? colors.primary : colors.border,
+              backgroundColor: servisTalebiOlustur ? colors.primary : 'transparent',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              {servisTalebiOlustur && <Feather name="check" size={14} color="#fff" />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>
+                Aynı anda servis talebi de oluştur
+              </Text>
+              {servisTalebiOlustur && (
+                <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                  Görev kaydedilince otomatik servis talebi oluşturulacak ve detay sayfası açılacak.
+                </Text>
+              )}
+            </View>
+          </TouchableOpacity>
         )}
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Öncelik</Text>
