@@ -67,9 +67,11 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
   const malzemeSatirlari = malzemeler
     .map((m, i) => {
       const planli = Number(m.planliMiktar ?? 0)
+      const teslim = Number(m.teslimAlinanMiktar ?? 0)
       const kullanilanRaw = Number(m.kullanilanMiktar ?? 0)
-      // Kullanılan 0 ama planlı > 0 ise: planlıyı kullanılan kabul et (servis akışı basitleştirme)
-      const kullanilan = kullanilanRaw > 0 ? kullanilanRaw : planli
+      // Gerçek değer: kullanılan > 0 ise o, yoksa teslim alınan. Planlı'yı asla
+      // otomatik kullanılan kabul etme — S/N okutulmadıysa forma girmemeli.
+      const kullanilan = kullanilanRaw > 0 ? kullanilanRaw : teslim
       return `
     <tr>
       <td class="center">${i + 1}</td>

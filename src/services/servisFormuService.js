@@ -23,13 +23,15 @@ async function logoBase64Getir() {
   }
 }
 
-// Planda olan ve hareket görmüş malzemeleri filtrele
+// Sadece GERÇEKTEN teslim alınmış / kullanılmış malzemeleri forma dahil et.
+// Pure "planlı ama hiç teslim alınmadı" satırlar formdan çıkar — kullanıcı
+// teslim almadan kapattıysa, plan kaydı serbest plan olarak DB'de kalır
+// ama servis formunda görünmez (S/N yok = kabul yok).
 function malzemeleriFiltrele(liste) {
   return (liste ?? []).filter((m) => {
-    const p = Number(m.planliMiktar ?? 0)
     const t = Number(m.teslimAlinanMiktar ?? 0)
     const k = Number(m.kullanilanMiktar ?? 0)
-    return p > 0 || t > 0 || k > 0
+    return t > 0 || k > 0
   })
 }
 
