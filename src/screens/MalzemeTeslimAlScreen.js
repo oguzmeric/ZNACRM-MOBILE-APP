@@ -148,6 +148,35 @@ export default function MalzemeTeslimAlScreen({ route, navigation }) {
   }
 
   const bitir = () => {
+    // Eksik kalan S/N'lik plan kalemleri var mı?
+    const eksikler = (plan || []).filter((p) => {
+      if (p.tip === 'bulk') return false  // sarf — S/N gerekmez
+      const planli = Number(p.planliMiktar ?? 0)
+      const teslim = Number(p.teslimAlinanMiktar ?? 0)
+      return planli > 0 && teslim < planli
+    })
+
+    if (eksikler.length > 0) {
+      const ozet = eksikler
+        .slice(0, 3)
+        .map((p) => `• ${p.stokAdi || p.stokKodu} (${p.teslimAlinanMiktar ?? 0}/${p.planliMiktar})`)
+        .join('\n')
+      const ekstra = eksikler.length > 3 ? `\n…ve ${eksikler.length - 3} tane daha` : ''
+      Alert.alert(
+        'Eksik Teslim Alma',
+        `Henüz S/N okutulmamış malzemeler var:\n\n${ozet}${ekstra}\n\nÇıkarsan bu malzemeler servis formuna dahil olmaz.`,
+        [
+          { text: 'Devam Et (Okutmaya Devam)', style: 'cancel' },
+          {
+            text: 'Yine de Çık',
+            style: 'destructive',
+            onPress: () => navigation.goBack(),
+          },
+        ],
+      )
+      return
+    }
+
     Alert.alert(
       'Teslim almayı bitir',
       `${teslimAlinanlar.length} cihaz teslim aldın. Servise dönelim mi?`,

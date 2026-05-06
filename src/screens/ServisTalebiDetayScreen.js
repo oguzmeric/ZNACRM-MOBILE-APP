@@ -192,8 +192,31 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const durumDegistir = async (yeniDurum) => {
     if (yeniDurum === talep?.durum) return
 
-    // "Tamamlandı" için müşteri imzası şart
+    // "Tamamlandı" için: (1) tüm planlı malzemeler teslim alınmış olmalı (S/N okutulmuş)
+    //                    (2) müşteri imzası alınmış olmalı
     if (yeniDurum === 'tamamlandi') {
+      // (1) Plan satırlarından eksik teslim alınanlar var mı?
+      const eksikler = (malzemePlani || []).filter((p) => {
+        const planli = Number(p.planliMiktar ?? 0)
+        const teslim = Number(p.teslimAlinanMiktar ?? 0)
+        const kullanilan = Number(p.kullanilanMiktar ?? 0)
+        // Bulk (sarf) için: teslim VEYA kullanılan en az 1 olsun yeter
+        // S/N'lik için: teslim alınan = planlı miktar olmalı
+        if (p.tip === 'bulk') return planli > 0 && teslim === 0 && kullanilan === 0
+        return planli > 0 && teslim < planli
+      })
+      if (eksikler.length > 0) {
+        const ozet = eksikler.slice(0, 3).map((p) => `• ${p.stokAdi || p.stokKodu}`).join('\n')
+        const ekstra = eksikler.length > 3 ? `\n…ve ${eksikler.length - 3} tane daha` : ''
+        Alert.alert(
+          'Eksik Teslim Alma',
+          `Aşağıdaki malzemeler için seri numarası okutulmadı / teslim alınmadı:\n\n${ozet}${ekstra}\n\n"Teslim Al" ekranından S/N okutmadan servis kapatılamaz.`,
+          [{ text: 'Tamam' }]
+        )
+        return
+      }
+
+      // (2) Müşteri imzası
       if (!talep?.musteriImza) {
         Alert.alert(
           'Müşteri İmzası Gerekli',
