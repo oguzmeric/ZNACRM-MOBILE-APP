@@ -26,6 +26,7 @@ import {
 } from '../services/teklifService'
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
 import { paraFormat } from '../utils/paraFormat'
+import { teklifPdfUretVePaylas, TEKLIF_FORMATLARI } from '../lib/teklifPdf'
 
 export default function TeklifDetayScreen({ route, navigation }) {
   const { id } = route.params
@@ -34,6 +35,8 @@ export default function TeklifDetayScreen({ route, navigation }) {
   const [teklif, setTeklif] = useState(null)
   const [loading, setLoading] = useState(true)
   const [seciliGecmis, setSeciliGecmis] = useState(null)
+  const [formatModalAcik, setFormatModalAcik] = useState(false)
+  const [pdfUretiliyor, setPdfUretiliyor] = useState(false)
 
   const yukle = useCallback(async () => {
     const t = await teklifGetir(id)
@@ -63,6 +66,13 @@ export default function TeklifDetayScreen({ route, navigation }) {
         },
       },
     ])
+  }
+
+  const formatSec = (formatId) => {
+    setFormatModalAcik(false)
+    setPdfUretiliyor(true)
+    teklifPdfUretVePaylas({ teklif, format: formatId })
+      .finally(() => setPdfUretiliyor(false))
   }
 
   const emailGonder = () => {
@@ -292,6 +302,19 @@ export default function TeklifDetayScreen({ route, navigation }) {
         {/* Aksiyonlar */}
         <View style={styles.actionRow}>
           <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: '#10b981' }]}
+            onPress={() => setFormatModalAcik(true)}
+            activeOpacity={0.85}
+            disabled={pdfUretiliyor}
+          >
+            {pdfUretiliyor ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Feather name="file-text" size={18} color="#fff" />
+            )}
+            <Text style={styles.actionText}>{pdfUretiliyor ? 'Hazırlanıyor…' : 'PDF Oluştur'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: '#f59e0b' }]}
             onPress={() => navigation.navigate('YeniTeklif', { editId: id })}
             activeOpacity={0.85}
@@ -299,15 +322,15 @@ export default function TeklifDetayScreen({ route, navigation }) {
             <Feather name="edit-2" size={18} color="#fff" />
             <Text style={styles.actionText}>Revize Et</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#2563eb' }]}
-            onPress={emailGonder}
-            activeOpacity={0.85}
-          >
-            <Feather name="mail" size={18} color="#fff" />
-            <Text style={styles.actionText}>Email Gönder</Text>
-          </TouchableOpacity>
         </View>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: '#2563eb', marginTop: 8 }]}
+          onPress={emailGonder}
+          activeOpacity={0.85}
+        >
+          <Feather name="mail" size={18} color="#fff" />
+          <Text style={styles.actionText}>Email Gönder</Text>
+        </TouchableOpacity>
 
         <Field label="Oluşturuldu" deger={tarihSaatFormat(teklif.olusturmaTarih)} colors={colors} />
 
@@ -316,6 +339,37 @@ export default function TeklifDetayScreen({ route, navigation }) {
           <Text style={[styles.silText, { color: colors.danger }]}>Teklifi Sil</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Format seç — PDF üretmeden önce */}
+      <Modal visible={formatModalAcik} animationType="slide" transparent onRequestClose={() => setFormatModalAcik(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 24 }}>
+            <View style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '800' }}>PDF Formatı Seç</Text>
+              <TouchableOpacity onPress={() => setFormatModalAcik(false)}>
+                <Feather name="x" size={22} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            {TEKLIF_FORMATLARI.map((f) => (
+              <TouchableOpacity
+                key={f.id}
+                onPress={() => formatSec(f.id)}
+                style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                activeOpacity={0.7}
+              >
+                <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: colors.primary + '22', alignItems: 'center', justifyContent: 'center' }}>
+                  <Feather name="file-text" size={20} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '700' }}>{f.label}</Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>{f.aciklama}</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
 
       {/* Eski revizyon detayını gösteren modal */}
       <Modal visible={!!seciliGecmis} animationType="slide" onRequestClose={() => setSeciliGecmis(null)} transparent>
