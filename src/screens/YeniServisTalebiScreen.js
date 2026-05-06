@@ -37,7 +37,7 @@ import {
   turPrefix,
 } from '../utils/servisConstants'
 
-export default function YeniServisTalebiScreen({ navigation }) {
+export default function YeniServisTalebiScreen({ navigation, route }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
@@ -123,7 +123,16 @@ export default function YeniServisTalebiScreen({ navigation }) {
 
   useEffect(() => {
     musterileriGetir().then((l) => setMusteriler(l ?? []))
-    kullanicilariGetir().then((l) => setKullanicilar(l ?? []))
+    kullanicilariGetir().then((l) => {
+      const liste = l ?? []
+      setKullanicilar(liste)
+      // Yeni talep oluşturulurken: oturum açan kullanıcı atanan olarak ön-seçili gelsin.
+      // Böylece "Bana" sekmesinde anında görünür. Düzenleme modunda ise mevcut atamayı koru.
+      if (!route?.params?.editId && !atanan && kullanici?.id) {
+        const ben = liste.find((u) => String(u.id) === String(kullanici.id))
+        if (ben) setAtanan({ id: ben.id, ad: ben.ad })
+      }
+    })
   }, [])
 
   // Tür değiştikçe prefix'e göre sıradaki numarayı al
