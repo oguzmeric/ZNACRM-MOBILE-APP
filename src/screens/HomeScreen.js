@@ -11,6 +11,7 @@ import Avatar from '../components/Avatar'
 import { banaAtananAktifGorevSayisi } from '../services/gorevService'
 import { banaAtananAktifTalepSayisi } from '../services/servisService'
 import { kullaniciMenuYetkileri } from '../services/menuYetkiService'
+import { okunmamisBildirimSayisi, bildirimleriDinle } from '../services/bildirimService'
 
 export default function HomeScreen({ navigation }) {
   const { kullanici } = useAuth()
@@ -20,17 +21,29 @@ export default function HomeScreen({ navigation }) {
   try { tabBarHeight = useBottomTabBarHeight() } catch (_) {}
   const [gorevSayisi, setGorevSayisi] = useState(0)
   const [servisSayisi, setServisSayisi] = useState(0)
+  const [okunmamisSayisi, setOkunmamisSayisi] = useState(0)
   const [yetki, setYetki] = useState({})
 
   const sayilariYukle = useCallback(async () => {
     if (!kullanici?.id) return
-    const [g, s] = await Promise.all([
+    const [g, s, b] = await Promise.all([
       banaAtananAktifGorevSayisi(kullanici.id),
       banaAtananAktifTalepSayisi(kullanici.id),
+      okunmamisBildirimSayisi(kullanici.id),
     ])
     setGorevSayisi(g)
     setServisSayisi(s)
+    setOkunmamisSayisi(b)
   }, [kullanici])
+
+  // Realtime — yeni bildirim gelince badge anlık artsın
+  useEffect(() => {
+    if (!kullanici?.id) return
+    const sub = bildirimleriDinle(kullanici.id, () => {
+      setOkunmamisSayisi(n => n + 1)
+    })
+    return () => sub?.unsubscribe?.()
+  }, [kullanici?.id])
 
   const yetkiYukle = useCallback(async () => {
     if (!kullanici?.id) return
@@ -50,12 +63,34 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 12, paddingBottom: tabBarHeight + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Üst bar — selamlama solda, avatar sağda */}
+        {/* Üst bar — selamlama solda, çan + avatar sağda */}
         <View style={styles.topBar}>
           <View style={{ flex: 1 }}>
             <Text style={[styles.welcome, { color: colors.textPrimary }]}>Merhaba {kullanici?.ad ?? 'Kullanıcı'}</Text>
             <Text style={[styles.role, { color: colors.textMuted }]}>{kullanici?.unvan ?? 'Kullanıcı'}</Text>
           </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Bildirimler')}
+            activeOpacity={0.7}
+            style={{ position: 'relative', padding: 8, marginRight: 4 }}
+          >
+            <Feather name="bell" size={22} color={colors.textPrimary} />
+            {okunmamisSayisi > 0 && (
+              <View style={{
+                position: 'absolute',
+                top: 4, right: 2,
+                minWidth: 18, height: 18,
+                paddingHorizontal: 4,
+                borderRadius: 9,
+                backgroundColor: '#dc2626',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                  {okunmamisSayisi > 99 ? '99+' : okunmamisSayisi}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('Profil')}
             activeOpacity={0.7}

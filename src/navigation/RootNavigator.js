@@ -29,6 +29,7 @@ import LokasyonFormScreen from '../screens/LokasyonFormScreen'
 import GorusmelerScreen from '../screens/GorusmelerScreen'
 import YeniGorusmeScreen from '../screens/YeniGorusmeScreen'
 import GorusmeDetayScreen from '../screens/GorusmeDetayScreen'
+import BildirimlerScreen from '../screens/BildirimlerScreen'
 import TaraScreen from '../screens/TaraScreen'
 import CihazDetayScreen from '../screens/CihazDetayScreen'
 import YeniCihazScreen from '../screens/YeniCihazScreen'
@@ -184,6 +185,7 @@ export default function RootNavigator() {
             <Stack.Screen name="ServisDetay" component={ServisTalebiDetayScreen} options={{ title: 'Servis Detayı' }} />
             <Stack.Screen name="Servisler" component={ServisTalepleriScreen} options={{ title: 'Servis Talepleri' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
+            <Stack.Screen name="Bildirimler" component={BildirimlerScreen} options={{ title: 'Bildirimler' }} />
           </>
         ) : (
           <>
@@ -220,6 +222,7 @@ export default function RootNavigator() {
             <Stack.Screen name="Gorusmeler" component={GorusmelerScreen} options={{ title: 'Görüşmelerim' }} />
             <Stack.Screen name="YeniGorusme" component={YeniGorusmeScreen} options={{ title: 'Yeni Görüşme' }} />
             <Stack.Screen name="GorusmeDetay" component={GorusmeDetayScreen} options={{ title: 'Görüşme Detayı' }} />
+            <Stack.Screen name="Bildirimler" component={BildirimlerScreen} options={{ title: 'Bildirimler' }} />
           </>
         )}
       </Stack.Navigator>
