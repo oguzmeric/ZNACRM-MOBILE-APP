@@ -75,22 +75,13 @@ export default function GorevDetayScreen({ route, navigation }) {
   const durumDegistir = async (yeniDurum) => {
     if (yeniDurum === gorev?.durum) return
 
-    // Tamamlandı için en az 1 fotolu not şart — görsel kanıt
+    // Tamamlandı için en az 1 not şart — fotoğraf opsiyonel
     if (yeniDurum === 'tamamlandi') {
       const notlar = gorev?.notlar ?? []
-      const fotoluNotVar = notlar.some((n) => (n.fotoUrls ?? []).length > 0)
       if (notlar.length === 0) {
         Alert.alert(
           'Not Gerekli',
           'Görevi tamamlamadan önce en az 1 not ekle — ne yaptığını kısaca yaz. Aşağıdaki not alanını kullanabilirsin.',
-          [{ text: 'Tamam' }]
-        )
-        return
-      }
-      if (!fotoluNotVar) {
-        Alert.alert(
-          'Fotoğraf Gerekli',
-          'Görevi tamamlamak için en az 1 fotoğraflı not gerekir. Not alanına foto ekle (📷 veya 🖼️).',
           [{ text: 'Tamam' }]
         )
         return
@@ -413,7 +404,7 @@ export default function GorevDetayScreen({ route, navigation }) {
 
       {(gorev.notlar ?? []).length === 0 ? (
         <Text style={[styles.bosNot, { color: colors.textFaded }]}>
-          Henüz not yok. Görev bitince en az 1 fotoğraflı not ekle.
+          Henüz not yok. Görev bitince en az 1 not ekle (fotoğraf opsiyonel).
         </Text>
       ) : (
         (gorev.notlar ?? [])
