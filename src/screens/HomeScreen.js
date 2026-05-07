@@ -12,6 +12,8 @@ import { banaAtananAktifGorevSayisi } from '../services/gorevService'
 import { banaAtananAktifTalepSayisi } from '../services/servisService'
 import { kullaniciMenuYetkileri } from '../services/menuYetkiService'
 import { okunmamisBildirimSayisi, bildirimleriDinle } from '../services/bildirimService'
+import { aktifZimmetleriGetir } from '../services/demoService'
+import { demoBildirimleriniKontrolEt } from '../lib/demoBildirim'
 
 export default function HomeScreen({ navigation }) {
   const { kullanici } = useAuth()
@@ -22,19 +24,27 @@ export default function HomeScreen({ navigation }) {
   const [gorevSayisi, setGorevSayisi] = useState(0)
   const [servisSayisi, setServisSayisi] = useState(0)
   const [okunmamisSayisi, setOkunmamisSayisi] = useState(0)
+  const [demoGecikmisSayisi, setDemoGecikmisSayisi] = useState(0)
   const [yetki, setYetki] = useState({})
 
   const sayilariYukle = useCallback(async () => {
     if (!kullanici?.id) return
-    const [g, s, b] = await Promise.all([
+    const [g, s, b, dz] = await Promise.all([
       banaAtananAktifGorevSayisi(kullanici.id),
       banaAtananAktifTalepSayisi(kullanici.id),
       okunmamisBildirimSayisi(kullanici.id),
+      aktifZimmetleriGetir(),
     ])
     setGorevSayisi(g)
     setServisSayisi(s)
     setOkunmamisSayisi(b)
+    setDemoGecikmisSayisi((dz || []).filter(z => z.beklenenIadeTarihi && new Date(z.beklenenIadeTarihi) < new Date()).length)
   }, [kullanici])
+
+  // Demo bildirim kontrolü — oturum başına 1 kez
+  useEffect(() => {
+    if (kullanici?.id) demoBildirimleriniKontrolEt(kullanici).catch(() => {})
+  }, [kullanici?.id])
 
   // Realtime — yeni bildirim gelince badge anlık artsın
   useEffect(() => {
@@ -163,6 +173,15 @@ export default function HomeScreen({ navigation }) {
                 hint="Yeni & geçmiş"
                 icon={<Feather name="message-circle" size={28} color="#fbbf24" />}
                 onPress={() => navigation.navigate('Gorusmeler')}
+              />
+            )}
+            {gorunur('demolar') && (
+              <Tile
+                title="Demo Takip"
+                hint="Müşteride/depoda"
+                icon={<Feather name="package" size={28} color="#a855f7" />}
+                badge={demoGecikmisSayisi}
+                onPress={() => navigation.navigate('Demolar')}
               />
             )}
           </View>
