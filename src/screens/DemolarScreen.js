@@ -68,23 +68,25 @@ export default function DemolarScreen({ navigation }) {
 
   return (
     <ScreenContainer>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
-        {SEKMELER.map(s => (
-          <TouchableOpacity
-            key={s.id}
-            onPress={() => setAktifSekme(s.id)}
-            style={[
-              styles.sekme,
-              { backgroundColor: aktifSekme === s.id ? colors.primary : colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <Text style={[styles.sekmeText, { color: aktifSekme === s.id ? '#fff' : colors.textSecondary }]}>
-              {s.isim} ({sayilar[s.id] ?? 0})
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={{ height: 48 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8, alignItems: 'center' }}>
+          {SEKMELER.map(s => (
+            <TouchableOpacity
+              key={s.id}
+              onPress={() => setAktifSekme(s.id)}
+              style={[
+                styles.sekme,
+                { backgroundColor: aktifSekme === s.id ? colors.primary : colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.sekmeText, { color: aktifSekme === s.id ? '#fff' : colors.textSecondary }]}>
+                {s.isim} ({sayilar[s.id] ?? 0})
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       <TextInput
         value={arama}
