@@ -31,12 +31,13 @@ const ONCELIKLER = [
   { id: 'yuksek', label: 'Yüksek' },
 ]
 
-export default function YeniGorevScreen({ navigation }) {
+export default function YeniGorevScreen({ navigation, route }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
-  const [baslik, setBaslik] = useState('')
-  const [aciklama, setAciklama] = useState('')
+  const baslangic = route?.params || {}
+  const [baslik, setBaslik] = useState(baslangic.baslangicBaslik || '')
+  const [aciklama, setAciklama] = useState(baslangic.baslangicAciklama || '')
   const [oncelik, setOncelik] = useState('normal')
   const [bitisTarihi, setBitisTarihi] = useState('') // YYYY-MM-DD
   const [tarihPickerAcik, setTarihPickerAcik] = useState(false)
@@ -58,19 +59,37 @@ export default function YeniGorevScreen({ navigation }) {
 
   useEffect(() => {
     kullanicilariGetir().then((list) => setKullanicilar(list ?? []))
-    musterileriGetir().then((list) => setMusteriler(list ?? []))
+    musterileriGetir().then((list) => {
+      const liste = list ?? []
+      setMusteriler(liste)
+      // Görüşmeden gelinmişse müşteriyi ön-seç
+      if (baslangic.baslangicMusteriId) {
+        const m = liste.find((x) => String(x.id) === String(baslangic.baslangicMusteriId))
+        if (m) setMusteri(m)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Müşteri değişince lokasyonları yükle
   useEffect(() => {
     if (musteri?.id) {
       musteriLokasyonlariniGetir(musteri.id)
-        .then((l) => setMusteriLokasyonlari(l ?? []))
+        .then((l) => {
+          const liste = l ?? []
+          setMusteriLokasyonlari(liste)
+          // Görüşmeden gelen lokasyonu ön-seç (sadece ilk yükte)
+          if (baslangic.baslangicLokasyonId) {
+            const lok = liste.find((x) => String(x.id) === String(baslangic.baslangicLokasyonId))
+            if (lok) setLokasyonSecili(lok)
+          }
+        })
         .catch(() => setMusteriLokasyonlari([]))
     } else {
       setMusteriLokasyonlari([])
+      setLokasyonSecili(null)
     }
-    setLokasyonSecili(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [musteri?.id])
 
   const filtrelenmisMusteriler = useMemo(() => {

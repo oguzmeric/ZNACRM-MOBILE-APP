@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
 import ScreenContainer from '../components/ScreenContainer'
@@ -14,7 +14,7 @@ const DURUM_ETIKET = {
   planlandi: 'Planlandı',
 }
 
-export default function GorusmeDetayScreen({ route }) {
+export default function GorusmeDetayScreen({ route, navigation }) {
   const { id } = route.params
   const { colors } = useTheme()
   const [g, setG] = useState(null)
@@ -75,6 +75,25 @@ export default function GorusmeDetayScreen({ route }) {
             </Text>
           </View>
         )}
+
+        {/* Aksiyonlar */}
+        <TouchableOpacity
+          style={[styles.aksiyonBtn, { backgroundColor: colors.primary }]}
+          onPress={() => navigation.navigate('YeniGorev', {
+            baslangicMusteriId: g.musteriId,
+            baslangicLokasyonId: g.lokasyonId,
+            baslangicBaslik: g.konu ? `Görüşme: ${g.konu}` : '',
+            baslangicAciklama: [
+              g.firmaAdi && `Firma: ${g.firmaAdi}`,
+              g.tarih && `Görüşme tarihi: ${g.tarih}${g.saat ? ' ' + g.saat : ''}`,
+              g.notlar && `\nNotlar:\n${g.notlar}`,
+            ].filter(Boolean).join('\n'),
+          })}
+          activeOpacity={0.85}
+        >
+          <Feather name="check-square" size={18} color="#fff" />
+          <Text style={styles.aksiyonText}>Bu Görüşmeden Görev Oluştur</Text>
+        </TouchableOpacity>
       </ScrollView>
     </ScreenContainer>
   )
@@ -109,4 +128,14 @@ const styles = StyleSheet.create({
   rozetRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 },
   label: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 8 },
   notlar: { fontSize: 13, lineHeight: 20 },
+  aksiyonBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  aksiyonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 })
