@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
+import { useHeaderHeight } from '@react-navigation/elements'
 import ScreenContainer from '../components/ScreenContainer'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -41,6 +42,7 @@ const DURUMLAR = [
 export default function YeniGorusmeScreen({ navigation, route }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
+  const headerHeight = useHeaderHeight()
   const baslangicMusteri = route?.params?.musteri
 
   const [firmaAdi, setFirmaAdi] = useState(baslangicMusteri?.firma ?? '')
@@ -131,8 +133,12 @@ export default function YeniGorusmeScreen({ navigation, route }) {
 
   return (
     <ScreenContainer>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+      >
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 200 }} keyboardShouldPersistTaps="handled">
           {/* Firma seç */}
           <Text style={[styles.label, { color: colors.textMuted }]}>Firma Adı *</Text>
           <TextInput
