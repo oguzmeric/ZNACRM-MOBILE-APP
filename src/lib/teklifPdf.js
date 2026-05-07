@@ -10,8 +10,8 @@ import { trassirHtml } from './teklifHtml/trassirHtml'
 
 export const TEKLIF_FORMATLARI = [
   { id: 'standart', label: 'Standart', aciklama: 'Tek sayfa, ZNA antetli' },
-  { id: 'karel',    label: 'Karel İş Ortağı', aciklama: 'Tek sayfa, Karel rozetli' },
-  { id: 'trassir',  label: 'Trassir Sunum',   aciklama: '5 sayfa: kapak + anlatı + fiyat + ortaklar' },
+  { id: 'karel',    label: 'Karel',    aciklama: 'Tek sayfa Fiyatlandırma + Karel İş Ortağı rozeti' },
+  { id: 'trassir',  label: 'Trassir',  aciklama: '5 sayfa: kapak + anlatı + fiyat + ortaklar + referanslar' },
 ]
 
 const formatHtml = async (format, teklif) => {
@@ -28,7 +28,13 @@ const formatHtml = async (format, teklif) => {
 export const teklifPdfUretVePaylas = async ({ teklif, format }) => {
   try {
     const html = await formatHtml(format, teklif)
-    const { uri } = await Print.printToFileAsync({ html, base64: false })
+    // A4: 595 × 842 pt (≈ 210 × 297 mm). Default Letter (612x792) HTML'i ikiye böler.
+    const { uri } = await Print.printToFileAsync({
+      html,
+      base64: false,
+      width: 595,
+      height: 842,
+    })
 
     // Dosya adını anlamlandır: teklif numarası + format
     const teklifNo = (teklif.teklifNo || `teklif-${teklif.id}`).replaceAll('/', '-')
