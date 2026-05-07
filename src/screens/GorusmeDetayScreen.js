@@ -80,6 +80,7 @@ export default function GorusmeDetayScreen({ route, navigation }) {
         <TouchableOpacity
           style={[styles.aksiyonBtn, { backgroundColor: colors.primary }]}
           onPress={() => navigation.navigate('YeniGorev', {
+            baslangicGorusmeId: g.id,
             baslangicMusteriId: g.musteriId,
             baslangicLokasyonId: g.lokasyonId,
             baslangicBaslik: g.konu ? `Görüşme: ${g.konu}` : '',

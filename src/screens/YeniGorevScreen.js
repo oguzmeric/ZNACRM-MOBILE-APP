@@ -21,6 +21,7 @@ import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { gorevEkle } from '../services/gorevService'
 import { talepOlusturGorevden } from '../services/servisService'
+import { bildirimEkleDb } from '../services/bildirimService'
 import { trIcerir } from '../utils/trSearch'
 import TakvimPicker from '../components/TakvimPicker'
 import LokasyonPicker from '../components/LokasyonPicker'
@@ -126,12 +127,26 @@ export default function YeniGorevScreen({ navigation, route }) {
       musteriId: musteri?.id ?? null,
       firmaAdi: musteri ? (musteri.firma || `${musteri.ad ?? ''} ${musteri.soyad ?? ''}`.trim()) : null,
       lokasyonId: lokasyonSecili?.id ?? null,
+      gorusmeId: baslangic.baslangicGorusmeId ?? null,
     })
 
     if (!yeni) {
       setKaydediliyor(false)
       Alert.alert('Hata', 'Görev oluşturulamadı.')
       return
+    }
+
+    // Atanan kullanıcıya bildirim — kendi atadıysak gönderme
+    if (atanan?.id && String(atanan.id) !== String(kullanici?.id)) {
+      const oncelikAd = ONCELIKLER.find((o) => o.id === oncelik)?.label ?? oncelik
+      bildirimEkleDb({
+        aliciId: atanan.id,
+        gonderenId: kullanici?.id,
+        baslik: 'Yeni Görev Atandı',
+        mesaj: `"${baslik.trim()}" görevi size atandı. Öncelik: ${oncelikAd}`,
+        tip: 'bilgi',
+        link: `/gorevler/${yeni.id}`,
+      }).catch((e) => console.warn('[bildirim] yeni görev:', e?.message))
     }
 
     // Servis talebi de istendiyse oluştur ve oraya yönlendir

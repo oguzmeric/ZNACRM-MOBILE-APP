@@ -2,7 +2,31 @@
 // Realtime ile anlık bildirim, RLS ile her kullanıcı sadece kendine gelenleri görür.
 
 import { supabase } from '../lib/supabase'
-import { toCamel, arrayToCamel } from '../lib/mapper'
+import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
+
+// Yeni bildirim ekle — web ile aynı kontrat
+// payload: { aliciId, gonderenId?, baslik, mesaj?, tip?, link?, meta? }
+export const bildirimEkleDb = async (payload) => {
+  if (!payload?.aliciId) return null
+  const { data, error } = await supabase
+    .from('bildirimler')
+    .insert(toSnake({
+      aliciId: payload.aliciId,
+      gonderenId: payload.gonderenId || null,
+      baslik: payload.baslik,
+      mesaj: payload.mesaj || '',
+      tip: payload.tip || 'bilgi',
+      link: payload.link || '',
+      meta: payload.meta || null,
+    }))
+    .select()
+    .single()
+  if (error) {
+    console.error('[bildirimEkleDb] hata:', error.message)
+    return null
+  }
+  return toCamel(data)
+}
 
 export const bildirimleriGetir = async (kullaniciId, limit = 50) => {
   if (!kullaniciId) return []
