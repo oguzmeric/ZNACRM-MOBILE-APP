@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Modal, TextInput,
+  ActivityIndicator, Modal, TextInput, Alert,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
@@ -10,7 +10,7 @@ import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import {
   demoCihazGetir, demoZimmetGecmisi, demoZimmetIadeAl, demoZimmetUzat,
-  demoBakimaAl,
+  demoBakimaAl, demoCihazSil,
 } from '../services/demoService'
 
 const fmtTarih = (t) => t ? new Date(t).toLocaleDateString('tr-TR') : '—'
@@ -48,6 +48,26 @@ export default function DemoCihazDetayScreen({ route, navigation }) {
 
   const bakimToggle = async () => { await demoBakimaAl(cihaz.id, !cihaz.bakimda); yukle() }
 
+  const sil = () => {
+    if (aktif) {
+      Alert.alert('Silinemez', 'Aktif zimmeti olan cihaz silinemez. Önce iade al.')
+      return
+    }
+    const mesaj = gecmis.length > 0
+      ? `Bu cihaz silinince ${gecmis.length} zimmet geçmişi de kalıcı olarak silinecek.`
+      : 'Bu cihaz havuzdan kalıcı olarak silinsin mi?'
+    Alert.alert('Cihazı Sil', mesaj, [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sil', style: 'destructive', onPress: async () => {
+          const ok = await demoCihazSil(cihaz.id)
+          if (ok) navigation.goBack()
+          else Alert.alert('Hata', 'Cihaz silinemedi.')
+        },
+      },
+    ])
+  }
+
   return (
     <ScreenContainer>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
@@ -71,6 +91,12 @@ export default function DemoCihazDetayScreen({ route, navigation }) {
                 <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>
                   {cihaz.bakimda ? 'Bakımdan Çıkar' : 'Bakıma Al'}
                 </Text>
+              </TouchableOpacity>
+            )}
+            {isAdmin && (
+              <TouchableOpacity onPress={sil} style={[styles.bakimBtn, { borderColor: '#dc2626' }]}>
+                <Feather name="trash-2" size={14} color="#dc2626" />
+                <Text style={{ color: '#dc2626', fontWeight: '600' }}>Sil</Text>
               </TouchableOpacity>
             )}
           </View>
