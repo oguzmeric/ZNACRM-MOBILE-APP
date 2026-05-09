@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, Alert,
+  ActivityIndicator, RefreshControl, Alert, Animated, PanResponder,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
@@ -161,43 +161,105 @@ export default function BildirimlerScreen({ navigation }) {
           const renk = TIP_RENK[item.tip] || colors.primary
           const ikon = TIP_IKON[item.tip] || 'bell'
           return (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => linkTap(item)}
-              onLongPress={() => sil(item)}
-              style={[
-                styles.kart,
-                {
-                  backgroundColor: item.okundu ? colors.surface : `${colors.primary}08`,
-                  borderColor: item.okundu ? colors.border : `${colors.primary}40`,
-                  borderLeftColor: renk,
-                },
-              ]}
-            >
-              <View style={[styles.ikonKutu, { backgroundColor: `${renk}20` }]}>
-                <Feather name={ikon} size={16} color={renk} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.baslik, { color: colors.textPrimary, fontWeight: item.okundu ? '500' : '700' }]}>
-                  {item.baslik}
-                </Text>
-                {!!item.mesaj && (
-                  <Text style={[styles.mesaj, { color: colors.textMuted }]} numberOfLines={3}>
-                    {item.mesaj}
+            <SwipeSatir onSil={() => sil(item)} colors={colors}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => linkTap(item)}
+                onLongPress={() => sil(item)}
+                style={[
+                  styles.kart,
+                  {
+                    backgroundColor: item.okundu ? colors.surface : `${colors.primary}08`,
+                    borderColor: item.okundu ? colors.border : `${colors.primary}40`,
+                    borderLeftColor: renk,
+                  },
+                ]}
+              >
+                <View style={[styles.ikonKutu, { backgroundColor: `${renk}20` }]}>
+                  <Feather name={ikon} size={16} color={renk} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.baslik, { color: colors.textPrimary, fontWeight: item.okundu ? '500' : '700' }]}>
+                    {item.baslik}
                   </Text>
+                  {!!item.mesaj && (
+                    <Text style={[styles.mesaj, { color: colors.textMuted }]} numberOfLines={3}>
+                      {item.mesaj}
+                    </Text>
+                  )}
+                  <Text style={[styles.tarih, { color: colors.textMuted }]}>
+                    {goreceTarih(item.olusturmaTarih)}
+                  </Text>
+                </View>
+                {!item.okundu && (
+                  <View style={[styles.okunmamisDot, { backgroundColor: renk }]} />
                 )}
-                <Text style={[styles.tarih, { color: colors.textMuted }]}>
-                  {goreceTarih(item.olusturmaTarih)}
-                </Text>
-              </View>
-              {!item.okundu && (
-                <View style={[styles.okunmamisDot, { backgroundColor: renk }]} />
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </SwipeSatir>
           )
         }}
       />
     </ScreenContainer>
+  )
+}
+
+// Sol/sağ kaydırma → arkadan kırmızı "Sil" butonu açılır
+// Pure JS PanResponder + Animated — react-native-gesture-handler gerektirmez
+function SwipeSatir({ children, onSil, colors }) {
+  const translateX = useRef(new Animated.Value(0)).current
+  const acikRef = useRef(false)
+  const ESIK = 60        // Bu kadar kaydırırsa açık kalır
+  const SIL_ESIK = -200  // Bu kadar kaydırırsa direkt siler
+  const ACIK_KONUM = -100
+
+  const responder = useRef(PanResponder.create({
+    // Yatay kaydırma dikeyden büyükse devral, aksi halde FlatList scroll devam etsin
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+    onPanResponderMove: (_, g) => {
+      if (acikRef.current) {
+        // Açıkken sağa kaydırırsa kapanma yönü
+        translateX.setValue(Math.min(0, ACIK_KONUM + g.dx))
+      } else {
+        // Kapalıyken sola kaydır
+        if (g.dx < 0) translateX.setValue(Math.max(g.dx, SIL_ESIK))
+      }
+    },
+    onPanResponderRelease: (_, g) => {
+      if (g.dx < SIL_ESIK + 20) {
+        // Çok hızlı/uzaklara sola kaydırdı → direkt sil
+        Animated.timing(translateX, { toValue: -400, duration: 200, useNativeDriver: true }).start(() => {
+          onSil?.()
+          translateX.setValue(0)
+          acikRef.current = false
+        })
+      } else if (acikRef.current) {
+        // Açıkken sağa yetince kaydırdıysa kapat
+        const kapat = g.dx > 30
+        Animated.timing(translateX, {
+          toValue: kapat ? 0 : ACIK_KONUM, duration: 180, useNativeDriver: true,
+        }).start(() => { acikRef.current = !kapat })
+      } else {
+        // Yeterince sola kaydırdıysa açık konumda kalsın
+        const ac = g.dx < -ESIK
+        Animated.timing(translateX, {
+          toValue: ac ? ACIK_KONUM : 0, duration: 180, useNativeDriver: true,
+        }).start(() => { acikRef.current = ac })
+      }
+    },
+  })).current
+
+  return (
+    <View style={styles.swipeWrap}>
+      <View style={styles.silArka}>
+        <TouchableOpacity onPress={onSil} style={styles.silBtn} activeOpacity={0.85}>
+          <Feather name="trash-2" size={20} color="#fff" />
+          <Text style={styles.silText}>Sil</Text>
+        </TouchableOpacity>
+      </View>
+      <Animated.View {...responder.panHandlers} style={{ transform: [{ translateX }] }}>
+        {children}
+      </Animated.View>
+    </View>
   )
 }
 
@@ -226,4 +288,12 @@ const styles = StyleSheet.create({
     width: 8, height: 8, borderRadius: 4,
     marginTop: 6, flexShrink: 0,
   },
+  swipeWrap: { position: 'relative', overflow: 'hidden', borderRadius: 10 },
+  silArka: {
+    position: 'absolute', top: 0, bottom: 0, right: 0, width: 100,
+    backgroundColor: '#dc2626', borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  silBtn: { flex: 1, justifyContent: 'center', alignItems: 'center', width: 100 },
+  silText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 4 },
 })
