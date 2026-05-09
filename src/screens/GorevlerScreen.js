@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  RefreshControl,
   ActivityIndicator,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
@@ -25,6 +24,7 @@ import {
   etiketDurum,
   etiketOncelik,
 } from '../utils/format'
+import { useRefresh } from '../hooks/useRefresh'
 
 const SEKMELER = [
   { id: 'bana', label: 'Bana' },
@@ -38,7 +38,6 @@ export default function GorevlerScreen({ navigation }) {
   const [aktifSekme, setAktifSekme] = useState('bana')
   const [gorevler, setGorevler] = useState([])
   const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
 
   const yukle = useCallback(async () => {
     if (!kullanici) return
@@ -61,11 +60,7 @@ export default function GorevlerScreen({ navigation }) {
     }, [yukle])
   )
 
-  const onRefresh = async () => {
-    setRefreshing(true)
-    await yukle()
-    setRefreshing(false)
-  }
+  const { refreshControl } = useRefresh(yukle)
 
   return (
     <ScreenContainer>
@@ -93,9 +88,7 @@ export default function GorevlerScreen({ navigation }) {
           data={gorevler}
           keyExtractor={(g) => String(g.id)}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />
-          }
+          refreshControl={refreshControl}
           ListEmptyComponent={
             <Text style={[styles.empty, { color: colors.textFaded }]}>Görev yok.</Text>
           }

@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { musteriGetir, musteriSil } from '../services/musteriService'
+import { useRefresh } from '../hooks/useRefresh'
 import { musteriKisileriniGetir } from '../services/musteriKisiService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { musteriCihazlariniGetir, durumBul as cihazDurumBul } from '../services/stokKalemiService'
@@ -46,6 +47,8 @@ export default function MusteriDetayScreen({ route, navigation }) {
 
   // Düzenle ekranından dönünce verileri tazele
   useFocusEffect(useCallback(() => { yukle() }, [yukle]))
+
+  const { refreshControl } = useRefresh(yukle)
 
   // Header'a Düzenle butonu — iOS 26 otomatik pill glass stilini uygular
   useEffect(() => {
@@ -127,7 +130,11 @@ export default function MusteriDetayScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.bg }]} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.bg }]}
+      contentContainerStyle={{ padding: 16 }}
+      refreshControl={refreshControl}
+    >
       <Text style={[styles.firma, { color: colors.textPrimary }]}>
         {musteri.firma || `${musteri.ad} ${musteri.soyad}`}
       </Text>
