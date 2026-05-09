@@ -102,16 +102,28 @@ export default function BildirimlerScreen({ navigation }) {
       { text: 'Vazgeç', style: 'cancel' },
       {
         text: 'Sil', style: 'destructive', onPress: async () => {
+          const oncekiler = bildirimler
           setBildirimler(prev => prev.filter(x => x.id !== b.id))
-          await bildirimSilDb(b.id)
+          try {
+            await bildirimSilDb(b.id)
+          } catch (e) {
+            setBildirimler(oncekiler)  // rollback
+            Alert.alert('Hata', 'Bildirim silinemedi: ' + (e?.message ?? 'bilinmeyen'))
+          }
         },
       },
     ])
   }
 
   const tumunuOku = async () => {
+    const oncekiler = bildirimler
     setBildirimler(prev => prev.map(b => ({ ...b, okundu: true })))
-    await tumBildirimleriOkuDb(kullanici.id)
+    try {
+      await tumBildirimleriOkuDb(kullanici.id)
+    } catch (e) {
+      setBildirimler(oncekiler)
+      Alert.alert('Hata', 'Tüm bildirimler okundu işaretlenemedi: ' + (e?.message ?? 'bilinmeyen'))
+    }
   }
 
   const okunmamisSayisi = bildirimler.filter(b => !b.okundu).length

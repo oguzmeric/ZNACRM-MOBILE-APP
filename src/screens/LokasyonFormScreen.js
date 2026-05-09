@@ -116,8 +116,12 @@ export default function LokasyonFormScreen({ route, navigation }) {
         text: 'Sil',
         style: 'destructive',
         onPress: async () => {
-          await musteriLokasyonSil(lokasyonId)
-          navigation.goBack()
+          try {
+            await musteriLokasyonSil(lokasyonId)
+            navigation.goBack()
+          } catch (e) {
+            Alert.alert('Hata', 'Lokasyon silinemedi: ' + (e?.message ?? 'bilinmeyen'))
+          }
         },
       },
     ])

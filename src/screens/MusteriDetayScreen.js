@@ -99,8 +99,12 @@ export default function MusteriDetayScreen({ route, navigation }) {
         text: 'Sil',
         style: 'destructive',
         onPress: async () => {
-          await musteriSil(id)
-          navigation.goBack()
+          try {
+            await musteriSil(id)
+            navigation.goBack()
+          } catch (e) {
+            Alert.alert('Hata', 'Müşteri silinemedi: ' + (e?.message ?? 'bilinmeyen'))
+          }
         },
       },
     ])

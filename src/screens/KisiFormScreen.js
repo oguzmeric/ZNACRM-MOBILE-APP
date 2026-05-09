@@ -96,8 +96,12 @@ export default function KisiFormScreen({ route, navigation }) {
         text: 'Sil',
         style: 'destructive',
         onPress: async () => {
-          await musteriKisiSil(kisiId)
-          navigation.goBack()
+          try {
+            await musteriKisiSil(kisiId)
+            navigation.goBack()
+          } catch (e) {
+            Alert.alert('Hata', 'Kişi silinemedi: ' + (e?.message ?? 'bilinmeyen'))
+          }
         },
       },
     ])

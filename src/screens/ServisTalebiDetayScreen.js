@@ -179,8 +179,12 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         text: 'Sil',
         style: 'destructive',
         onPress: async () => {
-          await malzemePlanSil(planId)
-          setMalzemePlani((prev) => prev.filter((p) => p.id !== planId))
+          try {
+            await malzemePlanSil(planId)
+            setMalzemePlani((prev) => prev.filter((p) => p.id !== planId))
+          } catch (e) {
+            Alert.alert('Hata', 'Malzeme silinemedi: ' + (e?.message ?? 'bilinmeyen'))
+          }
         },
       },
     ])
@@ -852,13 +856,18 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
                           style: 'destructive',
                           onPress: async (gerekce) => {
                             setUpdating(true)
-                            if (gerekce?.trim()) {
-                              await notEkle(id, `🚫 Yönetici reddi: ${gerekce.trim()}`, kullanici?.ad)
+                            try {
+                              if (gerekce?.trim()) {
+                                await notEkle(id, `🚫 Yönetici reddi: ${gerekce.trim()}`, kullanici?.ad)
+                              }
+                              const guncel = await durumGuncelle(id, 'reddedildi', kullanici?.ad)
+                              if (guncel) setTalep(guncel)
+                              else Alert.alert('Hata', 'Reddedilemedi.')
+                            } catch (e) {
+                              Alert.alert('Hata', 'İşlem tamamlanamadı: ' + (e?.message ?? 'bilinmeyen'))
+                            } finally {
+                              setUpdating(false)
                             }
-                            const guncel = await durumGuncelle(id, 'reddedildi', kullanici?.ad)
-                            setUpdating(false)
-                            if (guncel) setTalep(guncel)
-                            else Alert.alert('Hata', 'Reddedilemedi.')
                           },
                         },
                       ],
