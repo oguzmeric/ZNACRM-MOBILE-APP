@@ -172,6 +172,7 @@ export default function BildirimlerScreen({ navigation }) {
                     backgroundColor: item.okundu ? colors.surface : `${colors.primary}08`,
                     borderColor: item.okundu ? colors.border : `${colors.primary}40`,
                     borderLeftColor: renk,
+                    marginBottom: 0,  // swipeWrap marginBottom yönetiyor
                   },
                 ]}
               >
@@ -256,7 +257,10 @@ function SwipeSatir({ children, onSil, colors }) {
           <Text style={styles.silText}>Sil</Text>
         </TouchableOpacity>
       </View>
-      <Animated.View {...responder.panHandlers} style={{ transform: [{ translateX }] }}>
+      <Animated.View
+        {...responder.panHandlers}
+        style={{ width: '100%', backgroundColor: colors.background, transform: [{ translateX }] }}
+      >
         {children}
       </Animated.View>
     </View>
@@ -288,7 +292,7 @@ const styles = StyleSheet.create({
     width: 8, height: 8, borderRadius: 4,
     marginTop: 6, flexShrink: 0,
   },
-  swipeWrap: { position: 'relative', overflow: 'hidden', borderRadius: 10 },
+  swipeWrap: { position: 'relative', overflow: 'hidden', borderRadius: 10, marginBottom: 8 },
   silArka: {
     position: 'absolute', top: 0, bottom: 0, right: 0, width: 100,
     backgroundColor: '#dc2626', borderRadius: 10,
