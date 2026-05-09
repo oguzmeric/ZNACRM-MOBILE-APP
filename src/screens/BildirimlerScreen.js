@@ -214,34 +214,42 @@ function SwipeSatir({ children, onSil, colors }) {
   const ACIK_KONUM = -100
 
   const responder = useRef(PanResponder.create({
-    // Yatay kaydırma dikeyden büyükse devral, aksi halde FlatList scroll devam etsin
-    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+    // Açıkken hassas eşik — küçük sağa hareket bile devralacak
+    // Kapalıyken yatay hareket dikeyden 1.5x büyükse devral (FlatList scroll'u bozma)
+    onMoveShouldSetPanResponder: (_, g) => {
+      if (acikRef.current) return Math.abs(g.dx) > 3
+      return Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5
+    },
+    onPanResponderTerminationRequest: () => false,  // Başka bileşen iptal etmesin
     onPanResponderMove: (_, g) => {
       if (acikRef.current) {
-        // Açıkken sağa kaydırırsa kapanma yönü
-        translateX.setValue(Math.min(0, ACIK_KONUM + g.dx))
+        // Açıkken: sağa kaydır kapanır, sola tekrar kaydır direkt silmeye gider
+        translateX.setValue(Math.max(SIL_ESIK, Math.min(0, ACIK_KONUM + g.dx)))
       } else {
         // Kapalıyken sola kaydır
         if (g.dx < 0) translateX.setValue(Math.max(g.dx, SIL_ESIK))
       }
     },
     onPanResponderRelease: (_, g) => {
-      if (g.dx < SIL_ESIK + 20) {
-        // Çok hızlı/uzaklara sola kaydırdı → direkt sil
+      const sondaki = acikRef.current ? ACIK_KONUM + g.dx : g.dx
+      // Çok hızlı/uzaklara sola → direkt sil
+      if (sondaki < SIL_ESIK + 20 || g.vx < -1.2) {
         Animated.timing(translateX, { toValue: -400, duration: 200, useNativeDriver: true }).start(() => {
           onSil?.()
           translateX.setValue(0)
           acikRef.current = false
         })
-      } else if (acikRef.current) {
-        // Açıkken sağa yetince kaydırdıysa kapat
-        const kapat = g.dx > 30
+        return
+      }
+      if (acikRef.current) {
+        // Açıkken: sağa hareket veya hızlı sağa fling → kapat
+        const kapat = g.dx > 15 || g.vx > 0.3
         Animated.timing(translateX, {
           toValue: kapat ? 0 : ACIK_KONUM, duration: 180, useNativeDriver: true,
         }).start(() => { acikRef.current = !kapat })
       } else {
-        // Yeterince sola kaydırdıysa açık konumda kalsın
-        const ac = g.dx < -ESIK
+        // Kapalıyken: yeterince sola kaydır → aç
+        const ac = g.dx < -ESIK || g.vx < -0.5
         Animated.timing(translateX, {
           toValue: ac ? ACIK_KONUM : 0, duration: 180, useNativeDriver: true,
         }).start(() => { acikRef.current = ac })
