@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react-native'
 import { supabase } from '../lib/supabase'
 import { toCamel } from '../lib/mapper'
 import { kullaniciGirisKontrol, kullaniciDurumGuncelle } from '../services/kullaniciService'
+import { pushTokenKaydet, pushTokenSil } from '../lib/pushBildirimKayit'
 
 const STORAGE_KEY = 'aktifKullanici'
 const MODE_KEY = 'aktifMod' // 'teknisyen' | 'admin'
@@ -49,6 +50,8 @@ export const AuthProvider = ({ children }) => {
             try {
               Sentry.setUser({ id: String(k.id), username: k.kullaniciAdi, email: k.email })
             } catch (_) {}
+            // Push token kaydı (best-effort, simülatörde no-op)
+            pushTokenKaydet(k.id).catch((e) => console.warn('[push token]', e?.message))
           }
         }
       } catch (e) {
@@ -76,12 +79,16 @@ export const AuthProvider = ({ children }) => {
     setKullanici(guncel)
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(guncel))
     kullaniciDurumGuncelle(bulunan.id, 'cevrimici').catch(() => {})
+    // Push token kaydı (best-effort)
+    pushTokenKaydet(bulunan.id).catch((e) => console.warn('[push token]', e?.message))
     return true
   }
 
   const cikisYap = async () => {
     if (kullanici?.id) {
       kullaniciDurumGuncelle(kullanici.id, 'cevrimdisi').catch(() => {})
+      // Bu cihazın push token'ını sil (signOut'tan ÖNCE — auth lazım)
+      try { await pushTokenSil(kullanici.id) } catch (e) { console.warn('[push sil]', e?.message) }
     }
     // Supabase Auth oturumunu da kapat — yoksa AsyncStorage'da token kalır
     try { await supabase.auth.signOut() } catch (e) { console.warn('[cikisYap]', e) }

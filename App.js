@@ -1,8 +1,9 @@
-import { Component } from 'react'
+import { Component, useEffect, useRef } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { View, Text, ScrollView } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import * as Sentry from '@sentry/react-native'
+import * as Notifications from 'expo-notifications'
 import { AuthProvider } from './src/context/AuthContext'
 import { ThemeProvider, useTheme } from './src/context/ThemeContext'
 import RootNavigator from './src/navigation/RootNavigator'
@@ -53,6 +54,23 @@ class ErrorBoundary extends Component {
 
 function AppInner() {
   const { colors, mod } = useTheme()
+  const responseListener = useRef(null)
+  const receivedListener = useRef(null)
+
+  useEffect(() => {
+    // Foreground'da bildirim geldiğinde — sadece logla, handler shouldShowAlert ile zaten gösterir
+    receivedListener.current = Notifications.addNotificationReceivedListener(() => {})
+
+    // Kullanıcı bildirime dokunduğunda — şimdilik özel deep link yok,
+    // app açılır ve son ekranda kalır. Realtime subscription badge'i otomatik günceller.
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {})
+
+    return () => {
+      try { Notifications.removeNotificationSubscription(receivedListener.current) } catch {}
+      try { Notifications.removeNotificationSubscription(responseListener.current) } catch {}
+    }
+  }, [])
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style={mod === 'gunduz' ? 'dark' : 'light'} />

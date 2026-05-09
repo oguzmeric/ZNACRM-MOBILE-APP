@@ -18,6 +18,7 @@ import {
   bildirimSilDb,
   bildirimleriDinle,
 } from '../services/bildirimService'
+import { badgeAyarla } from '../lib/pushBildirimKayit'
 
 const TIP_RENK = {
   bilgi: '#0176D3',
@@ -127,6 +128,11 @@ export default function BildirimlerScreen({ navigation }) {
   }
 
   const okunmamisSayisi = bildirimler.filter(b => !b.okundu).length
+
+  // iOS badge — okunmamış sayısı her değiştiğinde ikon üstündeki rakamı senkronla
+  useEffect(() => {
+    badgeAyarla(okunmamisSayisi)
+  }, [okunmamisSayisi])
 
   if (yukleniyor) {
     return (

@@ -80,6 +80,12 @@
       "expo-mail-composer",
       "expo-asset",
       [
+        "expo-notifications",
+        {
+          "color": "#2563eb"
+        }
+      ],
+      [
         "@sentry/react-native/expo",
         {
           "url": "https://sentry.io/",
