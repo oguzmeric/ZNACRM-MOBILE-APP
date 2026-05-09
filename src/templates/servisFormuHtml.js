@@ -173,16 +173,18 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
 <meta name="viewport" content="width=794, user-scalable=yes, maximum-scale=3" />
 <title>Servis Formu ${escapeHtml(talep.talepNo ?? talep.id)}</title>
 <style>
-  @page { size: A4; margin: 28px; }
+  @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
     color: #0f172a;
     margin: 0;
-    padding: 0;
+    padding: 14mm 14mm 16mm 14mm;
     position: relative;
     font-size: 11px;
     line-height: 1.4;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .watermark {
     position: fixed;

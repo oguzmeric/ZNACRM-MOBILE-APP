@@ -43,12 +43,15 @@ export async function onizlemeHtmlGetir(talep) {
   return servisFormuHtml({ talep, malzemeler: liste, logoBase64 })
 }
 
+// A4: 595 × 842 pt (≈ 210 × 297 mm). Default Letter (612x792) yanlış kenarlık verir.
+const A4_BOYUT = { width: 595, height: 842 }
+
 // Native print önizlemesini aç (yazıcıya gönder veya PDF olarak kaydet)
 export async function pdfOnizle(talep) {
   const liste = malzemeleriFiltrele(await malzemePlaniGetir(talep.id))
   const logoBase64 = await logoBase64Getir()
   const html = servisFormuHtml({ talep, malzemeler: liste, logoBase64 })
-  await Print.printAsync({ html })
+  await Print.printAsync({ html, ...A4_BOYUT })
 }
 
 // PDF dosyası üretir, local URI döner
@@ -60,6 +63,7 @@ export async function pdfOlustur(talep) {
   const { uri } = await Print.printToFileAsync({
     html,
     base64: false,
+    ...A4_BOYUT,
   })
 
   // Anlamlı isim — dosyayı kopyala
