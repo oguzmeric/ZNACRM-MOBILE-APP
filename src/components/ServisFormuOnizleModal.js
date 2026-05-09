@@ -12,6 +12,7 @@ import { WebView } from 'react-native-webview'
 import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
 import {
   pdfOlustur,
   pdfOnizle,
@@ -19,10 +20,12 @@ import {
   emailGonder,
   onizlemeHtmlGetir,
 } from '../services/servisFormuService'
+import { arsiveYukle } from '../services/servisFormuArsivService'
 import { formProfiliBelirle } from '../templates/servisFormuHtml'
 
-export default function ServisFormuOnizleModal({ visible, onClose, talep }) {
+export default function ServisFormuOnizleModal({ visible, onClose, talep, onArsivlendi }) {
   const { colors } = useTheme()
+  const { kullanici } = useAuth()
   const insets = useSafeAreaInsets()
   const [html, setHtml] = useState(null)
   const [yukleniyor, setYukleniyor] = useState(false)
@@ -56,6 +59,17 @@ export default function ServisFormuOnizleModal({ visible, onClose, talep }) {
         } else {
           await paylasPdf(uri)
         }
+
+        // Arşive yükle (best-effort — başarısız olsa bile kullanıcı akışı etkilenmez)
+        arsiveYukle({
+          servisId: talep.id,
+          lokalPdfUri: uri,
+          olusturanId: kullanici?.id ?? null,
+        })
+          .then((sonuc) => {
+            if (sonuc) onArsivlendi?.(sonuc)
+          })
+          .catch((e) => console.warn('[arsive yükleme]', e?.message))
       }
     } catch (e) {
       Alert.alert('Hata', e.message ?? 'İşlem tamamlanamadı.')

@@ -43,6 +43,9 @@ import {
 } from '../utils/servisConstants'
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
 import ServisFormuOnizleModal from '../components/ServisFormuOnizleModal'
+import { arsivListele, arsivSignedUrl } from '../services/servisFormuArsivService'
+import * as FileSystem from 'expo-file-system/legacy'
+import * as Sharing from 'expo-sharing'
 
 export default function ServisTalebiDetayScreen({ route, navigation }) {
   const { id } = route.params
@@ -76,6 +79,50 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   // Servis formu
   const [formModalOpen, setFormModalOpen] = useState(false)
   const formUretiliyor = false  // uyum için
+
+  // Form arşivi
+  const [arsiv, setArsiv] = useState([])
+  const [arsivYukleniyor, setArsivYukleniyor] = useState(false)
+  const [arsivAcikItemId, setArsivAcikItemId] = useState(null)
+
+  const yukleArsiv = useCallback(async () => {
+    if (!talep?.id) return
+    setArsivYukleniyor(true)
+    try {
+      const data = await arsivListele(talep.id)
+      setArsiv(data)
+    } finally {
+      setArsivYukleniyor(false)
+    }
+  }, [talep?.id])
+
+  useEffect(() => { yukleArsiv() }, [yukleArsiv])
+
+  const arsivPaylas = async (item) => {
+    try {
+      setArsivAcikItemId(item.id)
+      const url = await arsivSignedUrl(item.dosyaYolu)
+      if (!url) {
+        Alert.alert('Hata', 'Dosya bağlantısı oluşturulamadı.')
+        return
+      }
+      const lokal = `${FileSystem.cacheDirectory}arsiv_${item.id}.pdf`
+      const indirme = await FileSystem.downloadAsync(url, lokal)
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(indirme.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Servis Formu',
+          UTI: 'com.adobe.pdf',
+        })
+      } else {
+        Alert.alert('Bilgi', 'Cihazda paylaşım yok.')
+      }
+    } catch (e) {
+      Alert.alert('Hata', 'Form açılamadı: ' + (e?.message ?? 'bilinmeyen'))
+    } finally {
+      setArsivAcikItemId(null)
+    }
+  }
 
   const servisFormuAksiyon = () => {
     if (!talep) return
@@ -791,6 +838,53 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
               <Text style={styles.formuAcBtnText}>Servis Formunu Görüntüle</Text>
               <Feather name="chevron-right" size={18} color="#fff" />
             </TouchableOpacity>
+
+            {/* Form Arşivi */}
+            <View style={[styles.arsivBolum, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+              <View style={styles.arsivBaslikRow}>
+                <Feather name="archive" size={16} color={colors.textMuted} />
+                <Text style={[styles.arsivBaslik, { color: colors.textMuted }]}>
+                  Form Arşivi {arsiv.length > 0 ? `(${arsiv.length})` : ''}
+                </Text>
+              </View>
+
+              {arsivYukleniyor ? (
+                <ActivityIndicator color={colors.textPrimary} style={{ marginTop: 8 }} />
+              ) : arsiv.length === 0 ? (
+                <Text style={[styles.arsivBosText, { color: colors.textFaded }]}>
+                  Henüz form arşivlenmedi. Formu paylaş veya kaydet — otomatik arşivlenir.
+                </Text>
+              ) : (
+                arsiv.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    onPress={() => arsivPaylas(item)}
+                    activeOpacity={0.75}
+                    disabled={arsivAcikItemId === item.id}
+                    style={[styles.arsivItem, { borderColor: colors.border }]}
+                  >
+                    <Feather name="file-text" size={18} color={colors.primary} style={{ marginRight: 10 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.arsivItemTarih, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {new Date(item.olusturmaTarih).toLocaleString('tr-TR', {
+                          day: '2-digit', month: '2-digit', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </Text>
+                      <Text style={[styles.arsivItemAlt, { color: colors.textMuted }]} numberOfLines={1}>
+                        {item.olusturanAd || 'Bilinmeyen kullanıcı'}
+                        {item.boyut ? ` · ${Math.round(item.boyut / 1024)} KB` : ''}
+                      </Text>
+                    </View>
+                    {arsivAcikItemId === item.id ? (
+                      <ActivityIndicator color={colors.primary} />
+                    ) : (
+                      <Feather name="share-2" size={16} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
           </>
         )}
 
@@ -927,6 +1021,7 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         visible={formModalOpen}
         onClose={() => setFormModalOpen(false)}
         talep={talep}
+        onArsivlendi={() => yukleArsiv()}
       />
     </KeyboardAvoidingView>
   )
@@ -967,6 +1062,38 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  arsivBolum: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  arsivBaslikRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  arsivBaslik: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  arsivBosText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    paddingVertical: 8,
+  },
+  arsivItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderTopWidth: 1,
+  },
+  arsivItemTarih: { fontSize: 14, fontWeight: '600' },
+  arsivItemAlt: { fontSize: 11, marginTop: 2 },
   formuAcBtnText: {
     color: '#fff',
     fontSize: 15,
