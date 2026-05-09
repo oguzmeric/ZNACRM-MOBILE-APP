@@ -71,8 +71,20 @@ export default function TeklifDetayScreen({ route, navigation }) {
   const formatSec = (formatId) => {
     setFormatModalAcik(false)
     setPdfUretiliyor(true)
+    // Safety timeout — PDF zinciri 45 sn'de tamamlanmazsa state'i sıfırla
+    const safety = setTimeout(() => {
+      setPdfUretiliyor(false)
+      Alert.alert('Zaman Aşımı', 'PDF oluşturma çok uzun sürdü. Tekrar deneyin.')
+    }, 45000)
     teklifPdfUretVePaylas({ teklif, format: formatId })
-      .finally(() => setPdfUretiliyor(false))
+      .catch((e) => {
+        console.error('[formatSec] hata:', e)
+        Alert.alert('Hata', String(e?.message ?? e))
+      })
+      .finally(() => {
+        clearTimeout(safety)
+        setPdfUretiliyor(false)
+      })
   }
 
   const emailGonder = () => {

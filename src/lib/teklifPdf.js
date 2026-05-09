@@ -24,17 +24,28 @@ const formatHtml = async (format, teklif) => {
   }
 }
 
+// Promise'ı timeout ile sar — bir adım takılırsa zincir kilitlenmesin
+const ileTimeout = (promise, ms, ad) => Promise.race([
+  promise,
+  new Promise((_, reject) => setTimeout(() => reject(new Error(`Zaman aşımı (${ad}) — ${ms / 1000}sn`)), ms)),
+])
+
 // PDF üret + paylaş ekranını aç
 export const teklifPdfUretVePaylas = async ({ teklif, format }) => {
   try {
-    const html = await formatHtml(format, teklif)
-    // A4: 595 × 842 pt (≈ 210 × 297 mm). Default Letter (612x792) HTML'i ikiye böler.
-    const { uri } = await Print.printToFileAsync({
-      html,
-      base64: false,
-      width: 595,
-      height: 842,
-    })
+    console.log('[teklifPdf] başladı, format:', format)
+
+    console.log('[teklifPdf] HTML üretiliyor...')
+    const html = await ileTimeout(formatHtml(format, teklif), 30000, 'HTML üretimi')
+    console.log('[teklifPdf] HTML üretildi, uzunluk:', html.length)
+
+    console.log('[teklifPdf] PDF dosyaya yazılıyor...')
+    const { uri } = await ileTimeout(
+      Print.printToFileAsync({ html, base64: false, width: 595, height: 842 }),
+      30000,
+      'PDF oluşturma',
+    )
+    console.log('[teklifPdf] PDF üretildi:', uri)
 
     // Dosya adını anlamlandır: teklif numarası + format
     const teklifNo = (teklif.teklifNo || `teklif-${teklif.id}`).replaceAll('/', '-')
@@ -49,23 +60,28 @@ export const teklifPdfUretVePaylas = async ({ teklif, format }) => {
     }
 
     const paylasilacakUri = (await FileSystem.getInfoAsync(yeniUri)).exists ? yeniUri : uri
+    console.log('[teklifPdf] paylaşılacak uri:', paylasilacakUri)
 
     if (Platform.OS === 'web') {
-      // Web fallback (Expo web preview)
       Alert.alert('PDF', `PDF oluşturuldu: ${paylasilacakUri}`)
       return { ok: true, uri: paylasilacakUri }
     }
 
     const paylasMevcut = await Sharing.isAvailableAsync()
-    if (paylasMevcut) {
-      await Sharing.shareAsync(paylasilacakUri, {
-        mimeType: 'application/pdf',
-        dialogTitle: 'Teklifi Paylaş',
-        UTI: 'com.adobe.pdf',
-      })
-    } else {
+    if (!paylasMevcut) {
       Alert.alert('Paylaşım', 'Cihazda paylaşım modülü mevcut değil.')
+      return { ok: true, uri: paylasilacakUri }
     }
+
+    console.log('[teklifPdf] paylaşım açılıyor...')
+    // Sharing.shareAsync iOS'ta share sheet kapanana kadar bekler.
+    // Kullanıcı share sheet'i dismiss eder etmez resolve olur.
+    await Sharing.shareAsync(paylasilacakUri, {
+      mimeType: 'application/pdf',
+      dialogTitle: 'Teklifi Paylaş',
+      UTI: 'com.adobe.pdf',
+    })
+    console.log('[teklifPdf] paylaşım tamamlandı')
 
     return { ok: true, uri: paylasilacakUri }
   } catch (err) {
