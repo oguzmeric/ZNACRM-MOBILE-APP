@@ -1,19 +1,35 @@
 // Tarih seçimi (saat YOK) — deadline/sınır alanları için.
+// Mevcut TakvimPicker'ı (Türkçe lokalize, react-native-calendars) sarmalar.
 // Kullanım:
-//   <TarihSec value={tarih} onChange={setTarih} label="Son Tarih" minDate={new Date()} />
+//   <TarihSec value={tarih} onChange={setTarih} label="Son Tarih" />
 
 import { useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native'
-import DateTimePickerModal from 'react-native-modal-datetime-picker'
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { Feather } from '@expo/vector-icons'
+import TakvimPicker from './TakvimPicker'
 import { useTheme } from '../context/ThemeContext'
 
-export default function TarihSec({ value, onChange, label, minDate, maxDate, placeholder, disabled }) {
+// value: 'YYYY-MM-DD' string veya Date veya null
+const toIsoDateString = (v) => {
+  if (!v) return ''
+  if (typeof v === 'string') return v.slice(0, 10)
+  if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0, 10)
+  return ''
+}
+
+const formatTr = (v) => {
+  const iso = toIsoDateString(v)
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}.${m}.${y}`
+}
+
+export default function TarihSec({ value, onChange, label, placeholder, disabled, gosterTemizle = true, title }) {
   const [acik, setAcik] = useState(false)
   const { colors } = useTheme()
 
-  const goster = value
-    ? new Date(value).toLocaleDateString('tr-TR')
-    : (placeholder ?? 'Tarih seçin')
+  const iso = toIsoDateString(value)
+  const goster = iso ? formatTr(iso) : (placeholder ?? 'Tarih seçin')
 
   return (
     <View>
@@ -27,23 +43,29 @@ export default function TarihSec({ value, onChange, label, minDate, maxDate, pla
         onPress={() => !disabled && setAcik(true)}
         activeOpacity={0.7}
       >
-        <Text style={{ color: value ? colors.textPrimary : colors.textFaded, fontSize: 15 }}>
+        <Feather name="calendar" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
+        <Text style={{ flex: 1, color: iso ? colors.textPrimary : colors.textFaded, fontSize: 15 }}>
           {goster}
         </Text>
+        {gosterTemizle && !!iso && !disabled && (
+          <TouchableOpacity
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => onChange?.(null)}
+          >
+            <Feather name="x" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
 
-      <DateTimePickerModal
-        isVisible={acik}
-        mode="date"
-        display={Platform.OS === 'ios' ? 'inline' : 'default'}
-        date={value ? new Date(value) : new Date()}
-        minimumDate={minDate}
-        maximumDate={maxDate}
-        onConfirm={(d) => { setAcik(false); onChange?.(d) }}
-        onCancel={() => setAcik(false)}
-        locale="tr-TR"
-        confirmTextIOS="Seç"
-        cancelTextIOS="Vazgeç"
+      <TakvimPicker
+        visible={acik}
+        onClose={() => setAcik(false)}
+        secili={iso}
+        onSelect={(isoString) => {
+          setAcik(false)
+          onChange?.(isoString)
+        }}
+        title={title ?? label ?? 'Tarih Seç'}
       />
     </View>
   )
@@ -51,5 +73,11 @@ export default function TarihSec({ value, onChange, label, minDate, maxDate, pla
 
 const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', marginTop: 12, marginBottom: 6 },
-  input: { padding: 14, borderRadius: 10, borderWidth: 1 },
+  input: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
 })
