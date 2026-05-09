@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, Alert, Animated, PanResponder,
+  ActivityIndicator, RefreshControl, Alert,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
@@ -161,117 +161,53 @@ export default function BildirimlerScreen({ navigation }) {
           const renk = TIP_RENK[item.tip] || colors.primary
           const ikon = TIP_IKON[item.tip] || 'bell'
           return (
-            <SwipeSatir onSil={() => sil(item)} colors={colors}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => linkTap(item)}
-                onLongPress={() => sil(item)}
-                style={[
-                  styles.kart,
-                  {
-                    backgroundColor: item.okundu ? colors.surface : `${colors.primary}08`,
-                    borderColor: item.okundu ? colors.border : `${colors.primary}40`,
-                    borderLeftColor: renk,
-                    marginBottom: 0,  // swipeWrap marginBottom yönetiyor
-                  },
-                ]}
-              >
-                <View style={[styles.ikonKutu, { backgroundColor: `${renk}20` }]}>
-                  <Feather name={ikon} size={16} color={renk} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.baslik, { color: colors.textPrimary, fontWeight: item.okundu ? '500' : '700' }]}>
-                    {item.baslik}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => linkTap(item)}
+              onLongPress={() => sil(item)}
+              style={[
+                styles.kart,
+                {
+                  backgroundColor: item.okundu ? colors.surface : `${colors.primary}08`,
+                  borderColor: item.okundu ? colors.border : `${colors.primary}40`,
+                  borderLeftColor: renk,
+                },
+              ]}
+            >
+              <View style={[styles.ikonKutu, { backgroundColor: `${renk}20` }]}>
+                <Feather name={ikon} size={16} color={renk} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.baslik, { color: colors.textPrimary, fontWeight: item.okundu ? '500' : '700' }]} numberOfLines={2}>
+                  {item.baslik}
+                </Text>
+                {!!item.mesaj && (
+                  <Text style={[styles.mesaj, { color: colors.textMuted }]} numberOfLines={3}>
+                    {item.mesaj}
                   </Text>
-                  {!!item.mesaj && (
-                    <Text style={[styles.mesaj, { color: colors.textMuted }]} numberOfLines={3}>
-                      {item.mesaj}
-                    </Text>
-                  )}
-                  <Text style={[styles.tarih, { color: colors.textMuted }]}>
-                    {goreceTarih(item.olusturmaTarih)}
-                  </Text>
-                </View>
+                )}
+                <Text style={[styles.tarih, { color: colors.textMuted }]}>
+                  {goreceTarih(item.olusturmaTarih)}
+                </Text>
+              </View>
+              <View style={{ alignItems: 'center', gap: 8, paddingLeft: 4 }}>
                 {!item.okundu && (
                   <View style={[styles.okunmamisDot, { backgroundColor: renk }]} />
                 )}
-              </TouchableOpacity>
-            </SwipeSatir>
+                <TouchableOpacity
+                  hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
+                  onPress={(e) => { e?.stopPropagation?.(); sil(item) }}
+                  style={styles.silIkon}
+                  activeOpacity={0.6}
+                >
+                  <Feather name="x" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           )
         }}
       />
     </ScreenContainer>
-  )
-}
-
-// Sol/sağ kaydırma → arkadan kırmızı "Sil" butonu açılır
-// Pure JS PanResponder + Animated — react-native-gesture-handler gerektirmez
-function SwipeSatir({ children, onSil, colors }) {
-  const translateX = useRef(new Animated.Value(0)).current
-  const acikRef = useRef(false)
-  const ESIK = 60        // Bu kadar kaydırırsa açık kalır
-  const SIL_ESIK = -200  // Bu kadar kaydırırsa direkt siler
-  const ACIK_KONUM = -100
-
-  const responder = useRef(PanResponder.create({
-    // Açıkken hassas eşik — küçük sağa hareket bile devralacak
-    // Kapalıyken yatay hareket dikeyden 1.5x büyükse devral (FlatList scroll'u bozma)
-    onMoveShouldSetPanResponder: (_, g) => {
-      if (acikRef.current) return Math.abs(g.dx) > 3
-      return Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5
-    },
-    onPanResponderTerminationRequest: () => false,  // Başka bileşen iptal etmesin
-    onPanResponderMove: (_, g) => {
-      if (acikRef.current) {
-        // Açıkken: sağa kaydır kapanır, sola tekrar kaydır direkt silmeye gider
-        translateX.setValue(Math.max(SIL_ESIK, Math.min(0, ACIK_KONUM + g.dx)))
-      } else {
-        // Kapalıyken sola kaydır
-        if (g.dx < 0) translateX.setValue(Math.max(g.dx, SIL_ESIK))
-      }
-    },
-    onPanResponderRelease: (_, g) => {
-      const sondaki = acikRef.current ? ACIK_KONUM + g.dx : g.dx
-      // Çok hızlı/uzaklara sola → direkt sil
-      if (sondaki < SIL_ESIK + 20 || g.vx < -1.2) {
-        Animated.timing(translateX, { toValue: -400, duration: 200, useNativeDriver: true }).start(() => {
-          onSil?.()
-          translateX.setValue(0)
-          acikRef.current = false
-        })
-        return
-      }
-      if (acikRef.current) {
-        // Açıkken: sağa hareket veya hızlı sağa fling → kapat
-        const kapat = g.dx > 15 || g.vx > 0.3
-        Animated.timing(translateX, {
-          toValue: kapat ? 0 : ACIK_KONUM, duration: 180, useNativeDriver: true,
-        }).start(() => { acikRef.current = !kapat })
-      } else {
-        // Kapalıyken: yeterince sola kaydır → aç
-        const ac = g.dx < -ESIK || g.vx < -0.5
-        Animated.timing(translateX, {
-          toValue: ac ? ACIK_KONUM : 0, duration: 180, useNativeDriver: true,
-        }).start(() => { acikRef.current = ac })
-      }
-    },
-  })).current
-
-  return (
-    <View style={styles.swipeWrap}>
-      <View style={styles.silArka}>
-        <TouchableOpacity onPress={onSil} style={styles.silBtn} activeOpacity={0.85}>
-          <Feather name="trash-2" size={20} color="#fff" />
-          <Text style={styles.silText}>Sil</Text>
-        </TouchableOpacity>
-      </View>
-      <Animated.View
-        {...responder.panHandlers}
-        style={{ width: '100%', backgroundColor: colors.background, transform: [{ translateX }] }}
-      >
-        {children}
-      </Animated.View>
-    </View>
   )
 }
 
@@ -298,14 +234,10 @@ const styles = StyleSheet.create({
   tarih: { fontSize: 11, marginTop: 4 },
   okunmamisDot: {
     width: 8, height: 8, borderRadius: 4,
-    marginTop: 6, flexShrink: 0,
+    flexShrink: 0,
   },
-  swipeWrap: { position: 'relative', overflow: 'hidden', borderRadius: 10, marginBottom: 8 },
-  silArka: {
-    position: 'absolute', top: 0, bottom: 0, right: 0, width: 100,
-    backgroundColor: '#dc2626', borderRadius: 10,
-    justifyContent: 'center', alignItems: 'center',
+  silIkon: {
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
   },
-  silBtn: { flex: 1, justifyContent: 'center', alignItems: 'center', width: 100 },
-  silText: { color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 4 },
 })
