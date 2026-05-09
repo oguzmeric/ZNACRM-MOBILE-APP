@@ -12,6 +12,7 @@ import {
   demoCihazGetir, demoZimmetGecmisi, demoZimmetIadeAl, demoZimmetUzat,
   demoBakimaAl, demoCihazSil,
 } from '../services/demoService'
+import TarihSec from '../components/TarihSec'
 
 const fmtTarih = (t) => t ? new Date(t).toLocaleDateString('tr-TR') : '—'
 
@@ -221,9 +222,14 @@ function IadeAlModal({ acik, onKapat, onKaydet, colors }) {
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <View style={{ backgroundColor: colors.surface, padding: 20, borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
           <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '800', marginBottom: 12 }}>İade Al</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700' }}>İADE TARİHİ</Text>
-          <TextInput value={tarih} onChangeText={setTarih} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textFaded}
-            style={{ borderWidth: 1, borderColor: colors.border, padding: 10, borderRadius: 8, color: colors.textPrimary, marginTop: 4, marginBottom: 12 }} />
+          <View style={{ marginBottom: 12 }}>
+            <TarihSec
+              value={tarih}
+              onChange={(iso) => setTarih(iso || '')}
+              label="İADE TARİHİ"
+              title="İade Tarihi"
+            />
+          </View>
           <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700' }}>MÜŞTERİ KARARI</Text>
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, marginBottom: 12, flexWrap: 'wrap' }}>
             {KARAR_SECENEK.map(k => (
@@ -260,9 +266,14 @@ function SureyiUzatModal({ acik, mevcut, onKapat, onKaydet, colors }) {
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
         <View style={{ backgroundColor: colors.surface, padding: 20, borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
           <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '800', marginBottom: 12 }}>Süreyi Uzat</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700' }}>YENİ İADE TARİHİ</Text>
-          <TextInput value={tarih} onChangeText={setTarih} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textFaded}
-            style={{ borderWidth: 1, borderColor: colors.border, padding: 10, borderRadius: 8, color: colors.textPrimary, marginTop: 4, marginBottom: 12 }} />
+          <View style={{ marginBottom: 12 }}>
+            <TarihSec
+              value={tarih}
+              onChange={(iso) => setTarih(iso || '')}
+              label="YENİ İADE TARİHİ"
+              title="Yeni İade Tarihi"
+            />
+          </View>
           <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700' }}>NEDEN (opsiyonel)</Text>
           <TextInput value={neden} onChangeText={setNeden}
             style={{ borderWidth: 1, borderColor: colors.border, padding: 10, borderRadius: 8, color: colors.textPrimary, marginTop: 4, marginBottom: 12 }} />

@@ -23,8 +23,8 @@ import { gorevEkle } from '../services/gorevService'
 import { talepOlusturGorevden } from '../services/servisService'
 import { bildirimEkleDb } from '../services/bildirimService'
 import { trIcerir } from '../utils/trSearch'
-import TakvimPicker from '../components/TakvimPicker'
 import LokasyonPicker from '../components/LokasyonPicker'
+import TarihSec from '../components/TarihSec'
 
 const ONCELIKLER = [
   { id: 'dusuk', label: 'Düşük' },
@@ -41,7 +41,6 @@ export default function YeniGorevScreen({ navigation, route }) {
   const [aciklama, setAciklama] = useState(baslangic.baslangicAciklama || '')
   const [oncelik, setOncelik] = useState('normal')
   const [bitisTarihi, setBitisTarihi] = useState('') // YYYY-MM-DD
-  const [tarihPickerAcik, setTarihPickerAcik] = useState(false)
 
   const [atanan, setAtanan] = useState(null)
   const [kullanicilar, setKullanicilar] = useState([])
@@ -301,22 +300,12 @@ export default function YeniGorevScreen({ navigation, route }) {
           ))}
         </View>
 
-        <Text style={[styles.label, { color: colors.textMuted }]}>Bitiş Tarihi</Text>
-        <TouchableOpacity
-          onPress={() => setTarihPickerAcik(true)}
-          activeOpacity={0.85}
-          style={[inputStyle, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
-        >
-          <Feather name="calendar" size={16} color={colors.primary} />
-          <Text style={{ flex: 1, color: bitisTarihi ? colors.textPrimary : colors.textMuted, fontSize: 14 }}>
-            {bitisTarihi || 'Tarih seç'}
-          </Text>
-          {!!bitisTarihi && (
-            <TouchableOpacity onPress={() => setBitisTarihi('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </TouchableOpacity>
+        <TarihSec
+          value={bitisTarihi}
+          onChange={(iso) => setBitisTarihi(iso || '')}
+          label="Bitiş Tarihi"
+          placeholder="Tarih seç"
+        />
 
         <TouchableOpacity
           style={[styles.kaydetBtn, kaydediliyor && { opacity: 0.6 }]}
@@ -415,13 +404,6 @@ export default function YeniGorevScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      <TakvimPicker
-        visible={tarihPickerAcik}
-        onClose={() => setTarihPickerAcik(false)}
-        secili={bitisTarihi}
-        onSelect={(t) => { setBitisTarihi(t); setTarihPickerAcik(false) }}
-        title="Bitiş Tarihi Seç"
-      />
     </KeyboardAvoidingView>
   )
 }

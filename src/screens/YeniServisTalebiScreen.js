@@ -17,7 +17,7 @@ import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { Image } from 'react-native'
 import { useHeaderHeight } from '@react-navigation/elements'
-import TakvimPicker from '../components/TakvimPicker'
+import TarihSec from '../components/TarihSec'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { kullanicilariGetir } from '../services/kullaniciService'
@@ -80,7 +80,6 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
   const [altKategoriPickerOpen, setAltKategoriPickerOpen] = useState(false)
 
   // Date/time picker kontrolleri
-  const [tarihPickerOpen, setTarihPickerOpen] = useState(false)
   const [zamanPickerOpen, setZamanPickerOpen] = useState(false)
 
   const [kaydediliyor, setKaydediliyor] = useState(false)
@@ -648,30 +647,12 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
           )}
         </TouchableOpacity>
 
-        {/* Planlı tarih - date picker */}
-        <Text style={[styles.label, { color: colors.textMuted }]}>Planlı Tarih</Text>
-        <TouchableOpacity
-          style={[styles.pickerInput, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]}
-          onPress={() => setTarihPickerOpen(true)}
-          activeOpacity={0.7}
-        >
-          <Feather name="calendar" size={18} color="#60a5fa" />
-          <Text style={[styles.pickerInputText, { color: colors.textPrimary }, !planliTarih && { color: colors.textFaded }]}>
-            {planliTarih ? tarihGoster(planliTarih) : 'Tarih seç...'}
-          </Text>
-          {!!planliTarih && (
-            <TouchableOpacity onPress={() => setPlanliTarih('')}>
-              <Feather name="x" size={18} color="#ef4444" />
-            </TouchableOpacity>
-          )}
-        </TouchableOpacity>
-
-        {/* Takvim modal — Planlı Tarih */}
-        <TakvimPicker
-          visible={tarihPickerOpen}
-          onClose={() => setTarihPickerOpen(false)}
-          secili={planliTarih}
-          onSelect={(d) => setPlanliTarih(d)}
+        {/* Planlı tarih — TarihSec wrapper */}
+        <TarihSec
+          value={planliTarih}
+          onChange={(iso) => setPlanliTarih(iso || '')}
+          label="Planlı Tarih"
+          placeholder="Tarih seç..."
           title="Planlı Tarih Seç"
         />
 

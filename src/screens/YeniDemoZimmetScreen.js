@@ -9,6 +9,7 @@ import { demoZimmetAc, demoCihazGetir } from '../services/demoService'
 import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { trIcerir } from '../utils/trSearch'
+import TarihSec from '../components/TarihSec'
 
 const SURELER = [7, 14, 30]
 
@@ -112,14 +113,20 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
 
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.label, { color: colors.textMuted }]}>VERİLİŞ</Text>
-              <TextInput value={verisTarihi} onChangeText={setVerisTarihi}
-                style={{ marginTop: 4, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.textPrimary }} />
+              <TarihSec
+                value={verisTarihi}
+                onChange={(iso) => setVerisTarihi(iso || '')}
+                label="VERİLİŞ"
+                title="Veriliş Tarihi"
+              />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.label, { color: colors.textMuted }]}>BEKLENEN İADE *</Text>
-              <TextInput value={iadeTarihi} onChangeText={setIadeTarihi}
-                style={{ marginTop: 4, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.textPrimary }} />
+              <TarihSec
+                value={iadeTarihi}
+                onChange={(iso) => setIadeTarihi(iso || '')}
+                label="BEKLENEN İADE *"
+                title="Beklenen İade Tarihi"
+              />
             </View>
           </View>
 

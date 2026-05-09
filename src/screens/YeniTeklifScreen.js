@@ -30,7 +30,7 @@ import {
   teklifToplamHesapla,
   teklifleriGetir,
 } from '../services/teklifService'
-import TakvimPicker from '../components/TakvimPicker'
+import TarihSec from '../components/TarihSec'
 import { tarihFormat } from '../utils/format'
 import { paraFormat } from '../utils/paraFormat'
 import { trIcerir } from '../utils/trSearch'
@@ -65,8 +65,6 @@ export default function YeniTeklifScreen({ route, navigation }) {
   const [musteriArama, setMusteriArama] = useState('')
   const [kisiPickerOpen, setKisiPickerOpen] = useState(false)
   const [odemePickerOpen, setOdemePickerOpen] = useState(false)
-  const [tarihPickerOpen, setTarihPickerOpen] = useState(false)
-  const [gecerlilikPickerOpen, setGecerlilikPickerOpen] = useState(false)
 
   const [satirEditIndex, setSatirEditIndex] = useState(null)
   const [satirEditOpen, setSatirEditOpen] = useState(false)
@@ -342,28 +340,22 @@ export default function YeniTeklifScreen({ route, navigation }) {
         {/* Tarih + Geçerlilik */}
         <View style={styles.row2}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: colors.textMuted }]}>Tarih</Text>
-            <TouchableOpacity
-              style={[styles.pickerInput, { backgroundColor: colors.surface }]}
-              onPress={() => setTarihPickerOpen(true)}
-            >
-              <Feather name="calendar" size={16} color={colors.primaryLight} />
-              <Text style={[styles.pickerInputText, { color: colors.textPrimary }]}>
-                {tarih ? tarihFormat(tarih) : 'Seç'}
-              </Text>
-            </TouchableOpacity>
+            <TarihSec
+              value={tarih}
+              onChange={(iso) => setTarih(iso || '')}
+              label="Tarih"
+              placeholder="Seç"
+              title="Teklif Tarihi"
+            />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.label, { color: colors.textMuted }]}>Geçerlilik</Text>
-            <TouchableOpacity
-              style={[styles.pickerInput, { backgroundColor: colors.surface }]}
-              onPress={() => setGecerlilikPickerOpen(true)}
-            >
-              <Feather name="calendar" size={16} color={colors.primaryLight} />
-              <Text style={[styles.pickerInputText, { color: colors.textPrimary }]}>
-                {gecerlilikTarihi ? tarihFormat(gecerlilikTarihi) : 'Seç'}
-              </Text>
-            </TouchableOpacity>
+            <TarihSec
+              value={gecerlilikTarihi}
+              onChange={(iso) => setGecerlilikTarihi(iso || '')}
+              label="Geçerlilik"
+              placeholder="Seç"
+              title="Geçerlilik Tarihi"
+            />
           </View>
         </View>
 
@@ -614,22 +606,6 @@ export default function YeniTeklifScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
-
-      {/* Takvim pickerlar */}
-      <TakvimPicker
-        visible={tarihPickerOpen}
-        onClose={() => setTarihPickerOpen(false)}
-        secili={tarih}
-        onSelect={setTarih}
-        title="Teklif Tarihi"
-      />
-      <TakvimPicker
-        visible={gecerlilikPickerOpen}
-        onClose={() => setGecerlilikPickerOpen(false)}
-        secili={gecerlilikTarihi}
-        onSelect={setGecerlilikTarihi}
-        title="Geçerlilik Tarihi"
-      />
 
       {/* Satır ekleme/düzenleme modal */}
       <SatirModal
