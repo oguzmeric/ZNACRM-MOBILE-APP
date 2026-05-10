@@ -8,9 +8,12 @@ import Constants from 'expo-constants'
 import { supabase } from './supabase'
 
 // Foreground'da bildirim nasıl gösterilsin
+// iOS 14+: shouldShowAlert deprecate, shouldShowBanner + shouldShowList yeni
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowAlert: true,        // eski iOS / Android için
+    shouldShowBanner: true,        // iOS 14+ banner (yukarıdan düşen)
+    shouldShowList: true,          // iOS 14+ Notification Center listesi
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
