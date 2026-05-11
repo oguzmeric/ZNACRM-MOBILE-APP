@@ -2,7 +2,10 @@
 // - Apple Pencil / Android stylus / parmak destekli
 // - Renk seçici + kalem kalınlığı + silgi
 // - Geri al + temizle
-// - "Kaydet" → PNG export → Supabase Storage'a yükle → çağıran ekrana çizim path'ini geri ver
+// - "Kaydet" → PNG export → Supabase Storage'a yükle
+//
+// NOT: gesture-handler/Reanimated YOK — ham View touch event'leri kullanılıyor.
+// Bu, native worklet ↔ JS thread çakışmasını önler, crash riski 0.
 
 import { useRef, useState, useEffect } from 'react'
 import {
@@ -12,7 +15,6 @@ import { Feather } from '@expo/vector-icons'
 import {
   Canvas, Path, Skia, useCanvasRef,
 } from '@shopify/react-native-skia'
-import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useTheme } from '../context/ThemeContext'
 import { cizimYukle } from '../services/notService'
@@ -33,40 +35,42 @@ export default function NotCizimScreen({ route, navigation }) {
   const [silgi, setSilgi] = useState(false)
   const [kaydediliyor, setKaydediliyor] = useState(false)
 
+  // Çizim sırasında bilgileri ref'te tutuyoruz; aktif renk/kalınlık değişse bile
+  // o anki stroke için kullanılan değerler sabit kalsın.
+  const aktifRef = useRef(null)
+
   useEffect(() => {
     navigation.setOptions({ title: 'Çizim' })
   }, [navigation])
 
-  // Çizim için pan gesture — runOnJS(true) ZORUNLU çünkü içinde React setState var.
-  // Worklet (UI thread) içinde setState çağrılırsa app crash eder.
-  const pan = Gesture.Pan()
-    .runOnJS(true)
-    .minDistance(0)
-    .onBegin((e) => {
-      const yeniPath = Skia.Path.Make()
-      yeniPath.moveTo(e.x, e.y)
-      setAktifPath({
-        path: yeniPath,
-        renk: silgi ? '#ffffff' : renk,
-        kalinlik: silgi ? 16 : kalinlik,
-      })
-    })
-    .onUpdate((e) => {
-      setAktifPath((prev) => {
-        if (!prev) return prev
-        prev.path.lineTo(e.x, e.y)
-        // Force re-render: yeni Path objesi yarat
-        return { ...prev, path: prev.path.copy() }
-      })
-    })
-    .onEnd(() => {
-      setAktifPath((prev) => {
-        if (prev) {
-          setPaths((eski) => [...eski, prev])
-        }
-        return null
-      })
-    })
+  const dokunBasla = (e) => {
+    const { locationX, locationY } = e.nativeEvent
+    const yeniPath = Skia.Path.Make()
+    yeniPath.moveTo(locationX, locationY)
+    const yeni = {
+      path: yeniPath,
+      renk: silgi ? '#ffffff' : renk,
+      kalinlik: silgi ? 16 : kalinlik,
+    }
+    aktifRef.current = yeni
+    setAktifPath(yeni)
+  }
+
+  const dokunHareket = (e) => {
+    if (!aktifRef.current) return
+    const { locationX, locationY } = e.nativeEvent
+    aktifRef.current.path.lineTo(locationX, locationY)
+    // Force re-render: yeni obje referansı
+    setAktifPath({ ...aktifRef.current, path: aktifRef.current.path })
+  }
+
+  const dokunBitir = () => {
+    if (aktifRef.current) {
+      setPaths((prev) => [...prev, aktifRef.current])
+    }
+    aktifRef.current = null
+    setAktifPath(null)
+  }
 
   const geriAl = () => {
     setPaths((p) => p.slice(0, -1))
@@ -87,7 +91,6 @@ export default function NotCizimScreen({ route, navigation }) {
     }
     setKaydediliyor(true)
     try {
-      // Canvas'tan PNG snapshot al
       const snapshot = canvasRef.current?.makeImageSnapshot()
       if (!snapshot) {
         Alert.alert('Hata', 'Çizim alınamadı.')
@@ -99,14 +102,12 @@ export default function NotCizimScreen({ route, navigation }) {
         encoding: FileSystem.EncodingType.Base64,
       })
 
-      // Storage'a yükle
       const sonuc = await cizimYukle(tempUri, kullaniciId, notId)
       if (!sonuc) {
         Alert.alert('Hata', 'Çizim yüklenemedi.')
         return
       }
 
-      // Çağıran ekrana geri dön + yeni çizim path'ini params olarak ver
       navigation.navigate({ name: 'NotDuzenle', params: { yeniCizim: sonuc }, merge: true })
     } catch (e) {
       Alert.alert('Hata', e?.message ?? 'Çizim kaydedilemedi.')
@@ -117,107 +118,113 @@ export default function NotCizimScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
-        {/* Üst toolbar */}
-        <View style={[styles.toolbar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <TouchableOpacity onPress={geriAl} disabled={paths.length === 0} style={[styles.tbBtn, paths.length === 0 && { opacity: 0.3 }]}>
-              <Feather name="rotate-ccw" size={18} color={colors.textPrimary} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={temizle} disabled={paths.length === 0} style={[styles.tbBtn, paths.length === 0 && { opacity: 0.3 }]}>
-              <Feather name="trash-2" size={18} color={colors.textPrimary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setSilgi((s) => !s)}
-              style={[styles.tbBtn, silgi && { backgroundColor: '#fde68a' }]}
-            >
-              <Feather name="x-square" size={18} color={silgi ? '#92400e' : colors.textPrimary} />
-            </TouchableOpacity>
-          </View>
-
+      {/* Üst toolbar */}
+      <View style={[styles.toolbar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <TouchableOpacity onPress={geriAl} disabled={paths.length === 0} style={[styles.tbBtn, paths.length === 0 && { opacity: 0.3 }]}>
+            <Feather name="rotate-ccw" size={18} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={temizle} disabled={paths.length === 0} style={[styles.tbBtn, paths.length === 0 && { opacity: 0.3 }]}>
+            <Feather name="trash-2" size={18} color={colors.textPrimary} />
+          </TouchableOpacity>
           <TouchableOpacity
-            onPress={kaydet}
-            disabled={kaydediliyor || paths.length === 0}
-            style={[styles.kaydetBtn, (kaydediliyor || paths.length === 0) && { opacity: 0.5 }]}
+            onPress={() => setSilgi((s) => !s)}
+            style={[styles.tbBtn, silgi && { backgroundColor: '#fde68a' }]}
           >
-            {kaydediliyor ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <Feather name="check" size={16} color="#fff" />
-                <Text style={styles.kaydetText}>Kaydet</Text>
-              </>
-            )}
+            <Feather name="x-square" size={18} color={silgi ? '#92400e' : colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
-        {/* Canvas */}
-        <GestureDetector gesture={pan}>
-          <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
-            <Canvas ref={canvasRef} style={{ flex: 1 }}>
-              {paths.map((p, i) => (
-                <Path
-                  key={i}
-                  path={p.path}
-                  color={p.renk}
-                  style="stroke"
-                  strokeWidth={p.kalinlik}
-                  strokeCap="round"
-                  strokeJoin="round"
-                />
-              ))}
-              {aktifPath && (
-                <Path
-                  path={aktifPath.path}
-                  color={aktifPath.renk}
-                  style="stroke"
-                  strokeWidth={aktifPath.kalinlik}
-                  strokeCap="round"
-                  strokeJoin="round"
-                />
-              )}
-            </Canvas>
-          </View>
-        </GestureDetector>
+        <TouchableOpacity
+          onPress={kaydet}
+          disabled={kaydediliyor || paths.length === 0}
+          style={[styles.kaydetBtn, (kaydediliyor || paths.length === 0) && { opacity: 0.5 }]}
+        >
+          {kaydediliyor ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <>
+              <Feather name="check" size={16} color="#fff" />
+              <Text style={styles.kaydetText}>Kaydet</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
 
-        {/* Alt toolbar — renkler + kalınlık */}
-        <View style={[styles.altToolbar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 4 }}>
-            {RENKLER.map((r) => (
-              <TouchableOpacity
-                key={r}
-                onPress={() => { setRenk(r); setSilgi(false) }}
-                style={{
-                  width: 32, height: 32, borderRadius: 16,
-                  backgroundColor: r,
-                  borderWidth: renk === r && !silgi ? 3 : 1,
-                  borderColor: renk === r && !silgi ? colors.primary : colors.border,
-                  alignItems: 'center', justifyContent: 'center',
-                }}
-              />
-            ))}
-          </ScrollView>
+      {/* Canvas — ham View touch event'leri */}
+      <View
+        style={{ flex: 1, backgroundColor: '#ffffff' }}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onResponderGrant={dokunBasla}
+        onResponderMove={dokunHareket}
+        onResponderRelease={dokunBitir}
+        onResponderTerminate={dokunBitir}
+      >
+        <Canvas ref={canvasRef} style={{ flex: 1 }}>
+          {paths.map((p, i) => (
+            <Path
+              key={i}
+              path={p.path}
+              color={p.renk}
+              style="stroke"
+              strokeWidth={p.kalinlik}
+              strokeCap="round"
+              strokeJoin="round"
+            />
+          ))}
+          {aktifPath && (
+            <Path
+              path={aktifPath.path}
+              color={aktifPath.renk}
+              style="stroke"
+              strokeWidth={aktifPath.kalinlik}
+              strokeCap="round"
+              strokeJoin="round"
+            />
+          )}
+        </Canvas>
+      </View>
 
-          <View style={{ width: 1, height: 28, backgroundColor: colors.border, marginHorizontal: 10 }} />
+      {/* Alt toolbar — renkler + kalınlık */}
+      <View style={[styles.altToolbar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 4 }}>
+          {RENKLER.map((r) => (
+            <TouchableOpacity
+              key={r}
+              onPress={() => { setRenk(r); setSilgi(false) }}
+              style={{
+                width: 32, height: 32, borderRadius: 16,
+                backgroundColor: r,
+                borderWidth: renk === r && !silgi ? 3 : 1,
+                borderColor: renk === r && !silgi ? colors.primary : colors.border,
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            />
+          ))}
+        </ScrollView>
 
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            {KALINLIKLAR.map((k) => (
-              <TouchableOpacity
-                key={k}
-                onPress={() => setKalinlik(k)}
-                style={{
-                  width: 32, height: 32, borderRadius: 16,
-                  alignItems: 'center', justifyContent: 'center',
-                  borderWidth: kalinlik === k ? 2 : 1,
-                  borderColor: kalinlik === k ? colors.primary : colors.border,
-                  backgroundColor: colors.bg,
-                }}
-              >
-                <View style={{ width: k * 1.5, height: k * 1.5, borderRadius: k, backgroundColor: colors.textPrimary }} />
-              </TouchableOpacity>
-            ))}
-          </View>
+        <View style={{ width: 1, height: 28, backgroundColor: colors.border, marginHorizontal: 10 }} />
+
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          {KALINLIKLAR.map((k) => (
+            <TouchableOpacity
+              key={k}
+              onPress={() => setKalinlik(k)}
+              style={{
+                width: 32, height: 32, borderRadius: 16,
+                alignItems: 'center', justifyContent: 'center',
+                borderWidth: kalinlik === k ? 2 : 1,
+                borderColor: kalinlik === k ? colors.primary : colors.border,
+                backgroundColor: colors.bg,
+              }}
+            >
+              <View style={{ width: k * 1.5, height: k * 1.5, borderRadius: k, backgroundColor: colors.textPrimary }} />
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
+    </View>
   )
 }
 
