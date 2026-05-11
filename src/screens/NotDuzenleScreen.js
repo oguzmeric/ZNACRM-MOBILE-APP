@@ -250,11 +250,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
               <CizimThumbnail
                 key={`${c.path}-${i}`}
                 cizim={c}
-                onPress={async () => {
-                  const url = await cizimSignedUrl(c.path)
-                  if (url) setCizimViewerUrl(url)
-                  else Alert.alert('Hata', 'Çizim açılamadı.')
-                }}
+                onAcildi={(url) => setCizimViewerUrl(url)}
                 onSilTikla={() => cizimKaldir(c, i)}
               />
             ))}
@@ -356,17 +352,43 @@ export default function NotDuzenleScreen({ route, navigation }) {
   )
 }
 
-function CizimThumbnail({ cizim, onPress, onSilTikla }) {
+function CizimThumbnail({ cizim, onAcildi, onSilTikla }) {
   const [url, setUrl] = useState(null)
+  const [hata, setHata] = useState(null)
   const { colors } = useTheme()
+
   useEffect(() => {
-    cizimSignedUrl(cizim.path).then(setUrl)
-  }, [cizim.path])
+    if (!cizim?.path) {
+      setHata('Çizim yolu yok')
+      return
+    }
+    cizimSignedUrl(cizim.path)
+      .then((u) => {
+        if (u) setUrl(u)
+        else setHata('URL alınamadı')
+      })
+      .catch((e) => setHata(e?.message ?? 'hata'))
+  }, [cizim?.path])
+
+  const tikla = async () => {
+    // Önce cache'li URL'i kullan, yoksa yeniden iste
+    if (url) {
+      onAcildi(url)
+      return
+    }
+    const yeniUrl = await cizimSignedUrl(cizim.path)
+    if (yeniUrl) {
+      setUrl(yeniUrl)
+      onAcildi(yeniUrl)
+    } else {
+      Alert.alert('Açılamadı', `Çizim sunucudan alınamadı.\nPath: ${cizim?.path ?? 'yok'}`)
+    }
+  }
 
   return (
     <View style={{ position: 'relative' }}>
       <TouchableOpacity
-        onPress={onPress}
+        onPress={tikla}
         activeOpacity={0.7}
         style={{
           width: 96, height: 96,
@@ -378,6 +400,13 @@ function CizimThumbnail({ cizim, onPress, onSilTikla }) {
       >
         {url ? (
           <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+        ) : hata ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 4 }}>
+            <Feather name="alert-circle" size={18} color="#ef4444" />
+            <Text style={{ fontSize: 9, color: '#ef4444', marginTop: 2, textAlign: 'center' }}>
+              {hata}
+            </Text>
+          </View>
         ) : (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Feather name="image" size={20} color={colors.textMuted} />
