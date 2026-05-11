@@ -4,8 +4,8 @@
 // - Geri al + temizle
 // - "Kaydet" → PNG export → Supabase Storage'a yükle
 //
-// NOT: gesture-handler/Reanimated YOK — ham View touch event'leri kullanılıyor.
-// Bu, native worklet ↔ JS thread çakışmasını önler, crash riski 0.
+// NOT: Path objesi yerine SVG path STRING kullanıyoruz. JSI host object'i
+// React state'te mutate etmek crash'e neden oluyordu — string immutable, güvenli.
 
 import { useRef, useState, useEffect } from 'react'
 import {
@@ -13,7 +13,7 @@ import {
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import {
-  Canvas, Path, Skia, useCanvasRef,
+  Canvas, Path, useCanvasRef,
 } from '@shopify/react-native-skia'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useTheme } from '../context/ThemeContext'
@@ -22,22 +22,35 @@ import { cizimYukle } from '../services/notService'
 const RENKLER = ['#0f172a', '#dc2626', '#2563eb', '#16a34a', '#f59e0b', '#a855f7']
 const KALINLIKLAR = [2, 4, 6, 10]
 
+// Noktalar listesinden SVG path string üret
+function noktalardanPath(noktalar) {
+  if (!noktalar || noktalar.length === 0) return ''
+  const ilk = noktalar[0]
+  let s = `M ${ilk.x.toFixed(2)} ${ilk.y.toFixed(2)}`
+  for (let i = 1; i < noktalar.length; i++) {
+    s += ` L ${noktalar[i].x.toFixed(2)} ${noktalar[i].y.toFixed(2)}`
+  }
+  return s
+}
+
 export default function NotCizimScreen({ route, navigation }) {
   const { kullaniciId, notId } = route.params ?? {}
   const { colors } = useTheme()
   const canvasRef = useCanvasRef()
 
-  // Path'leri tutuyoruz — geri al için
-  const [paths, setPaths] = useState([])  // [{ path, renk, kalinlik }]
-  const [aktifPath, setAktifPath] = useState(null)
+  // Tamamlanmış stroke'lar
+  const [strokeler, setStrokeler] = useState([])  // [{points, renk, kalinlik}]
+  // Aktif (çizilmekte olan) stroke
+  const [aktifNoktalar, setAktifNoktalar] = useState([])
+
   const [renk, setRenk] = useState('#0f172a')
   const [kalinlik, setKalinlik] = useState(4)
   const [silgi, setSilgi] = useState(false)
   const [kaydediliyor, setKaydediliyor] = useState(false)
 
-  // Çizim sırasında bilgileri ref'te tutuyoruz; aktif renk/kalınlık değişse bile
-  // o anki stroke için kullanılan değerler sabit kalsın.
-  const aktifRef = useRef(null)
+  // Aktif stroke'un renk/kalınlığını ref'te tutuyoruz — çizim sırasında renk değişimi
+  // mevcut stroke'a yansımasın
+  const aktifStilRef = useRef({ renk: '#0f172a', kalinlik: 4 })
 
   useEffect(() => {
     navigation.setOptions({ title: 'Çizim' })
@@ -45,47 +58,44 @@ export default function NotCizimScreen({ route, navigation }) {
 
   const dokunBasla = (e) => {
     const { locationX, locationY } = e.nativeEvent
-    const yeniPath = Skia.Path.Make()
-    yeniPath.moveTo(locationX, locationY)
-    const yeni = {
-      path: yeniPath,
+    aktifStilRef.current = {
       renk: silgi ? '#ffffff' : renk,
       kalinlik: silgi ? 16 : kalinlik,
     }
-    aktifRef.current = yeni
-    setAktifPath(yeni)
+    setAktifNoktalar([{ x: locationX, y: locationY }])
   }
 
   const dokunHareket = (e) => {
-    if (!aktifRef.current) return
     const { locationX, locationY } = e.nativeEvent
-    aktifRef.current.path.lineTo(locationX, locationY)
-    // Force re-render: yeni obje referansı
-    setAktifPath({ ...aktifRef.current, path: aktifRef.current.path })
+    setAktifNoktalar((prev) => [...prev, { x: locationX, y: locationY }])
   }
 
   const dokunBitir = () => {
-    if (aktifRef.current) {
-      setPaths((prev) => [...prev, aktifRef.current])
-    }
-    aktifRef.current = null
-    setAktifPath(null)
+    setAktifNoktalar((mevcut) => {
+      if (mevcut.length > 0) {
+        setStrokeler((prev) => [
+          ...prev,
+          { noktalar: mevcut, renk: aktifStilRef.current.renk, kalinlik: aktifStilRef.current.kalinlik },
+        ])
+      }
+      return []
+    })
   }
 
   const geriAl = () => {
-    setPaths((p) => p.slice(0, -1))
+    setStrokeler((p) => p.slice(0, -1))
   }
 
   const temizle = () => {
-    if (paths.length === 0) return
+    if (strokeler.length === 0) return
     Alert.alert('Tümünü temizle', 'Tüm çizimi silmek istediğine emin misin?', [
       { text: 'Vazgeç', style: 'cancel' },
-      { text: 'Temizle', style: 'destructive', onPress: () => setPaths([]) },
+      { text: 'Temizle', style: 'destructive', onPress: () => setStrokeler([]) },
     ])
   }
 
   const kaydet = async () => {
-    if (paths.length === 0) {
+    if (strokeler.length === 0) {
       Alert.alert('Boş', 'Önce bir şey çiz.')
       return
     }
@@ -116,15 +126,18 @@ export default function NotCizimScreen({ route, navigation }) {
     }
   }
 
+  // Aktif stroke'un path string'i
+  const aktifPathStr = noktalardanPath(aktifNoktalar)
+
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
       {/* Üst toolbar */}
       <View style={[styles.toolbar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          <TouchableOpacity onPress={geriAl} disabled={paths.length === 0} style={[styles.tbBtn, paths.length === 0 && { opacity: 0.3 }]}>
+          <TouchableOpacity onPress={geriAl} disabled={strokeler.length === 0} style={[styles.tbBtn, strokeler.length === 0 && { opacity: 0.3 }]}>
             <Feather name="rotate-ccw" size={18} color={colors.textPrimary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={temizle} disabled={paths.length === 0} style={[styles.tbBtn, paths.length === 0 && { opacity: 0.3 }]}>
+          <TouchableOpacity onPress={temizle} disabled={strokeler.length === 0} style={[styles.tbBtn, strokeler.length === 0 && { opacity: 0.3 }]}>
             <Feather name="trash-2" size={18} color={colors.textPrimary} />
           </TouchableOpacity>
           <TouchableOpacity
@@ -137,8 +150,8 @@ export default function NotCizimScreen({ route, navigation }) {
 
         <TouchableOpacity
           onPress={kaydet}
-          disabled={kaydediliyor || paths.length === 0}
-          style={[styles.kaydetBtn, (kaydediliyor || paths.length === 0) && { opacity: 0.5 }]}
+          disabled={kaydediliyor || strokeler.length === 0}
+          style={[styles.kaydetBtn, (kaydediliyor || strokeler.length === 0) && { opacity: 0.5 }]}
         >
           {kaydediliyor ? (
             <ActivityIndicator color="#fff" size="small" />
@@ -162,23 +175,27 @@ export default function NotCizimScreen({ route, navigation }) {
         onResponderTerminate={dokunBitir}
       >
         <Canvas ref={canvasRef} style={{ flex: 1 }}>
-          {paths.map((p, i) => (
+          {strokeler.map((s, i) => {
+            const pathStr = noktalardanPath(s.noktalar)
+            if (!pathStr) return null
+            return (
+              <Path
+                key={i}
+                path={pathStr}
+                color={s.renk}
+                style="stroke"
+                strokeWidth={s.kalinlik}
+                strokeCap="round"
+                strokeJoin="round"
+              />
+            )
+          })}
+          {!!aktifPathStr && (
             <Path
-              key={i}
-              path={p.path}
-              color={p.renk}
+              path={aktifPathStr}
+              color={aktifStilRef.current.renk}
               style="stroke"
-              strokeWidth={p.kalinlik}
-              strokeCap="round"
-              strokeJoin="round"
-            />
-          ))}
-          {aktifPath && (
-            <Path
-              path={aktifPath.path}
-              color={aktifPath.renk}
-              style="stroke"
-              strokeWidth={aktifPath.kalinlik}
+              strokeWidth={aktifStilRef.current.kalinlik}
               strokeCap="round"
               strokeJoin="round"
             />
