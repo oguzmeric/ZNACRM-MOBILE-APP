@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -37,6 +37,14 @@ export default function GorusmelerScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false)
   const [yukleniyorEk, setYukleniyorEk] = useState(false)
 
+  // Debounced arama — sadece duraklayınca trigger eder
+  const [debouncedArama, setDebouncedArama] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedArama(arama), 400)
+    return () => clearTimeout(t)
+  }, [arama])
+
+  // Tek yükleme fonksiyonu, deps stabil
   const ilkYukle = useCallback(async () => {
     setLoading(true)
     setBaslangic(0)
@@ -45,22 +53,24 @@ export default function GorusmelerScreen({ navigation }) {
       baslangic: 0,
       limit: SAYFA,
       hazirlayan: aktifSekme === 'bana' ? kullanici?.ad : null,
-      q: arama,
+      q: debouncedArama,
     })
     setVeri(liste)
     setBaslangic(liste.length)
     setHepsi(liste.length < SAYFA)
     setLoading(false)
-  }, [aktifSekme, arama, kullanici])
+  }, [aktifSekme, debouncedArama, kullanici?.ad])
 
-  useEffect(() => { ilkYukle() }, [aktifSekme, kullanici])
-  useFocusEffect(useCallback(() => { ilkYukle() }, [ilkYukle]))
+  // Aktif sekme, kullanıcı veya (debounced) arama değişince yenile.
+  useEffect(() => { ilkYukle() }, [ilkYukle])
 
-  // Arama 400ms debounce
-  useEffect(() => {
-    const t = setTimeout(() => { ilkYukle() }, 400)
-    return () => clearTimeout(t)
-  }, [arama])
+  // Focus effect: en güncel ilkYukle'yi ref ile çağır ki stale closure'a takılmasın.
+  // Dep [] olduğu için focus effect SADECE ekrana her dönüşte ateşler, render başına değil.
+  const ilkYukleRef = useRef(ilkYukle)
+  useEffect(() => { ilkYukleRef.current = ilkYukle }, [ilkYukle])
+  useFocusEffect(
+    useCallback(() => { ilkYukleRef.current?.() }, []),
+  )
 
   const dahaYukle = async () => {
     if (hepsi || yukleniyorEk) return
@@ -120,7 +130,7 @@ export default function GorusmelerScreen({ navigation }) {
         )}
       </View>
 
-      {loading ? (
+      {loading && veri.length === 0 ? (
         <LoadingState />
       ) : (
         <FlatList
