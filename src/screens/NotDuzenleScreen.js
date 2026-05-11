@@ -4,19 +4,27 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert,
-  KeyboardAvoidingView, Platform, Image, Modal, FlatList,
+  KeyboardAvoidingView, Platform, Image, Modal, FlatList, Linking,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useHeaderHeight } from '@react-navigation/elements'
+import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
+import * as Sharing from 'expo-sharing'
+import * as FileSystem from 'expo-file-system/legacy'
+import Markdown from 'react-native-markdown-display'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { trIcerir } from '../utils/trSearch'
 import {
   KATEGORILER, notuGetir, notEkle, notGuncelle, notSil,
-  notCizimleriGuncelle, cizimSignedUrl, cizimSil,
+  notCizimleriGuncelle, notEkleriGuncelle, cizimSignedUrl, cizimSil,
+  ekYukle, ekSignedUrl, ekSil,
 } from '../services/notService'
 import { musterileriGetir } from '../services/musteriService'
 import CizimYapModal from '../components/CizimYapModal'
+import TarihSaatSec from '../components/TarihSaatSec'
+import { hatirlaticiZamanla, hatirlaticiKaldir } from '../lib/notHatirlatici'
 
 export default function NotDuzenleScreen({ route, navigation }) {
   const { id } = route.params ?? {}
@@ -33,6 +41,10 @@ export default function NotDuzenleScreen({ route, navigation }) {
   const [musteriId, setMusteriId] = useState(null)
   const [musteri, setMusteri] = useState(null)
   const [cizimler, setCizimler] = useState([])
+  const [ekler, setEkler] = useState([])  // foto/belge ekleri
+  const [hatirlatmaTarihi, setHatirlatmaTarihi] = useState(null)
+  const [onizleMod, setOnizleMod] = useState(false)  // markdown önizle
+  const [ekYukleniyor, setEkYukleniyor] = useState(false)
 
   const [yukleniyor, setYukleniyor] = useState(editMode)
   const [kaydediliyor, setKaydediliyor] = useState(false)
@@ -59,6 +71,8 @@ export default function NotDuzenleScreen({ route, navigation }) {
         setMusteriId(not.musteriId || null)
         setMusteri(not.musteri || null)
         setCizimler(not.cizimler || [])
+        setEkler(not.ekler || [])
+        setHatirlatmaTarihi(not.hatirlatmaTarihi || null)
       }
       setYukleniyor(false)
     })()
@@ -94,6 +108,8 @@ export default function NotDuzenleScreen({ route, navigation }) {
       kategori,
       musteriId,
       cizimler,
+      ekler,
+      hatirlatmaTarihi,
     }
     try {
       let sonuc
@@ -106,6 +122,20 @@ export default function NotDuzenleScreen({ route, navigation }) {
         Alert.alert('Hata', 'Not kaydedilemedi.')
         return
       }
+      // Hatırlatma varsa local notification zamanla, yoksa eskiyi kaldır
+      const notId = sonuc.id ?? id
+      if (notId) {
+        if (hatirlatmaTarihi) {
+          await hatirlaticiZamanla({
+            notId,
+            hatirlatmaTarihi,
+            baslik: baslik.trim() || 'Hatırlatma',
+            mesaj: icerik.trim()?.slice(0, 100) || 'Notunuza dönmenin zamanı.',
+          })
+        } else {
+          await hatirlaticiKaldir(notId)
+        }
+      }
       // Başarılı — listeye dön
       navigation.goBack()
     } catch (e) {
@@ -116,13 +146,14 @@ export default function NotDuzenleScreen({ route, navigation }) {
   }
 
   const sil = () => {
-    Alert.alert('Notu Sil', 'Bu not ve içindeki çizimler silinecek. Emin misin?', [
+    Alert.alert('Notu Sil', 'Bu not ve içindeki çizimler/ekler silinecek. Emin misin?', [
       { text: 'Vazgeç', style: 'cancel' },
       {
         text: 'Sil', style: 'destructive',
         onPress: async () => {
           try {
             await notSil(id)
+            await hatirlaticiKaldir(id)
             navigation.goBack()
           } catch (e) {
             Alert.alert('Hata', 'Silinemedi: ' + (e?.message ?? 'bilinmeyen'))
@@ -130,6 +161,143 @@ export default function NotDuzenleScreen({ route, navigation }) {
         },
       },
     ])
+  }
+
+  // Ek (foto/belge) ekle akışları
+  const ekleEklendi = (yeniEk) => {
+    if (!yeniEk) return
+    setEkler((prev) => {
+      const yeniListe = [...prev, yeniEk]
+      if (editMode && id) {
+        notEkleriGuncelle(id, yeniListe).catch(() => {})
+      }
+      return yeniListe
+    })
+  }
+
+  const fotoKamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('İzin gerekli', 'Kameraya erişim gerekli.')
+      return
+    }
+    const r = await ImagePicker.launchCameraAsync({ quality: 0.7, mediaTypes: ImagePicker.MediaTypeOptions.Images })
+    if (r.canceled || !r.assets?.[0]) return
+    setEkYukleniyor(true)
+    try {
+      const a = r.assets[0]
+      const sonuc = await ekYukle({
+        lokalUri: a.uri,
+        kullaniciId: kullanici.id,
+        notId: id ?? null,
+        ad: a.fileName || `foto_${Date.now()}.jpg`,
+        mimeType: a.mimeType || 'image/jpeg',
+        tip: 'foto',
+      })
+      if (sonuc) ekleEklendi(sonuc)
+      else Alert.alert('Hata', 'Foto yüklenemedi.')
+    } finally {
+      setEkYukleniyor(false)
+    }
+  }
+
+  const fotoGaleri = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('İzin gerekli', 'Galeri erişimi gerekli.')
+      return
+    }
+    const r = await ImagePicker.launchImageLibraryAsync({
+      quality: 0.7,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: 10,
+    })
+    if (r.canceled || !r.assets?.length) return
+    setEkYukleniyor(true)
+    try {
+      for (const a of r.assets) {
+        const sonuc = await ekYukle({
+          lokalUri: a.uri,
+          kullaniciId: kullanici.id,
+          notId: id ?? null,
+          ad: a.fileName || `foto_${Date.now()}.jpg`,
+          mimeType: a.mimeType || 'image/jpeg',
+          tip: 'foto',
+        })
+        if (sonuc) ekleEklendi(sonuc)
+      }
+    } finally {
+      setEkYukleniyor(false)
+    }
+  }
+
+  const belgeSec = async () => {
+    const r = await DocumentPicker.getDocumentAsync({
+      multiple: false,
+      copyToCacheDirectory: true,
+      type: ['application/pdf', 'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain', 'text/csv'],
+    })
+    if (r.canceled || !r.assets?.[0]) return
+    setEkYukleniyor(true)
+    try {
+      const a = r.assets[0]
+      const sonuc = await ekYukle({
+        lokalUri: a.uri,
+        kullaniciId: kullanici.id,
+        notId: id ?? null,
+        ad: a.name,
+        mimeType: a.mimeType,
+        tip: 'belge',
+      })
+      if (sonuc) ekleEklendi(sonuc)
+      else Alert.alert('Hata', 'Belge yüklenemedi.')
+    } finally {
+      setEkYukleniyor(false)
+    }
+  }
+
+  const ekKaldir = (ek) => {
+    Alert.alert('Eki Sil', `"${ek.ad}" silinsin mi?`, [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sil', style: 'destructive',
+        onPress: async () => {
+          await ekSil(ek.path)
+          setEkler((prev) => {
+            const yeniListe = prev.filter((e) => e.path !== ek.path)
+            if (editMode && id) {
+              notEkleriGuncelle(id, yeniListe).catch(() => {})
+            }
+            return yeniListe
+          })
+        },
+      },
+    ])
+  }
+
+  const ekAc = async (ek) => {
+    try {
+      const url = await ekSignedUrl(ek.path)
+      if (!url) {
+        Alert.alert('Hata', 'Dosya açılamadı.')
+        return
+      }
+      // Foto: paylaş/aç. Belge: indir ve aç.
+      const lokalUri = `${FileSystem.cacheDirectory}ek_${Date.now()}_${ek.ad.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+      const indirme = await FileSystem.downloadAsync(url, lokalUri)
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(indirme.uri, { mimeType: ek.mimeType, dialogTitle: ek.ad })
+      } else {
+        Linking.openURL(url)
+      }
+    } catch (e) {
+      Alert.alert('Hata', e?.message ?? 'Dosya açılamadı.')
+    }
   }
 
   const cizimEkle = () => {
@@ -230,16 +398,93 @@ export default function NotDuzenleScreen({ route, navigation }) {
           )}
         </TouchableOpacity>
 
-        <Text style={[styles.label, { color: colors.textMuted }]}>İÇERİK</Text>
-        <TextInput
-          value={icerik}
-          onChangeText={setIcerik}
-          placeholder="Notunu buraya yaz…"
-          placeholderTextColor={colors.textFaded}
-          multiline
-          textAlignVertical="top"
-          style={[styles.input, { height: 200, backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[styles.label, { color: colors.textMuted }]}>
+            İÇERİK · <Text style={{ fontSize: 9, color: colors.textFaded }}>Markdown: **kalın** _italik_ # Başlık</Text>
+          </Text>
+          {icerik?.trim().length > 0 && (
+            <TouchableOpacity onPress={() => setOnizleMod((m) => !m)} style={{ paddingVertical: 4, paddingHorizontal: 8 }}>
+              <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>
+                {onizleMod ? '✏️ Düzenle' : '👁 Önizle'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        {onizleMod ? (
+          <View style={[styles.input, { minHeight: 200, padding: 12, backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Markdown style={{
+              body: { color: colors.textPrimary, fontSize: 14 },
+              heading1: { color: colors.textPrimary, fontSize: 20, fontWeight: '700' },
+              heading2: { color: colors.textPrimary, fontSize: 17, fontWeight: '700' },
+              heading3: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+              strong: { fontWeight: '700' },
+              em: { fontStyle: 'italic' },
+              link: { color: colors.primary },
+              list_item: { color: colors.textPrimary },
+              code_inline: { backgroundColor: colors.surfaceDark, color: colors.textPrimary, paddingHorizontal: 4, borderRadius: 4 },
+              code_block: { backgroundColor: colors.surfaceDark, color: colors.textPrimary, padding: 8, borderRadius: 6 },
+              fence: { backgroundColor: colors.surfaceDark, color: colors.textPrimary, padding: 8, borderRadius: 6 },
+              blockquote: { backgroundColor: colors.surfaceDark, borderLeftWidth: 3, borderLeftColor: colors.primary, paddingLeft: 8, marginVertical: 4 },
+            }}>
+              {icerik}
+            </Markdown>
+          </View>
+        ) : (
+          <TextInput
+            value={icerik}
+            onChangeText={setIcerik}
+            placeholder="Notunu buraya yaz… Markdown destekli."
+            placeholderTextColor={colors.textFaded}
+            multiline
+            textAlignVertical="top"
+            style={[styles.input, { height: 200, backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
+          />
+        )}
+
+        {/* Hatırlatıcı */}
+        <View style={{ marginTop: 14 }}>
+          <Text style={[styles.label, { color: colors.textMuted, marginTop: 0, marginBottom: 6 }]}>
+            <Feather name="bell" size={10} color={colors.textMuted} /> HATIRLATICI (opsiyonel)
+          </Text>
+          <TarihSaatSec
+            value={hatirlatmaTarihi}
+            onChange={setHatirlatmaTarihi}
+            placeholder="Hatırlatma zamanı seç"
+            minDate={new Date()}
+          />
+        </View>
+
+        {/* Ekler (foto + belge) */}
+        <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[styles.label, { color: colors.textMuted, marginTop: 0 }]}>
+            EKLER {ekler.length > 0 ? `(${ekler.length})` : ''}
+          </Text>
+          {ekYukleniyor && (
+            <Text style={{ color: colors.textMuted, fontSize: 11, fontStyle: 'italic' }}>Yükleniyor…</Text>
+          )}
+        </View>
+        <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+          <TouchableOpacity onPress={fotoKamera} disabled={ekYukleniyor} style={[styles.ekBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Feather name="camera" size={14} color={colors.textSecondary} />
+            <Text style={[styles.ekBtnText, { color: colors.textSecondary }]}>Kamera</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={fotoGaleri} disabled={ekYukleniyor} style={[styles.ekBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Feather name="image" size={14} color={colors.textSecondary} />
+            <Text style={[styles.ekBtnText, { color: colors.textSecondary }]}>Galeri</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={belgeSec} disabled={ekYukleniyor} style={[styles.ekBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Feather name="file" size={14} color={colors.textSecondary} />
+            <Text style={[styles.ekBtnText, { color: colors.textSecondary }]}>Belge</Text>
+          </TouchableOpacity>
+        </View>
+
+        {ekler.length > 0 && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            {ekler.map((e, i) => (
+              <EkKart key={`${e.path}-${i}`} ek={e} onAc={() => ekAc(e)} onSil={() => ekKaldir(e)} colors={colors} />
+            ))}
+          </View>
+        )}
 
         {/* Çizimler */}
         <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -381,6 +626,67 @@ export default function NotDuzenleScreen({ route, navigation }) {
   )
 }
 
+function EkKart({ ek, onAc, onSil, colors }) {
+  const [fotoUrl, setFotoUrl] = useState(null)
+  const isFoto = ek?.tip === 'foto' || ek?.mimeType?.startsWith('image/')
+
+  useEffect(() => {
+    if (!isFoto || !ek?.path) return
+    ekSignedUrl(ek.path).then(setFotoUrl)
+  }, [ek?.path, isFoto])
+
+  const ikon = isFoto
+    ? 'image'
+    : (ek?.mimeType?.includes('pdf') ? 'file-text' : 'file')
+
+  return (
+    <View style={{
+      position: 'relative',
+      width: 110,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: 6,
+    }}>
+      <TouchableOpacity onPress={onAc} activeOpacity={0.7}>
+        <View style={{
+          width: '100%', height: 70,
+          backgroundColor: isFoto ? '#fff' : colors.surfaceDark,
+          borderRadius: 6,
+          alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden',
+        }}>
+          {isFoto && fotoUrl ? (
+            <Image source={{ uri: fotoUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          ) : (
+            <Feather name={ikon} size={22} color={colors.textMuted} />
+          )}
+        </View>
+        <Text numberOfLines={1} style={{ color: colors.textPrimary, fontSize: 10, fontWeight: '600', marginTop: 4 }}>
+          {ek?.ad ?? 'Dosya'}
+        </Text>
+        <Text style={{ color: colors.textFaded, fontSize: 9, marginTop: 1 }}>
+          {ek?.boyut ? `${(ek.boyut / 1024).toFixed(0)} KB` : ''}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={onSil}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        style={{
+          position: 'absolute', top: -6, right: -6,
+          width: 20, height: 20, borderRadius: 10,
+          backgroundColor: '#ef4444',
+          borderWidth: 2, borderColor: colors.bg,
+          alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Feather name="x" size={11} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  )
+}
+
 function CizimThumbnail({ cizim, onAcildi, onSilTikla }) {
   const [url, setUrl] = useState(null)
   const [hata, setHata] = useState(null)
@@ -473,6 +779,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10, borderWidth: 1,
   },
+  ekBtn: {
+    flex: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    paddingVertical: 10,
+    borderRadius: 10, borderWidth: 1,
+  },
+  ekBtnText: { fontSize: 12, fontWeight: '600' },
   kaydetBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     marginTop: 24,

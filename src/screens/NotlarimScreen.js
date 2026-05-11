@@ -127,6 +127,9 @@ export default function NotlarimScreen({ navigation }) {
           renderItem={({ item }) => {
             const kategori = KATEGORILER.find((k) => k.id === item.kategori) || KATEGORILER[3]
             const cizimSayisi = Array.isArray(item.cizimler) ? item.cizimler.length : 0
+            const ekSayisi = Array.isArray(item.ekler) ? item.ekler.length : 0
+            const hatirlatma = item.hatirlatmaTarihi ? new Date(item.hatirlatmaTarihi) : null
+            const hatirlatmaGecmis = hatirlatma && hatirlatma.getTime() < Date.now()
             return (
               <TouchableOpacity
                 onPress={() => navigation.navigate('NotDuzenle', { id: item.id })}
@@ -142,6 +145,17 @@ export default function NotlarimScreen({ navigation }) {
                   <Text style={{ color: kategori.renk, fontSize: 11, fontWeight: '700' }}>
                     {kategori.isim.toUpperCase()}
                   </Text>
+                  {hatirlatma && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 8 }}>
+                      <Feather name="bell" size={11} color={hatirlatmaGecmis ? '#dc2626' : '#f59e0b'} />
+                    </View>
+                  )}
+                  {ekSayisi > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 8 }}>
+                      <Feather name="paperclip" size={11} color={colors.textMuted} />
+                      <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '600' }}>{ekSayisi}</Text>
+                    </View>
+                  )}
                   {cizimSayisi > 0 && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 8 }}>
                       <Feather name="image" size={11} color={colors.textMuted} />
