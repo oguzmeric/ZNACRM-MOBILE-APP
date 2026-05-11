@@ -41,7 +41,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
   const [musteriArama, setMusteriArama] = useState('')
 
   useEffect(() => {
-    navigation.setOptions({ title: editMode ? 'Notu Düzenle ·v3' : 'Yeni Not ·v3' })
+    navigation.setOptions({ title: editMode ? 'Notu Düzenle' : 'Yeni Not' })
   }, [navigation, editMode])
 
   useEffect(() => {
@@ -259,17 +259,6 @@ export default function NotDuzenleScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* DEBUG paneli — geçici, sorun anlaşılınca kaldırılacak */}
-        <View style={{ marginTop: 8, padding: 8, backgroundColor: 'rgba(168, 85, 247, 0.08)', borderRadius: 6, borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.3)' }}>
-          <Text style={{ color: '#a855f7', fontSize: 10, fontWeight: '700' }}>
-            DEBUG v3 · mode: {editMode ? `edit (id=${id})` : 'yeni'} · cizim sayisi: {cizimler.length} · modal: {cizimModalAcik ? 'AÇIK' : 'kapalı'}
-          </Text>
-          {cizimler.map((c, i) => (
-            <Text key={i} style={{ color: '#a855f7', fontSize: 9 }}>
-              [{i}] {c.path?.slice(-30) ?? 'no path'}
-            </Text>
-          ))}
-        </View>
 
         {cizimler.length === 0 ? (
           <Text style={{ color: colors.textFaded, fontSize: 12, fontStyle: 'italic', marginTop: 8 }}>
