@@ -41,7 +41,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
   const [musteriArama, setMusteriArama] = useState('')
 
   useEffect(() => {
-    navigation.setOptions({ title: editMode ? 'Notu Düzenle' : 'Yeni Not' })
+    navigation.setOptions({ title: editMode ? 'Notu Düzenle ·v3' : 'Yeni Not ·v3' })
   }, [navigation, editMode])
 
   useEffect(() => {
@@ -84,6 +84,9 @@ export default function NotDuzenleScreen({ route, navigation }) {
       Alert.alert('Eksik', 'Başlık veya içerik gerekli.')
       return
     }
+    // Modal açıksa kapat — kaydet sırasında üst üste binmesin
+    if (cizimModalAcik) setCizimModalAcik(false)
+
     setKaydediliyor(true)
     const payload = {
       baslik: baslik.trim() || null,
@@ -92,18 +95,24 @@ export default function NotDuzenleScreen({ route, navigation }) {
       musteriId,
       cizimler,
     }
-    let sonuc
-    if (editMode) {
-      sonuc = await notGuncelle(id, payload)
-    } else {
-      sonuc = await notEkle(kullanici.id, payload)
+    try {
+      let sonuc
+      if (editMode) {
+        sonuc = await notGuncelle(id, payload)
+      } else {
+        sonuc = await notEkle(kullanici.id, payload)
+      }
+      if (!sonuc) {
+        Alert.alert('Hata', 'Not kaydedilemedi.')
+        return
+      }
+      // Başarılı — listeye dön
+      navigation.goBack()
+    } catch (e) {
+      Alert.alert('Hata', 'Kayıt sırasında bir şey ters gitti: ' + (e?.message ?? 'bilinmeyen'))
+    } finally {
+      setKaydediliyor(false)
     }
-    setKaydediliyor(false)
-    if (!sonuc) {
-      Alert.alert('Hata', 'Not kaydedilemedi.')
-      return
-    }
-    navigation.goBack()
   }
 
   const sil = () => {
@@ -248,6 +257,18 @@ export default function NotDuzenleScreen({ route, navigation }) {
             <Feather name="edit-2" size={12} color="#fff" />
             <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Çizim Ekle</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* DEBUG paneli — geçici, sorun anlaşılınca kaldırılacak */}
+        <View style={{ marginTop: 8, padding: 8, backgroundColor: 'rgba(168, 85, 247, 0.08)', borderRadius: 6, borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.3)' }}>
+          <Text style={{ color: '#a855f7', fontSize: 10, fontWeight: '700' }}>
+            DEBUG v3 · mode: {editMode ? `edit (id=${id})` : 'yeni'} · cizim sayisi: {cizimler.length} · modal: {cizimModalAcik ? 'AÇIK' : 'kapalı'}
+          </Text>
+          {cizimler.map((c, i) => (
+            <Text key={i} style={{ color: '#a855f7', fontSize: 9 }}>
+              [{i}] {c.path?.slice(-30) ?? 'no path'}
+            </Text>
+          ))}
         </View>
 
         {cizimler.length === 0 ? (
