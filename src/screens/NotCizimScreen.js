@@ -11,6 +11,7 @@ import { useRef, useState, useEffect } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons'
 import {
   Canvas, Path, useCanvasRef,
@@ -37,6 +38,7 @@ export default function NotCizimScreen({ route, navigation }) {
   const { kullaniciId, notId } = route.params ?? {}
   const { colors } = useTheme()
   const canvasRef = useCanvasRef()
+  const insets = useSafeAreaInsets()
 
   // Tamamlanmış stroke'lar
   const [strokeler, setStrokeler] = useState([])  // [{points, renk, kalinlik}]
@@ -202,16 +204,17 @@ export default function NotCizimScreen({ route, navigation }) {
           )}
         </Canvas>
 
-        {/* DEBUG: nokta sayacı — touch fire ediyor mu görebilelim */}
-        <View pointerEvents="none" style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>
-            Stroke: {strokeler.length} · Aktif Nokta: {aktifNoktalar.length}
-          </Text>
-        </View>
       </View>
 
-      {/* Alt toolbar — renkler + kalınlık */}
-      <View style={[styles.altToolbar, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+      {/* Alt toolbar — renkler + kalınlık + safe area padding */}
+      <View style={[
+        styles.altToolbar,
+        {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          paddingBottom: 10 + (insets.bottom || 0),
+        },
+      ]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 4 }}>
           {RENKLER.map((r) => (
             <TouchableOpacity
