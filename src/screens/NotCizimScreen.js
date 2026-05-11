@@ -164,7 +164,7 @@ export default function NotCizimScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Canvas — ham View touch event'leri */}
+      {/* Canvas — touches parent View'a düşsün diye Canvas pointerEvents="none" */}
       <View
         style={{ flex: 1, backgroundColor: '#ffffff' }}
         onStartShouldSetResponder={() => true}
@@ -174,7 +174,7 @@ export default function NotCizimScreen({ route, navigation }) {
         onResponderRelease={dokunBitir}
         onResponderTerminate={dokunBitir}
       >
-        <Canvas ref={canvasRef} style={{ flex: 1 }}>
+        <Canvas ref={canvasRef} style={StyleSheet.absoluteFill} pointerEvents="none">
           {strokeler.map((s, i) => {
             const pathStr = noktalardanPath(s.noktalar)
             if (!pathStr) return null
@@ -201,6 +201,13 @@ export default function NotCizimScreen({ route, navigation }) {
             />
           )}
         </Canvas>
+
+        {/* DEBUG: nokta sayacı — touch fire ediyor mu görebilelim */}
+        <View pointerEvents="none" style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>
+            Stroke: {strokeler.length} · Aktif Nokta: {aktifNoktalar.length}
+          </Text>
+        </View>
       </View>
 
       {/* Alt toolbar — renkler + kalınlık */}
