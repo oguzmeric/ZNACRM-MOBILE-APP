@@ -15,6 +15,8 @@ import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
 import { musterileriGetir } from '../services/musteriService'
 import { trIcerir } from '../utils/trSearch'
+import EmptyState from '../components/EmptyState'
+import LoadingState from '../components/LoadingState'
 
 export default function MusterilerScreen({ navigation }) {
   const { colors } = useTheme()
@@ -73,7 +75,7 @@ export default function MusterilerScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} />
+        <LoadingState />
       ) : (
         <FlatList
           data={filtrelenmis}
@@ -83,9 +85,11 @@ export default function MusterilerScreen({ navigation }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />
           }
           ListEmptyComponent={
-            <Text style={[styles.empty, { color: colors.textFaded }]}>
-              {arama ? 'Eşleşen müşteri yok.' : 'Henüz müşteri yok.'}
-            </Text>
+            <EmptyState
+              ikon="users"
+              baslik={arama ? 'Eşleşen müşteri yok' : 'Henüz müşteri yok'}
+              mesaj={arama ? 'Farklı bir arama dene' : 'Yeni müşteri ekleyerek başla'}
+            />
           }
           renderItem={({ item }) => (
             <TouchableOpacity

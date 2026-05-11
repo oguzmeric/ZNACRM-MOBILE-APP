@@ -15,6 +15,8 @@ import ScreenContainer from '../components/ScreenContainer'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { gorusmeleriGetir } from '../services/gorusmeService'
+import EmptyState from '../components/EmptyState'
+import LoadingState from '../components/LoadingState'
 
 const SEKMELER = [
   { id: 'bana', label: 'Benim' },
@@ -119,7 +121,7 @@ export default function GorusmelerScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} />
+        <LoadingState />
       ) : (
         <FlatList
           data={veri}
@@ -129,9 +131,11 @@ export default function GorusmelerScreen({ navigation }) {
           onEndReached={dahaYukle}
           onEndReachedThreshold={0.5}
           ListEmptyComponent={
-            <Text style={[styles.bos, { color: colors.textFaded }]}>
-              {arama ? 'Eşleşen görüşme yok.' : aktifSekme === 'bana' ? 'Sizin görüşmeniz yok.' : 'Henüz görüşme yok.'}
-            </Text>
+            <EmptyState
+              ikon="phone"
+              baslik={arama ? 'Eşleşen görüşme yok' : aktifSekme === 'bana' ? 'Görüşmen yok' : 'Henüz görüşme yok'}
+              mesaj={arama ? 'Farklı bir arama dene' : 'Yeni görüşme kaydederek başla'}
+            />
           }
           ListFooterComponent={yukleniyorEk ? (
             <ActivityIndicator color={colors.textPrimary} style={{ marginVertical: 16 }} />

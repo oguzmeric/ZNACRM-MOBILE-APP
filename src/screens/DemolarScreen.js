@@ -10,6 +10,8 @@ import { useTheme } from '../context/ThemeContext'
 import { demoCihazlariGetir } from '../services/demoService'
 import { musterileriGetir } from '../services/musteriService'
 import { trIcerir } from '../utils/trSearch'
+import EmptyState from '../components/EmptyState'
+import LoadingState from '../components/LoadingState'
 
 const SEKMELER = [
   { id: 'tumu',         isim: 'Tümü' },
@@ -63,7 +65,7 @@ export default function DemolarScreen({ navigation }) {
   }, [cihazlar, aktifSekme, arama])
 
   if (yukleniyor) {
-    return <ScreenContainer><ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} /></ScreenContainer>
+    return <ScreenContainer><LoadingState /></ScreenContainer>
   }
 
   return (
@@ -104,10 +106,11 @@ export default function DemolarScreen({ navigation }) {
           <RefreshControl refreshing={yenileniyor} onRefresh={() => { setYenileniyor(true); yukle() }} tintColor={colors.textPrimary} />
         }
         ListEmptyComponent={
-          <View style={{ paddingTop: 64, alignItems: 'center' }}>
-            <Feather name="package" size={48} color={colors.textMuted} />
-            <Text style={{ color: colors.textMuted, marginTop: 12 }}>Cihaz yok</Text>
-          </View>
+          <EmptyState
+            ikon="package"
+            baslik="Demo cihaz yok"
+            mesaj="Yeni demo cihaz ekleyerek başla"
+          />
         }
         renderItem={({ item }) => {
           const m = item.aktifMusteriId ? musteriMap.get(item.aktifMusteriId) : null

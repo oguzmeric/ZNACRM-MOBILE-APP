@@ -19,6 +19,8 @@ import {
   bildirimleriDinle,
 } from '../services/bildirimService'
 import { badgeAyarla } from '../lib/pushBildirimKayit'
+import EmptyState from '../components/EmptyState'
+import LoadingState from '../components/LoadingState'
 
 const TIP_RENK = {
   bilgi: '#0176D3',
@@ -137,7 +139,7 @@ export default function BildirimlerScreen({ navigation }) {
   if (yukleniyor) {
     return (
       <ScreenContainer>
-        <ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} />
+        <LoadingState />
       </ScreenContainer>
     )
   }
@@ -168,12 +170,11 @@ export default function BildirimlerScreen({ navigation }) {
           />
         }
         ListEmptyComponent={
-          <View style={{ paddingTop: 64, alignItems: 'center' }}>
-            <Feather name="bell-off" size={48} color={colors.textMuted} />
-            <Text style={{ color: colors.textMuted, marginTop: 12, fontSize: 14 }}>
-              Henüz bildirim yok
-            </Text>
-          </View>
+          <EmptyState
+            ikon="bell-off"
+            baslik="Henüz bildirim yok"
+            mesaj="Yeni etkinlikler burada görünecek"
+          />
         }
         renderItem={({ item }) => {
           const renk = TIP_RENK[item.tip] || colors.primary

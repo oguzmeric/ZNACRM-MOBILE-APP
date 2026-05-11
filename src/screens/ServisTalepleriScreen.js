@@ -21,6 +21,8 @@ import {
 } from '../services/servisService'
 import { turBul, aciliyetBul, durumBul } from '../utils/servisConstants'
 import { tarihFormat } from '../utils/format'
+import EmptyState from '../components/EmptyState'
+import LoadingState from '../components/LoadingState'
 
 const SEKMELER = [
   { id: 'bana', label: 'Bana' },
@@ -129,7 +131,7 @@ export default function ServisTalepleriScreen({ navigation, route }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} />
+        <LoadingState />
       ) : (
         <FlatList
           data={talepler}
@@ -139,9 +141,11 @@ export default function ServisTalepleriScreen({ navigation, route }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />
           }
           ListEmptyComponent={
-            <Text style={[styles.empty, { color: colors.textFaded }]}>
-              {aktifSekme === 'bana' ? 'Sana atanan talep yok.' : 'Talep yok.'}
-            </Text>
+            <EmptyState
+              ikon="tool"
+              baslik={aktifSekme === 'bana' ? 'Sana atanan talep yok' : 'Servis talebi yok'}
+              mesaj={aktifSekme === 'bana' ? 'Henüz sana iş atanmamış' : 'Yeni talep oluşturarak başla'}
+            />
           }
           renderItem={({ item }) => {
             const tur = turBul(item.anaTur)

@@ -25,6 +25,8 @@ import {
   etiketOncelik,
 } from '../utils/format'
 import { useRefresh } from '../hooks/useRefresh'
+import EmptyState from '../components/EmptyState'
+import LoadingState from '../components/LoadingState'
 
 const SEKMELER = [
   { id: 'bana', label: 'Bana' },
@@ -82,7 +84,7 @@ export default function GorevlerScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} />
+        <LoadingState />
       ) : (
         <FlatList
           data={gorevler}
@@ -90,7 +92,11 @@ export default function GorevlerScreen({ navigation }) {
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           refreshControl={refreshControl}
           ListEmptyComponent={
-            <Text style={[styles.empty, { color: colors.textFaded }]}>Görev yok.</Text>
+            <EmptyState
+              ikon="check-square"
+              baslik={aktifSekme === 'bana' ? 'Sana atanan görev yok' : 'Görev yok'}
+              mesaj={aktifSekme === 'bana' ? 'Henüz sana iş atanmamış' : 'Yeni görev oluşturarak başla'}
+            />
           }
           renderItem={({ item }) => (
             <TouchableOpacity

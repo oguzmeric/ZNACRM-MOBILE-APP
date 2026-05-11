@@ -22,6 +22,8 @@ import {
 import { tarihFormat } from '../utils/format'
 import { paraFormat } from '../utils/paraFormat'
 import { trIcerir } from '../utils/trSearch'
+import EmptyState from '../components/EmptyState'
+import LoadingState from '../components/LoadingState'
 
 const SEKMELER = [
   { id: 'takipte', label: 'Takipte' },
@@ -112,7 +114,7 @@ export default function TekliflerScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} />
+        <LoadingState />
       ) : (
         <FlatList
           data={filtrelenmis}
@@ -122,9 +124,11 @@ export default function TekliflerScreen({ navigation }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />
           }
           ListEmptyComponent={
-            <Text style={[styles.empty, { color: colors.textFaded }]}>
-              {arama ? 'Eşleşen teklif yok.' : 'Henüz teklif yok.'}
-            </Text>
+            <EmptyState
+              ikon="file-text"
+              baslik={arama ? 'Eşleşen teklif yok' : 'Henüz teklif yok'}
+              mesaj={arama ? 'Farklı bir arama dene' : 'Yeni teklif oluşturarak başla'}
+            />
           }
           renderItem={({ item }) => {
             const d = onayDurumuBul(item.onayDurumu)
