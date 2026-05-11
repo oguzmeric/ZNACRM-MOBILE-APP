@@ -12,7 +12,7 @@ import { Feather } from '@expo/vector-icons'
 import {
   Canvas, Path, Skia, useCanvasRef,
 } from '@shopify/react-native-skia'
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
+import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import * as FileSystem from 'expo-file-system/legacy'
 import { useTheme } from '../context/ThemeContext'
 import { cizimYukle } from '../services/notService'
@@ -114,8 +114,7 @@ export default function NotCizimScreen({ route, navigation }) {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+    <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
         {/* Üst toolbar */}
         <View style={[styles.toolbar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
@@ -217,7 +216,6 @@ export default function NotCizimScreen({ route, navigation }) {
           </View>
         </View>
       </View>
-    </GestureHandlerRootView>
   )
 }
 

@@ -1,3 +1,7 @@
+// react-native-gesture-handler import EN BAŞTA olmalı (RN best practice)
+import 'react-native-gesture-handler'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
+
 import { Component, useEffect, useRef } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { View, Text, ScrollView } from 'react-native'
@@ -81,14 +85,16 @@ function AppInner() {
 
 export default Sentry.wrap(function App() {
   return (
-    <ErrorBoundary>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <AppInner />
-          </AuthProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <AppInner />
+            </AuthProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   )
 });
