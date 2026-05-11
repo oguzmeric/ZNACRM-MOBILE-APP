@@ -31,6 +31,9 @@ import YeniGorusmeScreen from '../screens/YeniGorusmeScreen'
 import GorusmeDetayScreen from '../screens/GorusmeDetayScreen'
 import BildirimlerScreen from '../screens/BildirimlerScreen'
 import DemolarScreen from '../screens/DemolarScreen'
+import NotlarimScreen from '../screens/NotlarimScreen'
+import NotDuzenleScreen from '../screens/NotDuzenleScreen'
+import NotCizimScreen from '../screens/NotCizimScreen'
 import DemoCihazDetayScreen from '../screens/DemoCihazDetayScreen'
 import YeniDemoCihazScreen from '../screens/YeniDemoCihazScreen'
 import YeniDemoZimmetScreen from '../screens/YeniDemoZimmetScreen'
@@ -191,6 +194,9 @@ export default function RootNavigator() {
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
             <Stack.Screen name="Bildirimler" component={BildirimlerScreen} options={{ title: 'Bildirimler' }} />
             <Stack.Screen name="Demolar" component={DemolarScreen} options={{ title: 'Demo Takip' }} />
+            <Stack.Screen name="Notlarim" component={NotlarimScreen} options={{ title: 'Notlarım' }} />
+            <Stack.Screen name="NotDuzenle" component={NotDuzenleScreen} options={{ title: 'Not' }} />
+            <Stack.Screen name="NotCizim" component={NotCizimScreen} options={{ title: 'Çizim' }} />
             <Stack.Screen name="DemoCihazDetay" component={DemoCihazDetayScreen} options={{ title: 'Cihaz Detayı' }} />
             <Stack.Screen name="YeniDemoCihaz" component={YeniDemoCihazScreen} options={{ title: 'Yeni Demo Cihazı' }} />
             <Stack.Screen name="YeniDemoZimmet" component={YeniDemoZimmetScreen} options={{ title: 'Yeni Zimmet' }} />
@@ -232,6 +238,9 @@ export default function RootNavigator() {
             <Stack.Screen name="GorusmeDetay" component={GorusmeDetayScreen} options={{ title: 'Görüşme Detayı' }} />
             <Stack.Screen name="Bildirimler" component={BildirimlerScreen} options={{ title: 'Bildirimler' }} />
             <Stack.Screen name="Demolar" component={DemolarScreen} options={{ title: 'Demo Takip' }} />
+            <Stack.Screen name="Notlarim" component={NotlarimScreen} options={{ title: 'Notlarım' }} />
+            <Stack.Screen name="NotDuzenle" component={NotDuzenleScreen} options={{ title: 'Not' }} />
+            <Stack.Screen name="NotCizim" component={NotCizimScreen} options={{ title: 'Çizim' }} />
             <Stack.Screen name="DemoCihazDetay" component={DemoCihazDetayScreen} options={{ title: 'Cihaz Detayı' }} />
             <Stack.Screen name="YeniDemoCihaz" component={YeniDemoCihazScreen} options={{ title: 'Yeni Demo Cihazı' }} />
             <Stack.Screen name="YeniDemoZimmet" component={YeniDemoZimmetScreen} options={{ title: 'Yeni Zimmet' }} />

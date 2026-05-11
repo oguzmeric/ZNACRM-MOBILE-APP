@@ -184,6 +184,12 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => navigation.navigate('Demolar')}
               />
             )}
+            <Tile
+              title="Notlarım"
+              hint="Keşif & fikirler"
+              icon={<Feather name="edit-3" size={28} color="#f59e0b" />}
+              onPress={() => navigation.navigate('Notlarim')}
+            />
           </View>
         </View>
 
