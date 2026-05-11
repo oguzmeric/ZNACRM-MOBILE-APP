@@ -37,8 +37,10 @@ export default function NotCizimScreen({ route, navigation }) {
     navigation.setOptions({ title: 'Çizim' })
   }, [navigation])
 
-  // Çizim için pan gesture — basit, basınçsız, parmak/kalem evrensel
+  // Çizim için pan gesture — runOnJS(true) ZORUNLU çünkü içinde React setState var.
+  // Worklet (UI thread) içinde setState çağrılırsa app crash eder.
   const pan = Gesture.Pan()
+    .runOnJS(true)
     .minDistance(0)
     .onBegin((e) => {
       const yeniPath = Skia.Path.Make()
