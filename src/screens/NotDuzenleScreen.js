@@ -16,6 +16,7 @@ import {
   notCizimleriGuncelle, cizimSignedUrl, cizimSil,
 } from '../services/notService'
 import { musterileriGetir } from '../services/musteriService'
+import CizimYapModal from '../components/CizimYapModal'
 
 export default function NotDuzenleScreen({ route, navigation }) {
   const { id } = route.params ?? {}
@@ -24,6 +25,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
   const [cizimViewerUrl, setCizimViewerUrl] = useState(null)  // tam ekran çizim önizleme
+  const [cizimModalAcik, setCizimModalAcik] = useState(false)  // çizim yapma modal
 
   const [baslik, setBaslik] = useState('')
   const [icerik, setIcerik] = useState('')
@@ -62,27 +64,20 @@ export default function NotDuzenleScreen({ route, navigation }) {
     })()
   }, [editMode, id])
 
-  // Çizim ekranından geri dönerken çizim eklenmişse — route.params değiştikçe append
-  // ve mevcut bir not düzenleniyorsa DB'yi anında güncelle (kullanıcı save'i unutmasın).
-  useEffect(() => {
-    const yeniCizim = route.params?.yeniCizim
-    if (yeniCizim && yeniCizim.path) {
-      setCizimler((prev) => {
-        // Aynı path zaten varsa ekleme (duplicate koruması)
-        if (prev.some((c) => c.path === yeniCizim.path)) return prev
-        const yeniListe = [...prev, yeniCizim]
-        // Mevcut not düzenleniyor ise DB'ye anında yansıt
-        if (editMode && id) {
-          notCizimleriGuncelle(id, yeniListe).catch((e) =>
-            console.warn('[cizim auto-save]', e?.message),
-          )
-        }
-        return yeniListe
-      })
-      // Param'ı temizle ki tekrar tetiklemesin
-      navigation.setParams({ yeniCizim: undefined })
-    }
-  }, [route.params?.yeniCizim, navigation, editMode, id])
+  // Modal'dan çizim kaydedilince çağrılır — state'e ekle + DB'ye yansıt
+  const cizimEklendi = (yeniCizim) => {
+    if (!yeniCizim?.path) return
+    setCizimler((prev) => {
+      if (prev.some((c) => c.path === yeniCizim.path)) return prev
+      const yeniListe = [...prev, yeniCizim]
+      if (editMode && id) {
+        notCizimleriGuncelle(id, yeniListe).catch((e) =>
+          console.warn('[cizim auto-save]', e?.message),
+        )
+      }
+      return yeniListe
+    })
+  }
 
   const kaydet = async () => {
     if (!baslik.trim() && !icerik.trim()) {
@@ -129,12 +124,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
   }
 
   const cizimEkle = () => {
-    // Önce mevcut notu kaydet (çizimler not_id altında klasörlenir),
-    // sonra çizim ekranını aç. Yeni notlar için "taslak" altında kalır.
-    navigation.navigate('NotCizim', {
-      kullaniciId: kullanici.id,
-      notId: id ?? null,
-    })
+    setCizimModalAcik(true)
   }
 
   const cizimKaldir = (cizim, index) => {
@@ -368,6 +358,15 @@ export default function NotDuzenleScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Çizim yapma modal — Skia + ham touch */}
+      <CizimYapModal
+        visible={cizimModalAcik}
+        kullaniciId={kullanici?.id}
+        notId={id ?? null}
+        onKapat={() => setCizimModalAcik(false)}
+        onKaydedildi={cizimEklendi}
+      />
     </KeyboardAvoidingView>
   )
 }
