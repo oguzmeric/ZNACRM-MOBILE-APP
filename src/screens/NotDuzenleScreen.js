@@ -22,6 +22,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
+  const [cizimViewerUrl, setCizimViewerUrl] = useState(null)  // tam ekran çizim önizleme
 
   const [baslik, setBaslik] = useState('')
   const [icerik, setIcerik] = useState('')
@@ -244,12 +245,17 @@ export default function NotDuzenleScreen({ route, navigation }) {
             Henüz çizim yok. Kalem veya parmakla çizim ekleyebilirsin.
           </Text>
         ) : (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 }}>
             {cizimler.map((c, i) => (
               <CizimThumbnail
-                key={i}
+                key={`${c.path}-${i}`}
                 cizim={c}
-                onLongPress={() => cizimKaldir(c, i)}
+                onPress={async () => {
+                  const url = await cizimSignedUrl(c.path)
+                  if (url) setCizimViewerUrl(url)
+                  else Alert.alert('Hata', 'Çizim açılamadı.')
+                }}
+                onSilTikla={() => cizimKaldir(c, i)}
               />
             ))}
           </View>
@@ -273,6 +279,29 @@ export default function NotDuzenleScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      {/* Tam ekran çizim viewer */}
+      <Modal visible={!!cizimViewerUrl} transparent animationType="fade" onRequestClose={() => setCizimViewerUrl(null)}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setCizimViewerUrl(null)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <TouchableOpacity
+            onPress={() => setCizimViewerUrl(null)}
+            style={{ position: 'absolute', top: 50, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
+          >
+            <Feather name="x" size={22} color="#fff" />
+          </TouchableOpacity>
+          {cizimViewerUrl && (
+            <Image
+              source={{ uri: cizimViewerUrl }}
+              style={{ width: '95%', height: '85%', backgroundColor: '#fff' }}
+              resizeMode="contain"
+            />
+          )}
+        </TouchableOpacity>
+      </Modal>
 
       {/* Müşteri picker modal */}
       <Modal visible={musteriPickerAcik} animationType="slide" transparent onRequestClose={() => setMusteriPickerAcik(false)}>
@@ -327,7 +356,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
   )
 }
 
-function CizimThumbnail({ cizim, onLongPress }) {
+function CizimThumbnail({ cizim, onPress, onSilTikla }) {
   const [url, setUrl] = useState(null)
   const { colors } = useTheme()
   useEffect(() => {
@@ -335,18 +364,43 @@ function CizimThumbnail({ cizim, onLongPress }) {
   }, [cizim.path])
 
   return (
-    <TouchableOpacity
-      onLongPress={onLongPress}
-      style={{ width: 80, height: 80, borderRadius: 8, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', backgroundColor: colors.surface }}
-    >
-      {url ? (
-        <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-      ) : (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Feather name="image" size={20} color={colors.textMuted} />
-        </View>
-      )}
-    </TouchableOpacity>
+    <View style={{ position: 'relative' }}>
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.7}
+        style={{
+          width: 96, height: 96,
+          borderRadius: 10,
+          borderWidth: 1, borderColor: colors.border,
+          overflow: 'hidden',
+          backgroundColor: '#ffffff',
+        }}
+      >
+        {url ? (
+          <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+        ) : (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Feather name="image" size={20} color={colors.textMuted} />
+          </View>
+        )}
+      </TouchableOpacity>
+      {/* Silme butonu — sağ üst */}
+      <TouchableOpacity
+        onPress={onSilTikla}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={{
+          position: 'absolute',
+          top: -6, right: -6,
+          width: 22, height: 22,
+          borderRadius: 11,
+          backgroundColor: '#ef4444',
+          alignItems: 'center', justifyContent: 'center',
+          borderWidth: 2, borderColor: colors.bg,
+        }}
+      >
+        <Feather name="x" size={12} color="#fff" />
+      </TouchableOpacity>
+    </View>
   )
 }
 
