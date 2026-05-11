@@ -52,55 +52,61 @@ export default function NotlarimScreen({ navigation }) {
   return (
     <ScreenContainer>
       {/* Arama */}
-      <View style={{ padding: 12, paddingBottom: 4 }}>
+      <View style={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 6 }}>
         <View style={[styles.aramaKutu, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Feather name="search" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
+          <Feather name="search" size={15} color={colors.textMuted} style={{ marginRight: 6 }} />
           <TextInput
             value={arama}
             onChangeText={setArama}
             placeholder="Notlarda ara…"
             placeholderTextColor={colors.textFaded}
-            style={{ flex: 1, color: colors.textPrimary, paddingVertical: 6 }}
+            style={{ flex: 1, color: colors.textPrimary, fontSize: 14, paddingVertical: 0 }}
           />
           {!!arama && (
             <TouchableOpacity onPress={() => setArama('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Feather name="x" size={16} color={colors.textMuted} />
+              <Feather name="x" size={15} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Kategori filtreleri */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 6 }}
-      >
-        {FILTRELER.map((f) => {
-          const aktif = filtre === f.id
-          return (
-            <TouchableOpacity
-              key={f.id}
-              onPress={() => setFiltre(f.id)}
-              activeOpacity={0.75}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 5,
-                paddingHorizontal: 12, paddingVertical: 6,
-                borderRadius: 16,
-                backgroundColor: aktif ? `${f.renk}25` : colors.surface,
-                borderWidth: 1,
-                borderColor: aktif ? f.renk : colors.border,
-              }}
-            >
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: f.renk }} />
-              <Text style={{
-                color: aktif ? f.renk : colors.textSecondary,
-                fontSize: 12, fontWeight: '600',
-              }}>{f.isim}</Text>
-            </TouchableOpacity>
-          )
-        })}
-      </ScrollView>
+      {/* Kategori filtreleri — kompakt yatay chip'ler */}
+      <View style={{ height: 36, marginBottom: 4 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 12, alignItems: 'center', gap: 6 }}
+        >
+          {FILTRELER.map((f) => {
+            const aktif = filtre === f.id
+            return (
+              <TouchableOpacity
+                key={f.id}
+                onPress={() => setFiltre(f.id)}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  height: 28,
+                  paddingHorizontal: 10,
+                  borderRadius: 14,
+                  backgroundColor: aktif ? `${f.renk}20` : colors.surface,
+                  borderWidth: 1,
+                  borderColor: aktif ? f.renk : colors.border,
+                }}
+              >
+                {f.id !== 'hepsi' && (
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: f.renk, marginRight: 5 }} />
+                )}
+                <Text style={{
+                  color: aktif ? f.renk : colors.textSecondary,
+                  fontSize: 12, fontWeight: '600',
+                }}>{f.isim}</Text>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
+      </View>
 
       {/* Liste */}
       {yukleniyor ? (
