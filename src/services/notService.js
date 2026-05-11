@@ -97,6 +97,23 @@ export async function notGuncelle(id, payload) {
   return map(data)
 }
 
+// Sadece cizimler array'ini güncelle — başlık/içerik vs. dokunma
+// (çizim eklenince/silinince hemen DB'ye yansıt)
+export async function notCizimleriGuncelle(id, cizimler) {
+  if (!id) return null
+  const { data, error } = await supabase
+    .from('notlarim')
+    .update({ cizimler: cizimler ?? [] })
+    .eq('id', id)
+    .select('id, cizimler')
+    .single()
+  if (error) {
+    console.warn('[notCizimleriGuncelle]', error.message)
+    return null
+  }
+  return data
+}
+
 export async function notSil(id) {
   // Önce çizimleri storage'dan sil
   const not = await notuGetir(id)

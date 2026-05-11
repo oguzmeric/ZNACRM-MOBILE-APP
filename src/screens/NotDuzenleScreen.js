@@ -12,7 +12,8 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { trIcerir } from '../utils/trSearch'
 import {
-  KATEGORILER, notuGetir, notEkle, notGuncelle, notSil, cizimSignedUrl, cizimSil,
+  KATEGORILER, notuGetir, notEkle, notGuncelle, notSil,
+  notCizimleriGuncelle, cizimSignedUrl, cizimSil,
 } from '../services/notService'
 import { musterileriGetir } from '../services/musteriService'
 
@@ -61,17 +62,27 @@ export default function NotDuzenleScreen({ route, navigation }) {
     })()
   }, [editMode, id])
 
-  // Çizim ekranından geri dönerken çizim eklenmişse
+  // Çizim ekranından geri dönerken çizim eklenmişse — route.params değiştikçe append
+  // ve mevcut bir not düzenleniyorsa DB'yi anında güncelle (kullanıcı save'i unutmasın).
   useEffect(() => {
-    const unsub = navigation.addListener('focus', () => {
-      const yeniCizim = route.params?.yeniCizim
-      if (yeniCizim) {
-        setCizimler((prev) => [...prev, yeniCizim])
-        navigation.setParams({ yeniCizim: undefined })
-      }
-    })
-    return unsub
-  }, [navigation, route.params?.yeniCizim])
+    const yeniCizim = route.params?.yeniCizim
+    if (yeniCizim && yeniCizim.path) {
+      setCizimler((prev) => {
+        // Aynı path zaten varsa ekleme (duplicate koruması)
+        if (prev.some((c) => c.path === yeniCizim.path)) return prev
+        const yeniListe = [...prev, yeniCizim]
+        // Mevcut not düzenleniyor ise DB'ye anında yansıt
+        if (editMode && id) {
+          notCizimleriGuncelle(id, yeniListe).catch((e) =>
+            console.warn('[cizim auto-save]', e?.message),
+          )
+        }
+        return yeniListe
+      })
+      // Param'ı temizle ki tekrar tetiklemesin
+      navigation.setParams({ yeniCizim: undefined })
+    }
+  }, [route.params?.yeniCizim, navigation, editMode, id])
 
   const kaydet = async () => {
     if (!baslik.trim() && !icerik.trim()) {
@@ -133,7 +144,16 @@ export default function NotDuzenleScreen({ route, navigation }) {
         text: 'Sil', style: 'destructive',
         onPress: async () => {
           await cizimSil(cizim.path)
-          setCizimler((prev) => prev.filter((_, i) => i !== index))
+          setCizimler((prev) => {
+            const yeniListe = prev.filter((_, i) => i !== index)
+            // Mevcut not düzenleniyor ise DB'yi anında güncelle
+            if (editMode && id) {
+              notCizimleriGuncelle(id, yeniListe).catch((e) =>
+                console.warn('[cizim sil DB]', e?.message),
+              )
+            }
+            return yeniListe
+          })
         },
       },
     ])
