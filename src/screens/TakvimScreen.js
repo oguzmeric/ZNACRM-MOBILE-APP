@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, Linking,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
@@ -12,10 +12,11 @@ import ScreenContainer from '../components/ScreenContainer'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import YeniEtkinlikModal from '../components/YeniEtkinlikModal'
+import EtkinlikDetayModal from '../components/EtkinlikDetayModal'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import {
-  takvimBaglantilariniGetir, hariciEtkinlikleriGetir, takvimSyncTetikle, etkinlikSil,
+  takvimBaglantilariniGetir, hariciEtkinlikleriGetir, takvimSyncTetikle,
 } from '../services/takvimService'
 
 const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -64,6 +65,7 @@ export default function TakvimScreen({ navigation }) {
   const [baglantilar, setBaglantilar] = useState([])
   const [etkinlikModalAcik, setEtkinlikModalAcik] = useState(false)
   const [etkinlikModalTarihi, setEtkinlikModalTarihi] = useState(null)
+  const [secilenEtkinlik, setSecilenEtkinlik] = useState(null)  // detay modal için
 
   const todayStr = toYMD(bugun)
   const ayGrid = useMemo(() => ayGridiUret(yil, ay), [yil, ay])
@@ -142,43 +144,8 @@ export default function TakvimScreen({ navigation }) {
     setEtkinlikModalAcik(true)
   }
 
-  const etkinligiSil = (ev) => {
-    Alert.alert(
-      'Etkinliği Sil',
-      `"${ev.baslik || '(başlıksız)'}" silinsin mi?\n\nBu işlem Google Calendar'dan da kaldıracak ve davetlilere iptal bildirimi gönderecek. Geri alınamaz.`,
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Sil', style: 'destructive',
-          onPress: async () => {
-            try {
-              await etkinlikSil(ev.id)
-              // 500 ms bekle (DB güncellensin) sonra listeyi yenile
-              setTimeout(() => yukle(), 500)
-            } catch (e) {
-              Alert.alert('Hata', e?.message ?? 'Etkinlik silinemedi.')
-            }
-          },
-        },
-      ],
-    )
-  }
-
   const etkinligeTikla = (ev) => {
-    const detaylar = [
-      ev.aciklama && `📝 ${ev.aciklama}`,
-      ev.lokasyon && `📍 ${ev.lokasyon}`,
-      ev.davetliler?.length > 0 && `👥 ${ev.davetliler.length} davetli`,
-      ev.toplanti_linki && '🎥 Meet linki var',
-    ].filter(Boolean).join('\n\n')
-    const butonlar = [
-      { text: 'Sil', style: 'destructive', onPress: () => etkinligiSil(ev) },
-      { text: 'Kapat', style: 'cancel' },
-    ]
-    if (ev.toplanti_linki) {
-      butonlar.unshift({ text: 'Meet\'e Katıl', onPress: () => Linking.openURL(ev.toplanti_linki) })
-    }
-    Alert.alert(ev.baslik || '(başlıksız)', detaylar || 'Detay yok.', butonlar)
+    setSecilenEtkinlik(ev)
   }
 
   if (yukleniyor) return <ScreenContainer><LoadingState /></ScreenContainer>
@@ -378,6 +345,18 @@ export default function TakvimScreen({ navigation }) {
           setEtkinlikModalAcik(false)
           // 1.5 sn bekle (Google'a yazılma + DB sync), sonra etkinlikleri yeniden çek
           setTimeout(() => yukle(), 1500)
+        }}
+      />
+
+      {/* Etkinlik detay modal — Meet'e katıl + Sil */}
+      <EtkinlikDetayModal
+        visible={!!secilenEtkinlik}
+        etkinlik={secilenEtkinlik}
+        onKapat={() => setSecilenEtkinlik(null)}
+        onSilindi={() => {
+          setSecilenEtkinlik(null)
+          // 500 ms bekle (DB güncellensin), sonra etkinlikleri yeniden çek
+          setTimeout(() => yukle(), 500)
         }}
       />
     </ScreenContainer>
