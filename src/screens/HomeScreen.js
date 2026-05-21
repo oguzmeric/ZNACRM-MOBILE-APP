@@ -190,6 +190,12 @@ export default function HomeScreen({ navigation }) {
               icon={<Feather name="edit-3" size={28} color="#f59e0b" />}
               onPress={() => navigation.navigate('Notlarim')}
             />
+            <Tile
+              title="Takvim"
+              hint="Toplantı + Meet"
+              icon={<Feather name="calendar" size={28} color="#1a73e8" />}
+              onPress={() => navigation.navigate('Takvim')}
+            />
           </View>
         </View>
 
