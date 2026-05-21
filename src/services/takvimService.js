@@ -75,3 +75,31 @@ export async function etkinlikOlustur(baglantiId, payload) {
   if (!data?.ok) throw new Error(data?.hata ?? 'Etkinlik oluşturulamadı')
   return data
 }
+
+// Etkinliği Google Calendar + DB'den sil
+export async function etkinlikSil(etkinlikId) {
+  const { data, error } = await supabase.functions.invoke('google-takvim-etkinlik-sil', {
+    body: { etkinlikId },
+  })
+  if (error) {
+    let mesaj = error.message ?? 'Etkinlik silinemedi'
+    try {
+      const ctx = error.context
+      if (ctx && typeof ctx.text === 'function') {
+        const text = await ctx.text()
+        if (text) {
+          try {
+            const body = JSON.parse(text)
+            if (body?.hata) mesaj = body.hata
+            if (body?.scopeYok) mesaj += ' (Web tarafından bağlantıyı yenileyin.)'
+          } catch { mesaj = text.slice(0, 300) }
+        }
+      }
+    } catch (e) {
+      console.warn('[etkinlikSil error parse]', e)
+    }
+    throw new Error(mesaj)
+  }
+  if (!data?.ok) throw new Error(data?.hata ?? 'Etkinlik silinemedi')
+  return data
+}

@@ -15,7 +15,7 @@ import YeniEtkinlikModal from '../components/YeniEtkinlikModal'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import {
-  takvimBaglantilariniGetir, hariciEtkinlikleriGetir, takvimSyncTetikle,
+  takvimBaglantilariniGetir, hariciEtkinlikleriGetir, takvimSyncTetikle, etkinlikSil,
 } from '../services/takvimService'
 
 const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -142,6 +142,28 @@ export default function TakvimScreen({ navigation }) {
     setEtkinlikModalAcik(true)
   }
 
+  const etkinligiSil = (ev) => {
+    Alert.alert(
+      'Etkinliği Sil',
+      `"${ev.baslik || '(başlıksız)'}" silinsin mi?\n\nBu işlem Google Calendar'dan da kaldıracak ve davetlilere iptal bildirimi gönderecek. Geri alınamaz.`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Sil', style: 'destructive',
+          onPress: async () => {
+            try {
+              await etkinlikSil(ev.id)
+              // 500 ms bekle (DB güncellensin) sonra listeyi yenile
+              setTimeout(() => yukle(), 500)
+            } catch (e) {
+              Alert.alert('Hata', e?.message ?? 'Etkinlik silinemedi.')
+            }
+          },
+        },
+      ],
+    )
+  }
+
   const etkinligeTikla = (ev) => {
     const detaylar = [
       ev.aciklama && `📝 ${ev.aciklama}`,
@@ -149,7 +171,10 @@ export default function TakvimScreen({ navigation }) {
       ev.davetliler?.length > 0 && `👥 ${ev.davetliler.length} davetli`,
       ev.toplanti_linki && '🎥 Meet linki var',
     ].filter(Boolean).join('\n\n')
-    const butonlar = [{ text: 'Kapat', style: 'cancel' }]
+    const butonlar = [
+      { text: 'Sil', style: 'destructive', onPress: () => etkinligiSil(ev) },
+      { text: 'Kapat', style: 'cancel' },
+    ]
     if (ev.toplanti_linki) {
       butonlar.unshift({ text: 'Meet\'e Katıl', onPress: () => Linking.openURL(ev.toplanti_linki) })
     }
