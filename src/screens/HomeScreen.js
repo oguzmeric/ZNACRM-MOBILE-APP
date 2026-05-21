@@ -215,6 +215,18 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
         )}
       </ScrollView>
+
+      {/* Status bar backdrop — scroll içeriği yukarı çıkınca iOS saati ile
+          başlık metinleri çakışmasın diye üstte opak bir bant. */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0,
+          height: insets.top,
+          backgroundColor: colors.bg,
+        }}
+      />
     </ScreenContainer>
   )
 }
