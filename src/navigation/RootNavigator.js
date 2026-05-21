@@ -63,6 +63,7 @@ import AdminMenuYetkileriScreen from '../screens/admin/AdminMenuYetkileriScreen'
 import AdminAktivitelerScreen from '../screens/admin/AdminAktivitelerScreen'
 import AdminPersonelStokScreen from '../screens/admin/AdminPersonelStokScreen'
 import { yonetimPaneliErisimi } from '../utils/yetki'
+import MagicTabBar from '../components/MagicTabBar'
 
 const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
@@ -71,27 +72,9 @@ function TeknisyenTabs() {
   const { colors } = useTheme()
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      tabBar={(props) => <MagicTabBar {...props} />}
+      screenOptions={() => ({
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          paddingTop: 6,
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarIcon: ({ color, size }) => {
-          const ikonAd = {
-            'Ana Sayfa': 'home',
-            'Görevler': 'check-square',
-            'Servisler': 'tool',
-            'Tara': 'maximize',
-            'Profil': 'user',
-          }[route.name]
-          return <Feather name={ikonAd ?? 'circle'} size={size} color={color} />
-        },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
         headerStyle: { backgroundColor: colors.bg },
         headerTitleStyle: { color: colors.textPrimary, fontWeight: '700' },
         headerTintColor: colors.textPrimary,
