@@ -58,7 +58,7 @@ const BAKIM_KONTROL_LISTESI = [
   'Yedekleme kontrolü',
 ]
 
-export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
+export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null, fotograflar = [] }) {
   const tur = turBul(talep.anaTur)
   const aciliyet = aciliyetBul(talep.aciliyet)
   const durum = durumBul(talep.durum)
@@ -97,6 +97,28 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
   const imzaSection = talep.musteriImza
     ? `<img src="${talep.musteriImza}" class="imza-img" />`
     : `<div class="imza-bos">İmza alınmadı</div>`
+
+  // Fotoğraf eki sayfası — ana içerikten sonra ayrı sayfada
+  const fotoSayfasi = Array.isArray(fotograflar) && fotograflar.length > 0
+    ? `
+    <div class="foto-sayfa">
+      <div class="foto-sayfa-baslik">📷 Servis Fotoğrafları</div>
+      <div class="foto-sayfa-meta">${escapeHtml(talep.talepNo ?? '#' + talep.id)} · ${fotograflar.length} fotoğraf</div>
+      <div class="foto-grid">
+        ${fotograflar
+          .map(
+            (f, i) => `
+        <div class="foto-item">
+          <img src="${f.dataUri}" />
+          <div class="foto-alt">
+            ${escapeHtml(f.ad ?? 'Fotoğraf ' + (i + 1))}${f.eklenme ? ' · ' + escapeHtml(tarihSaatFormat(f.eklenme)) : ''}
+          </div>
+        </div>`
+          )
+          .join('')}
+      </div>
+    </div>`
+    : ''
 
   // Forma özel bloklar
   // Notlar birleştirilip "Yapılan Müdahale" alanına yazılır (yeni → eski)
@@ -397,6 +419,50 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
     display: flex;
     justify-content: space-between;
   }
+
+  /* Fotoğraf eki sayfası */
+  .foto-sayfa {
+    page-break-before: always;
+    padding-top: 4mm;
+  }
+  .foto-sayfa-baslik {
+    font-size: 15px;
+    font-weight: 800;
+    color: ${profil.renk};
+    letter-spacing: 0.6px;
+    margin-bottom: 2px;
+  }
+  .foto-sayfa-meta {
+    font-size: 10px;
+    color: #64748b;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid ${profil.renk};
+  }
+  .foto-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .foto-item {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    overflow: hidden;
+    page-break-inside: avoid;
+  }
+  .foto-item img {
+    width: 100%;
+    height: 230px;
+    object-fit: cover;
+    display: block;
+    background: #f1f5f9;
+  }
+  .foto-alt {
+    font-size: 9px;
+    color: #64748b;
+    padding: 5px 8px;
+    border-top: 1px solid #e2e8f0;
+  }
 </style>
 </head>
 <body>
@@ -496,6 +562,8 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null }) {
         </div>
       </div>
     </div>
+
+    ${fotoSayfasi}
 
     <footer>
       <div>ZNA Teknoloji · destek@zna.com.tr</div>

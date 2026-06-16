@@ -23,6 +23,44 @@ async function logoBase64Getir() {
   }
 }
 
+// talep.dosyalar içindeki görselleri base64 data-URI'ye çevir.
+// expo-print uzak (http) görselleri beklemeden render ettiği için
+// PDF'te boş çıkarlar — bu yüzden logo gibi base64'e gömüyoruz.
+async function gorselleriBase64Getir(dosyalar) {
+  const gorseller = (dosyalar ?? []).filter((d) => {
+    if (d?.tip === 'image') return true
+    return /\.(jpe?g|png|webp)(\?|$)/i.test(d?.url ?? '')
+  })
+  const sonuc = []
+  for (let i = 0; i < gorseller.length; i++) {
+    const d = gorseller[i]
+    try {
+      const uzanti = (d.url.match(/\.(\w+)(?:\?|$)/)?.[1] || 'jpg').toLowerCase()
+      const mime = uzanti === 'png' ? 'image/png' : uzanti === 'webp' ? 'image/webp' : 'image/jpeg'
+      const hedef = `${FileSystem.cacheDirectory}form-foto-${i}-${Date.now()}.${uzanti}`
+      const { uri } = await FileSystem.downloadAsync(d.url, hedef)
+      const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })
+      sonuc.push({
+        dataUri: `data:${mime};base64,${b64}`,
+        ad: d.ad ?? null,
+        ekleyen: d.ekleyen ?? null,
+        eklenme: d.eklenme ?? null,
+      })
+    } catch (e) {
+      console.warn('form fotoğrafı yüklenemedi:', e?.message)
+    }
+  }
+  return sonuc
+}
+
+// Form HTML'ini üretmek için ortak hazırlık — malzeme + logo + fotoğraflar
+async function formHtmlOlustur(talep) {
+  const liste = malzemeleriFiltrele(await malzemePlaniGetir(talep.id))
+  const logoBase64 = await logoBase64Getir()
+  const fotograflar = await gorselleriBase64Getir(talep.dosyalar)
+  return servisFormuHtml({ talep, malzemeler: liste, logoBase64, fotograflar })
+}
+
 // Sadece GERÇEKTEN teslim alınmış / kullanılmış malzemeleri forma dahil et.
 // Pure "planlı ama hiç teslim alınmadı" satırlar formdan çıkar — kullanıcı
 // teslim almadan kapattıysa, plan kaydı serbest plan olarak DB'de kalır
@@ -37,10 +75,7 @@ function malzemeleriFiltrele(liste) {
 
 // Önizleme için HTML stringini döndür (WebView'de göstermek üzere)
 export async function onizlemeHtmlGetir(talep) {
-  const malzemelerRaw = await malzemePlaniGetir(talep.id)
-  const liste = malzemeleriFiltrele(malzemelerRaw)
-  const logoBase64 = await logoBase64Getir()
-  return servisFormuHtml({ talep, malzemeler: liste, logoBase64 })
+  return formHtmlOlustur(talep)
 }
 
 // A4: 595 × 842 pt (≈ 210 × 297 mm). Default Letter (612x792) yanlış kenarlık verir.
@@ -48,17 +83,13 @@ const A4_BOYUT = { width: 595, height: 842 }
 
 // Native print önizlemesini aç (yazıcıya gönder veya PDF olarak kaydet)
 export async function pdfOnizle(talep) {
-  const liste = malzemeleriFiltrele(await malzemePlaniGetir(talep.id))
-  const logoBase64 = await logoBase64Getir()
-  const html = servisFormuHtml({ talep, malzemeler: liste, logoBase64 })
+  const html = await formHtmlOlustur(talep)
   await Print.printAsync({ html, ...A4_BOYUT })
 }
 
 // PDF dosyası üretir, local URI döner
 export async function pdfOlustur(talep) {
-  const liste = malzemeleriFiltrele(await malzemePlaniGetir(talep.id))
-  const logoBase64 = await logoBase64Getir()
-  const html = servisFormuHtml({ talep, malzemeler: liste, logoBase64 })
+  const html = await formHtmlOlustur(talep)
 
   const { uri } = await Print.printToFileAsync({
     html,
