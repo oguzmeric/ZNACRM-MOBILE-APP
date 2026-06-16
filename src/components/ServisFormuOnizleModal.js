@@ -17,7 +17,6 @@ import {
   pdfOlustur,
   pdfOnizle,
   paylasPdf,
-  emailGonder,
   onizlemeHtmlGetir,
 } from '../services/servisFormuService'
 import { arsiveYukle } from '../services/servisFormuArsivService'
@@ -51,14 +50,7 @@ export default function ServisFormuOnizleModal({ visible, onClose, talep, onArsi
         await pdfOnizle(talep)
       } else {
         const uri = await pdfOlustur(talep)
-        if (tip === 'email') {
-          await emailGonder(uri, {
-            subject: `Servis Formu · ${talep.talepNo ?? ''}`,
-            body: `${talep.firmaAdi ?? ''} için servis formu ektedir.`,
-          })
-        } else {
-          await paylasPdf(uri)
-        }
+        await paylasPdf(uri)
 
         // Arşive yükle (best-effort — başarısız olsa bile kullanıcı akışı etkilenmez)
         arsiveYukle({
@@ -129,13 +121,6 @@ export default function ServisFormuOnizleModal({ visible, onClose, talep, onArsi
 
         {/* Alt toolbar */}
         <View style={[styles.toolbar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom + 10 }]}>
-          <ToolbarBtn
-            ikon="mail"
-            label="E-posta"
-            onPress={() => aksiyon('email')}
-            disabled={aksiyonCalisiyor}
-            colors={colors}
-          />
           <ToolbarBtn
             ikon="download"
             label="Kaydet"
