@@ -27,8 +27,13 @@ import LoadingState from '../components/LoadingState'
 const SEKMELER = [
   { id: 'bana', label: 'Bana' },
   { id: 'acik', label: 'Açık' },
+  { id: 'tamamlanan', label: 'Tamamlanan' },
   { id: 'tumu', label: 'Tümü' },
 ]
+
+// Bir talebin "kapanmış" (tamamlanmış/iptal) sayılıp sayılmadığı
+const KAPALI_DURUMLAR = ['tamamlandi', 'onaylandi', 'iptal', 'kapali']
+const kapaliMi = (t) => KAPALI_DURUMLAR.includes((t.durum ?? '').toLowerCase())
 
 export default function ServisTalepleriScreen({ navigation, route }) {
   const { kullanici } = useAuth()
@@ -49,12 +54,13 @@ export default function ServisTalepleriScreen({ navigation, route }) {
     if (aktifSekme === 'bana') {
       veri = await banaAtananTalepler(kullanici.id)
     } else if (aktifSekme === 'acik') {
-      // "Açık" = bana atanmış + henüz tamamlanmamış olanlar
+      // Bana atanmış + henüz kapanmamış olanlar
       const benim = await banaAtananTalepler(kullanici.id)
-      veri = (benim ?? []).filter((t) => {
-        const d = (t.durum ?? '').toLowerCase()
-        return d !== 'tamamlandi' && d !== 'onaylandi' && d !== 'iptal' && d !== 'kapali'
-      })
+      veri = (benim ?? []).filter((t) => !kapaliMi(t))
+    } else if (aktifSekme === 'tamamlanan') {
+      // Bana atanmış + kapanmış (tamamlanmış/onaylanmış/iptal) olanlar
+      const benim = await banaAtananTalepler(kullanici.id)
+      veri = (benim ?? []).filter((t) => kapaliMi(t))
     } else {
       veri = await servisTalepleriniGetir()
     }
@@ -66,10 +72,7 @@ export default function ServisTalepleriScreen({ navigation, route }) {
     if (!kullanici) return
     ;(async () => {
       const benim = await banaAtananTalepler(kullanici.id)
-      const sayi = (benim ?? []).filter((t) => {
-        const d = (t.durum ?? '').toLowerCase()
-        return d !== 'tamamlandi' && d !== 'onaylandi' && d !== 'iptal' && d !== 'kapali'
-      }).length
+      const sayi = (benim ?? []).filter((t) => !kapaliMi(t)).length
       setAcikSayisi(sayi)
 
       // İlk açılışta popup
@@ -117,6 +120,8 @@ export default function ServisTalepleriScreen({ navigation, route }) {
               activeOpacity={0.85}
             >
               <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
                 style={[
                   styles.tabText,
                   { color: colors.textMuted },
@@ -143,8 +148,24 @@ export default function ServisTalepleriScreen({ navigation, route }) {
           ListEmptyComponent={
             <EmptyState
               ikon="tool"
-              baslik={aktifSekme === 'bana' ? 'Sana atanan talep yok' : 'Servis talebi yok'}
-              mesaj={aktifSekme === 'bana' ? 'Henüz sana iş atanmamış' : 'Yeni talep oluşturarak başla'}
+              baslik={
+                aktifSekme === 'acik'
+                  ? 'Açık servisin yok'
+                  : aktifSekme === 'tamamlanan'
+                    ? 'Tamamlanan servis yok'
+                    : aktifSekme === 'bana'
+                      ? 'Sana atanan talep yok'
+                      : 'Servis talebi yok'
+              }
+              mesaj={
+                aktifSekme === 'acik'
+                  ? 'Sana atanmış açık servis bulunmuyor'
+                  : aktifSekme === 'tamamlanan'
+                    ? 'Henüz tamamladığın bir servis yok'
+                    : aktifSekme === 'bana'
+                      ? 'Henüz sana iş atanmamış'
+                      : 'Yeni talep oluşturarak başla'
+              }
             />
           }
           renderItem={({ item }) => {
@@ -219,10 +240,11 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     paddingVertical: 8,
+    paddingHorizontal: 2,
     borderRadius: 7,
     alignItems: 'center',
   },
-  tabText: { fontWeight: '600', fontSize: 13 },
+  tabText: { fontWeight: '600', fontSize: 12 },
 
   card: {
     backgroundColor: 'rgba(30, 41, 59, 0.7)',
