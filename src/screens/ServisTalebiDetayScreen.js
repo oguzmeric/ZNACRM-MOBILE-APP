@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { useHeaderHeight } from '@react-navigation/elements'
@@ -84,6 +85,8 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [arsiv, setArsiv] = useState([])
   const [arsivYukleniyor, setArsivYukleniyor] = useState(false)
   const [arsivAcikItemId, setArsivAcikItemId] = useState(null)
+  const [gecmisAcik, setGecmisAcik] = useState(false)
+  const [fotoOnizleUrl, setFotoOnizleUrl] = useState(null)
 
   const yukleArsiv = useCallback(async () => {
     if (!talep?.id) return
@@ -381,6 +384,28 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
       { text: 'Kamera', onPress: () => fotoEkle('kamera') },
       { text: 'Galeri', onPress: () => fotoEkle('galeri') },
       { text: 'Vazgeç', style: 'cancel' },
+    ])
+  }
+
+  // talep.dosyalar içindeki görseller (forma da bunlar gidiyor)
+  const fotograflar = (talep?.dosyalar ?? []).filter(
+    (d) => d?.tip === 'image' || /\.(jpe?g|png|webp)(\?|$)/i.test(d?.url ?? '')
+  )
+
+  const fotoSil = (hedef) => {
+    if (!fotoYetkisi) return
+    Alert.alert('Fotoğrafı sil', 'Bu fotoğraf formdan da kaldırılacak. Emin misin?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sil',
+        style: 'destructive',
+        onPress: async () => {
+          const yeniDosyalar = (talep.dosyalar ?? []).filter((d) => d.url !== hedef.url)
+          const guncel = await servisTalepGuncelle(talep.id, { dosyalar: yeniDosyalar })
+          if (guncel) setTalep(guncel)
+          else Alert.alert('Hata', 'Fotoğraf silinemedi.')
+        },
+      },
     ])
   }
 
@@ -752,24 +777,93 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
           ))
         )}
 
-        {/* Durum geçmişi */}
-        {(talep.durumGecmisi ?? []).length > 0 && (
-          <>
-            <Text style={[styles.sectionLabel, { marginTop: 24, color: colors.textMuted }]}>Durum Geçmişi</Text>
-            {[...(talep.durumGecmisi ?? [])].reverse().map((g, i) => {
-              const d = durumBul(g.durum)
-              return (
-                <View key={i} style={[styles.gecmisCard, { backgroundColor: colors.surface }]}>
-                  <Text style={[styles.gecmisDurum, { color: d?.renk ?? colors.textMuted }]}>
-                    {d?.ikon} {d?.isim ?? g.durum}
+        {/* Durum geçmişi — varsayılan son durum, gerisi katlanır */}
+        {(talep.durumGecmisi ?? []).length > 0 && (() => {
+          const tumGecmis = [...(talep.durumGecmisi ?? [])].reverse()
+          const gosterilen = gecmisAcik ? tumGecmis : tumGecmis.slice(0, 1)
+          const gizliSayi = tumGecmis.length - gosterilen.length
+          return (
+            <>
+              <Text style={[styles.sectionLabel, { marginTop: 24, color: colors.textMuted }]}>Durum Geçmişi</Text>
+              {gosterilen.map((g, i) => {
+                const d = durumBul(g.durum)
+                return (
+                  <View key={i} style={[styles.gecmisCard, { backgroundColor: colors.surface }]}>
+                    <Text style={[styles.gecmisDurum, { color: d?.renk ?? colors.textMuted }]}>
+                      {d?.ikon} {d?.isim ?? g.durum}
+                    </Text>
+                    <Text style={[styles.notMeta, { color: colors.textFaded }]}>
+                      {g.kullanici ?? '—'} · {tarihSaatFormat(g.tarih)}
+                    </Text>
+                  </View>
+                )
+              })}
+              {tumGecmis.length > 1 && (
+                <TouchableOpacity
+                  style={styles.gecmisToggle}
+                  onPress={() => setGecmisAcik((v) => !v)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.gecmisToggleText, { color: colors.primary }]}>
+                    {gecmisAcik ? 'Daha az göster' : `Tüm geçmişi göster (${gizliSayi})`}
                   </Text>
-                  <Text style={[styles.notMeta, { color: colors.textFaded }]}>
-                    {g.kullanici ?? '—'} · {tarihSaatFormat(g.tarih)}
-                  </Text>
-                </View>
-              )
-            })}
-          </>
+                  <Feather
+                    name={gecmisAcik ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+            </>
+          )
+        })()}
+
+        {/* Fotoğraflar — forma 2. sayfa olarak da eklenir */}
+        <View style={styles.imzaHeader}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
+            📷 Fotoğraflar{fotograflar.length > 0 ? ` (${fotograflar.length})` : ''}
+          </Text>
+          {fotoYetkisi && (
+            <TouchableOpacity
+              style={styles.fotoEkleBtn}
+              onPress={fotoSecimSor}
+              disabled={fotoYukleniyor}
+              activeOpacity={0.85}
+            >
+              {fotoYukleniyor ? (
+                <ActivityIndicator size="small" color="#60a5fa" />
+              ) : (
+                <>
+                  <Feather name="camera" size={13} color="#60a5fa" />
+                  <Text style={styles.fotoEkleText}>Ekle</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+        {fotograflar.length > 0 ? (
+          <View style={styles.fotoGrid}>
+            {fotograflar.map((d, i) => (
+              <View key={d.url ?? i} style={styles.fotoThumbWrap}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setFotoOnizleUrl(d.url)}
+                  style={styles.fotoThumb}
+                >
+                  <Image source={{ uri: d.url }} style={styles.fotoThumbImg} resizeMode="cover" />
+                </TouchableOpacity>
+                {fotoYetkisi && (
+                  <TouchableOpacity style={styles.fotoSilBtn} onPress={() => fotoSil(d)}>
+                    <Feather name="x" size={12} color="#fff" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={[styles.bos, { color: colors.textFaded }]}>
+            {fotoYetkisi ? 'Henüz fotoğraf yok — "Ekle" ile çek/yükle' : 'Fotoğraf eklenmemiş'}
+          </Text>
         )}
 
         {/* Müşteri imzası */}
@@ -1023,6 +1117,22 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         talep={talep}
         onArsivlendi={() => yukleArsiv()}
       />
+
+      {/* Fotoğraf tam ekran önizleme */}
+      <Modal visible={!!fotoOnizleUrl} transparent animationType="fade" onRequestClose={() => setFotoOnizleUrl(null)}>
+        <TouchableOpacity
+          style={styles.fotoOnizleArka}
+          activeOpacity={1}
+          onPress={() => setFotoOnizleUrl(null)}
+        >
+          {!!fotoOnizleUrl && (
+            <Image source={{ uri: fotoOnizleUrl }} style={styles.fotoOnizleImg} resizeMode="contain" />
+          )}
+          <TouchableOpacity style={styles.fotoOnizleKapat} onPress={() => setFotoOnizleUrl(null)}>
+            <Feather name="x" size={24} color="#fff" />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   )
 }
@@ -1178,6 +1288,69 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   gecmisDurum: { fontWeight: '700', fontSize: 13 },
+  gecmisToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    marginBottom: 6,
+  },
+  gecmisToggleText: { fontWeight: '600', fontSize: 13 },
+
+  fotoEkleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: 'rgba(96,165,250,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(96,165,250,0.4)',
+    minWidth: 64,
+    justifyContent: 'center',
+  },
+  fotoEkleText: { color: '#60a5fa', fontWeight: '700', fontSize: 13 },
+  fotoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  fotoThumbWrap: { position: 'relative' },
+  fotoThumb: {
+    width: 96,
+    height: 96,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#1e293b',
+  },
+  fotoThumbImg: { width: '100%', height: '100%' },
+  fotoSilBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ef4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fotoOnizleArka: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fotoOnizleImg: { width: '100%', height: '80%' },
+  fotoOnizleKapat: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   bos: { color: '#64748b', fontStyle: 'italic', marginVertical: 8 },
 
