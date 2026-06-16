@@ -916,14 +916,23 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
 
-        {talep.durum === 'tamamlandi' && (
+        {['tamamlandi', 'onaylandi', 'kapali'].includes(talep.durum) && (
           <>
-            <View style={styles.tamamlandiBox}>
-              <Feather name="check-circle" size={18} color="#22c55e" />
-              <Text style={styles.tamamlandiText}>
-                Servis Tamamlandı · Onay bekliyor
-              </Text>
-            </View>
+            {talep.durum === 'tamamlandi' ? (
+              <View style={styles.tamamlandiBox}>
+                <Feather name="check-circle" size={18} color="#22c55e" />
+                <Text style={styles.tamamlandiText}>
+                  Servis Tamamlandı · Onay bekliyor
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.tamamlandiBox, { backgroundColor: 'rgba(5, 150, 105, 0.12)', borderColor: 'rgba(5, 150, 105, 0.4)' }]}>
+                <Feather name="check-circle" size={18} color="#059669" />
+                <Text style={[styles.tamamlandiText, { color: '#059669' }]}>
+                  Servis Onaylandı · Kapandı
+                </Text>
+              </View>
+            )}
 
             <TouchableOpacity
               style={[styles.formuAcBtn, { backgroundColor: colors.primary }]}
@@ -992,15 +1001,6 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
               )}
             </View>
           </>
-        )}
-
-        {talep.durum === 'onaylandi' && (
-          <View style={[styles.tamamlandiBox, { backgroundColor: 'rgba(5, 150, 105, 0.12)', borderColor: 'rgba(5, 150, 105, 0.4)' }]}>
-            <Feather name="check-circle" size={18} color="#059669" />
-            <Text style={[styles.tamamlandiText, { color: '#059669' }]}>
-              Servis Onaylandı · Kapandı
-            </Text>
-          </View>
         )}
 
         {talep.durum === 'reddedildi' && (
