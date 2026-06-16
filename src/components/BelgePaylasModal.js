@@ -40,6 +40,8 @@ export default function BelgePaylasModal({
   prefillGsm = '',
   prefillEmail = '',
   baslikMetni = '',
+  onBeforeSend,        // opsiyonel async — gonderim oncesi calisir (orn. formu arsivle)
+  hazirlikMetni = 'Hazırlanıyor…',
 }) {
   const { colors } = useTheme()
   const [kanal, setKanal] = useState('sms')
@@ -48,6 +50,7 @@ export default function BelgePaylasModal({
   const [email, setEmail] = useState('')
   const [ozelMesaj, setOzelMesaj] = useState('')
   const [gonderiliyor, setGonderiliyor] = useState(false)
+  const [hazirlaniyor, setHazirlaniyor] = useState(false)
   const [sonuc, setSonuc] = useState(null)
 
   // Modal her açıldığında alanları kayıttan tazele
@@ -72,6 +75,19 @@ export default function BelgePaylasModal({
       Alert.alert('Eksik bilgi', 'E-posta için adres gir.')
       return
     }
+    // Gönderim öncesi hazırlık (örn. servis formunu üret + arşivle)
+    if (onBeforeSend) {
+      setHazirlaniyor(true)
+      try {
+        await onBeforeSend()
+      } catch (e) {
+        setHazirlaniyor(false)
+        Alert.alert('Hazırlanamadı', `Belge hazırlanamadı, gönderim iptal edildi.\n${String(e?.message ?? e)}`)
+        return
+      }
+      setHazirlaniyor(false)
+    }
+
     setGonderiliyor(true)
     try {
       const args = {
@@ -252,17 +268,19 @@ export default function BelgePaylasModal({
               />
 
               <TouchableOpacity
-                style={[styles.gonderBtn, { backgroundColor: colors.primary }, gonderiliyor && { opacity: 0.7 }]}
+                style={[styles.gonderBtn, { backgroundColor: colors.primary }, (gonderiliyor || hazirlaniyor) && { opacity: 0.7 }]}
                 onPress={gonder}
-                disabled={gonderiliyor}
+                disabled={gonderiliyor || hazirlaniyor}
                 activeOpacity={0.85}
               >
-                {gonderiliyor ? (
+                {gonderiliyor || hazirlaniyor ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <Feather name="send" size={18} color="#fff" />
                 )}
-                <Text style={styles.gonderBtnText}>{gonderiliyor ? 'Gönderiliyor…' : 'Gönder'}</Text>
+                <Text style={styles.gonderBtnText}>
+                  {hazirlaniyor ? hazirlikMetni : gonderiliyor ? 'Gönderiliyor…' : 'Gönder'}
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           )}

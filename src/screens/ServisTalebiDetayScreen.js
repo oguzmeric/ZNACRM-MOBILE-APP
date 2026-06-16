@@ -45,7 +45,8 @@ import {
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
 import ServisFormuOnizleModal from '../components/ServisFormuOnizleModal'
 import BelgePaylasModal from '../components/BelgePaylasModal'
-import { arsivListele, arsivSignedUrl } from '../services/servisFormuArsivService'
+import { arsivListele, arsivSignedUrl, arsiveYukle } from '../services/servisFormuArsivService'
+import { pdfOlustur } from '../services/servisFormuService'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 
@@ -1138,6 +1139,18 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         prefillGsm={talep.telefon ?? ''}
         prefillEmail={talep.eposta ?? talep.email ?? ''}
         baslikMetni={talep.firmaAdi ?? talep.musteriAd ?? talep.talepNo ?? ''}
+        hazirlikMetni="Form hazırlanıyor…"
+        onBeforeSend={async () => {
+          // Güncel servis formunu üret + arşivle — müşteri linki bu arşivi açar
+          const uri = await pdfOlustur(talep)
+          const sonuc = await arsiveYukle({
+            servisId: talep.id,
+            lokalPdfUri: uri,
+            olusturanId: kullanici?.id ?? null,
+          })
+          if (!sonuc) throw new Error('Form arşivlenemedi.')
+          yukleArsiv()
+        }}
       />
 
 
