@@ -10,6 +10,8 @@ import {
   Alert,
   Share,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useTheme } from '../context/ThemeContext'
@@ -111,7 +113,10 @@ export default function BelgePaylasModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.arka}>
+      <KeyboardAvoidingView
+        style={styles.arka}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
           {/* Başlık */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -262,7 +267,7 @@ export default function BelgePaylasModal({
             </ScrollView>
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }
