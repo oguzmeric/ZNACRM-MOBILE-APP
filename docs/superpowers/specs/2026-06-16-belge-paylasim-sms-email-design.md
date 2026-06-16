@@ -45,8 +45,8 @@ Hem teklif hem servis ekranının kullandığı ortak modal.
 
 **Akış / alanlar:**
 1. **Kanal** segmenti: `SMS` · `E-posta` · `Her ikisi`
-2. **Format** (yalnız `formatSecimi` true ise): `Standart (ZNA)` · `Karel`
-   → `sablon` olarak gönderilir (`standart` | `karel`)
+2. **Format** (yalnız `formatSecimi` true ise): `Trassir` · `Karel`
+   → `sablon` olarak gönderilir (`trassir` | `karel`)
 3. **Alıcı alanları** (kanala göre koşullu görünür):
    - GSM input (sms/her_ikisi) — `prefillGsm` ile dolu, düzenlenebilir
    - E-posta input (mail/her_ikisi) — `prefillEmail` ile dolu, düzenlenebilir
@@ -70,7 +70,7 @@ Hem teklif hem servis ekranının kullandığı ortak modal.
   prefill `talep.telefon` (ve varsa email).
 
 ## Karar kayıtları
-- Format listesi: **yalnızca Standart (ZNA) + Karel** (Trassir hariç).
+- Format listesi: **yalnızca Trassir + Karel** (Standart/ZNA hariç).
 - Gönderim **link** ile (PDF eki değil).
 - Yalnızca **belge gönderimi**; doğrudan serbest-metin SMS UI'ı bu kapsamda yok.
 
