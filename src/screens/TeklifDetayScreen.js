@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Linking,
   Alert,
   Modal,
   ActivityIndicator,
@@ -27,6 +26,7 @@ import {
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
 import { paraFormat } from '../utils/paraFormat'
 import { teklifPdfUretVePaylas, TEKLIF_FORMATLARI } from '../lib/teklifPdf'
+import BelgePaylasModal from '../components/BelgePaylasModal'
 
 export default function TeklifDetayScreen({ route, navigation }) {
   const { id } = route.params
@@ -37,6 +37,7 @@ export default function TeklifDetayScreen({ route, navigation }) {
   const [seciliGecmis, setSeciliGecmis] = useState(null)
   const [formatModalAcik, setFormatModalAcik] = useState(false)
   const [pdfUretiliyor, setPdfUretiliyor] = useState(false)
+  const [paylasAcik, setPaylasAcik] = useState(false)
 
   const yukle = useCallback(async () => {
     const t = await teklifGetir(id)
@@ -85,35 +86,6 @@ export default function TeklifDetayScreen({ route, navigation }) {
         clearTimeout(safety)
         setPdfUretiliyor(false)
       })
-  }
-
-  const emailGonder = () => {
-    // İleride: PDF üret + gönder; şimdilik standart mailto
-    Alert.alert(
-      'Email Gönderimi',
-      'Email + PDF gönderimi yakında aktif olacak. Şimdilik teklifi özetleyerek standart mail ile gönderiyoruz.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Mail Aç',
-          onPress: () => {
-            const konu = `Teklif ${teklif.teklifNo} - ${teklif.konu ?? ''}`
-            const govde = `Sayın ${teklif.musteriYetkilisi ?? 'Yetkili'},\n\n` +
-              `${teklif.firmaAdi} için hazırladığımız teklif:\n\n` +
-              `Teklif No: ${teklif.teklifNo}\n` +
-              `Konu: ${teklif.konu ?? '—'}\n` +
-              `Tarih: ${tarihFormat(teklif.tarih)}\n` +
-              `Geçerlilik: ${tarihFormat(teklif.gecerlilikTarihi)}\n\n` +
-              `Genel Toplam: ${paraFormat(teklif.genelToplam, teklif.paraBirimi)}\n\n` +
-              `Detayları ekte gönderdik. Sorularınız için bize ulaşabilirsiniz.\n\n` +
-              `Saygılarımla,\n${teklif.hazirlayan ?? kullanici?.ad}`
-            Linking.openURL(
-              `mailto:?subject=${encodeURIComponent(konu)}&body=${encodeURIComponent(govde)}`
-            )
-          },
-        },
-      ]
-    )
   }
 
   if (loading) {
@@ -337,11 +309,11 @@ export default function TeklifDetayScreen({ route, navigation }) {
         </View>
         <TouchableOpacity
           style={[styles.actionBtn, { backgroundColor: '#2563eb', marginTop: 8 }]}
-          onPress={emailGonder}
+          onPress={() => setPaylasAcik(true)}
           activeOpacity={0.85}
         >
-          <Feather name="mail" size={18} color="#fff" />
-          <Text style={styles.actionText}>Email Gönder</Text>
+          <Feather name="send" size={18} color="#fff" />
+          <Text style={styles.actionText}>Müşteriye Gönder</Text>
         </TouchableOpacity>
 
         <Field label="Oluşturuldu" deger={tarihSaatFormat(teklif.olusturmaTarih)} colors={colors} />
@@ -382,6 +354,18 @@ export default function TeklifDetayScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Müşteriye gönder — SMS / e-posta */}
+      <BelgePaylasModal
+        visible={paylasAcik}
+        onClose={() => setPaylasAcik(false)}
+        belgeTipi="teklif"
+        belgeId={teklif.id}
+        formatSecimi
+        prefillGsm={teklif.telefon ?? teklif.gsm ?? ''}
+        prefillEmail={teklif.eposta ?? teklif.email ?? ''}
+        baslikMetni={teklif.firmaAdi ?? teklif.teklifNo ?? ''}
+      />
 
       {/* Eski revizyon detayını gösteren modal */}
       <Modal visible={!!seciliGecmis} animationType="slide" onRequestClose={() => setSeciliGecmis(null)} transparent>

@@ -44,6 +44,7 @@ import {
 } from '../utils/servisConstants'
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
 import ServisFormuOnizleModal from '../components/ServisFormuOnizleModal'
+import BelgePaylasModal from '../components/BelgePaylasModal'
 import { arsivListele, arsivSignedUrl } from '../services/servisFormuArsivService'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
@@ -87,6 +88,7 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [arsivAcikItemId, setArsivAcikItemId] = useState(null)
   const [gecmisAcik, setGecmisAcik] = useState(false)
   const [fotoOnizleUrl, setFotoOnizleUrl] = useState(null)
+  const [paylasAcik, setPaylasAcik] = useState(false)
 
   const yukleArsiv = useCallback(async () => {
     if (!talep?.id) return
@@ -933,6 +935,16 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
               <Feather name="chevron-right" size={18} color="#fff" />
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={[styles.formuAcBtn, { backgroundColor: '#2563eb', marginTop: 8 }]}
+              onPress={() => setPaylasAcik(true)}
+              activeOpacity={0.88}
+            >
+              <Feather name="send" size={18} color="#fff" />
+              <Text style={styles.formuAcBtnText}>Müşteriye Gönder</Text>
+              <Feather name="chevron-right" size={18} color="#fff" />
+            </TouchableOpacity>
+
             {/* Form Arşivi */}
             <View style={[styles.arsivBolum, { borderColor: colors.border, backgroundColor: colors.surface }]}>
               <View style={styles.arsivBaslikRow}>
@@ -1117,6 +1129,17 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         talep={talep}
         onArsivlendi={() => yukleArsiv()}
       />
+
+      <BelgePaylasModal
+        visible={paylasAcik}
+        onClose={() => setPaylasAcik(false)}
+        belgeTipi="servis_raporu"
+        belgeId={talep.id}
+        prefillGsm={talep.telefon ?? ''}
+        prefillEmail={talep.eposta ?? talep.email ?? ''}
+        baslikMetni={talep.firmaAdi ?? talep.musteriAd ?? talep.talepNo ?? ''}
+      />
+
 
       {/* Fotoğraf tam ekran önizleme */}
       <Modal visible={!!fotoOnizleUrl} transparent animationType="fade" onRequestClose={() => setFotoOnizleUrl(null)}>
