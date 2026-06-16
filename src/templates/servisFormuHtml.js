@@ -201,7 +201,7 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null, fot
     font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
     color: #0f172a;
     margin: 0;
-    padding: 14mm 14mm 16mm 14mm;
+    padding: 12mm 14mm 8mm 14mm;
     position: relative;
     font-size: 11px;
     line-height: 1.4;
@@ -411,8 +411,8 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null, fot
   .imza-kutu .imza-ad-label { color: #64748b; font-weight: 400; font-size: 9px; }
 
   footer {
-    margin-top: 18px;
-    padding-top: 10px;
+    margin-top: 12px;
+    padding-top: 8px;
     border-top: 1px solid #cbd5e1;
     font-size: 9px;
     color: #64748b;
@@ -420,10 +420,10 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null, fot
     justify-content: space-between;
   }
 
-  /* Fotoğraf eki sayfası */
+  /* Fotoğraf eki — içeriğin hemen altında, ayrı sayfaya zorlamadan */
   .foto-sayfa {
-    page-break-before: always;
-    padding-top: 4mm;
+    margin-top: 14px;
+    page-break-inside: avoid;
   }
   .foto-sayfa-baslik {
     font-size: 15px;
@@ -452,7 +452,7 @@ export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null, fot
   }
   .foto-item img {
     width: 100%;
-    height: 230px;
+    height: 170px;
     object-fit: cover;
     display: block;
     background: #f1f5f9;
