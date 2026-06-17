@@ -1,575 +1,238 @@
-// Servis Formu HTML template'i — expo-print için
-// logoBase64: "data:image/jpeg;base64,..." formatında
-// talep: ServisTalepleri camelCase objesi
-// malzemeler: servis_malzeme_plani kayıtları (kullanilanMiktar > 0)
+// Servis Formu HTML — web src/pages/servisCikti/ServisFormu.jsx ile BIREBIR ayni
+// duzen. expo-print icin HTML string uretir. Cikti her iki platformda da ayni.
+//
+// talep alanlari (camelCase): firmaAdi, ilgiliKisi, telefon, email, konu, aciklama,
+//   cozumAciklamasi, servisTipi/yukumluluk/servisYeri (virgullu string),
+//   seriNumarasi, marka, model, kunyeNumarasi, cihazTuru, sube, adres, ilIlce,
+//   lokasyon, yedekParcalar[], musteriImza, olusturmaTarihi, talepNo
+// bannerBase64: "data:image/png;base64,..." (ZNA servis raporu banner'i)
 
-import { tarihFormat, tarihSaatFormat } from '../utils/format'
-import { turBul, aciliyetBul, durumBul } from '../utils/servisConstants'
+const SIRKET_BILGI = {
+  zna: {
+    firmaAdi: 'ZNA TEKNOLOJİ BİLİŞİM HİZMETLERİ SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
+    adres: 'İ.O.S.B. KERESTECİLER SANAYİ SİTESİ 3B BLOK KAT:3 NO:3 BAŞAKŞEHİR/İSTANBUL',
+    iletisim: 'İLETİŞİM: (212) 549-9494 · FAX: (212) 671-7454',
+    accent: '#16365D',
+    accentBg: '#DCE6F1',
+  },
+}
+
+const KUTU_BOS = '☐'
+const KUTU_DOLU = '☒'
 
 const escapeHtml = (s) =>
   String(s ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
-    .replaceAll('\n', '<br/>')
 
-// Talep türüne göre form profilini döndür
-export function formProfiliBelirle(talep) {
-  const t = talep?.anaTur
-  if (t === 'ariza') {
-    return {
-      tip: 'ariza',
-      baslik: 'ARIZA FORMU',
-      renk: '#dc2626',
-      altRenk: '#fef2f2',
-      ozelBolum: 'ariza',
-    }
-  }
-  if (t === 'bakim') {
-    return {
-      tip: 'bakim',
-      baslik: 'BAKIM FORMU',
-      renk: '#d97706',
-      altRenk: '#fffbeb',
-      ozelBolum: 'bakim',
-    }
-  }
-  return {
-    tip: 'servis',
-    baslik: 'SERVİS FORMU',
-    renk: '#2563eb',
-    altRenk: '#eff6ff',
-    ozelBolum: 'servis',
-  }
+const nl2br = (s) => escapeHtml(s).replaceAll('\n', '<br/>')
+
+function tarihFmt(s) {
+  if (!s) return ''
+  const d = new Date(s); if (isNaN(d)) return s
+  const g = String(d.getDate()).padStart(2, '0')
+  const a = String(d.getMonth() + 1).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${g}/${a}/${d.getFullYear()} ${hh}:${mm}`
 }
 
-// Bakım formu için kontrol listesi — teknisyen çıktıda el ile işaretleyecek
-const BAKIM_KONTROL_LISTESI = [
-  'Kablo bağlantıları',
-  'Güç beslemesi / voltaj',
-  'Yazılım / Firmware güncellemesi',
-  'Kayıt cihazı disk durumu',
-  'Ağ bağlantısı ve hız',
-  'Fiziksel temizlik',
-  'Fan / havalandırma',
-  'Kamera/sensör açıları',
-  'Uzaktan erişim testi',
-  'Yedekleme kontrolü',
-]
+// Form profili — web ServisFormu ile ayni form, tum tipler icin
+export function formProfiliBelirle() {
+  return { tip: 'servis', baslik: 'SERVİS RAPORU' }
+}
 
-export function servisFormuHtml({ talep, malzemeler = [], logoBase64 = null, fotograflar = [] }) {
-  const tur = turBul(talep.anaTur)
-  const aciliyet = aciliyetBul(talep.aciliyet)
-  const durum = durumBul(talep.durum)
-  const profil = formProfiliBelirle(talep)
+export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar = [], sirket = 'zna' }) {
+  const cfg = SIRKET_BILGI[sirket] || SIRKET_BILGI.zna
+  const ACCENT = cfg.accent
+  const ACCENT_BG = cfg.accentBg
+  const BORDER = '#808080'
 
-  const malzemeSatirlari = malzemeler
-    .map((m, i) => {
-      const planli = Number(m.planliMiktar ?? 0)
-      const teslim = Number(m.teslimAlinanMiktar ?? 0)
-      const kullanilanRaw = Number(m.kullanilanMiktar ?? 0)
-      // Gerçek değer: kullanılan > 0 ise o, yoksa teslim alınan. Planlı'yı asla
-      // otomatik kullanılan kabul etme — S/N okutulmadıysa forma girmemeli.
-      const kullanilan = kullanilanRaw > 0 ? kullanilanRaw : teslim
-      return `
-    <tr>
-      <td class="center">${i + 1}</td>
-      <td>${escapeHtml(m.stokKodu ?? '-')}</td>
-      <td>${escapeHtml(m.stokAdi ?? m.stokKodu ?? '-')}</td>
-      <td class="right">${planli}</td>
-      <td class="right" style="color:#059669;font-weight:700;">${kullanilan}</td>
-      <td class="center">${escapeHtml(m.birim ?? '')}</td>
-    </tr>`
-    })
-    .join('')
+  const musteri = {
+    no: talep.talepNo || talep.id || '—',
+    kurum: talep.firmaAdi || talep.musteriAd || '—',
+    ilIlce: talep.ilIlce || talep.lokasyon || '—',
+    sube: talep.sube || '—',
+    adres: talep.adres || '—',
+    gsm: talep.telefon || '—',
+    email: talep.email || '—',
+  }
 
-  const notlar = (talep.notlar ?? [])
-    .map(
-      (n) => `
-    <div class="not">
-      <div class="not-meta">${escapeHtml(n.kullanici ?? '-')} · ${escapeHtml(tarihSaatFormat(n.tarih))}</div>
-      <div class="not-metin">${escapeHtml(n.metin)}</div>
-    </div>`
-    )
-    .join('')
+  const servisTipi = (talep.servisTipi || '').toLowerCase()
+  const yukum = (talep.yukumluluk || '').toLowerCase()
+  const yer = (talep.servisYeri || '').toLowerCase()
+  const k = (str, key) => (str.includes(key) ? KUTU_DOLU : KUTU_BOS)
 
-  const imzaSection = talep.musteriImza
-    ? `<img src="${talep.musteriImza}" class="imza-img" />`
-    : `<div class="imza-bos">İmza alınmadı</div>`
+  const urunTanimi = talep.cihazTuru || talep.urunTanimi || '—'
+  const seriNo = talep.seriNumarasi || '—'
+  const markaModel = [talep.marka, talep.model].filter(Boolean).join(' / ') || '—'
+  const kunye = talep.kunyeNumarasi || talep.servisNo || talep.id || '—'
 
-  // Fotoğraf eki sayfası — ana içerikten sonra ayrı sayfada
-  const fotoSayfasi = Array.isArray(fotograflar) && fotograflar.length > 0
-    ? `
+  const ariza = talep.aciklama || ''
+  const yapilan = talep.cozumAciklamasi || ''
+
+  const yedekParcalar = Array.isArray(talep.yedekParcalar) ? talep.yedekParcalar : []
+  const bf = (p) => Number(p.birim_fiyat ?? p.birimFiyat ?? 0)
+  const genelToplam = yedekParcalar.reduce((s, p) => s + Number(p.tutar ?? 0), 0)
+
+  const imzaMusteri = talep.musteriImza
+    ? `<img src="${talep.musteriImza}" style="max-width:100%;max-height:46px;object-fit:contain;display:block;" />`
+    : '<div style="height:50px;"></div>'
+
+  // ── Stil tokenleri (web ile ayni) ──
+  const cell = `border:1px dashed ${BORDER};padding:3px 6px;vertical-align:top;`
+  const label = `${cell}font-weight:700;color:${ACCENT};width:110px;background:#fff;`
+  const value = `${cell}color:${ACCENT};`
+  const secHead = `background:${ACCENT_BG};color:${ACCENT};font-weight:800;font-size:10px;padding:4px 8px;text-align:left;letter-spacing:0.3px;`
+  const tablo = `width:100%;border-collapse:collapse;border:1px dashed ${BORDER};margin-bottom:6px;`
+
+  const parcaSatirlari = yedekParcalar.length > 0
+    ? yedekParcalar.map((p, i) => `
+      <tr>
+        <td style="${cell}text-align:center;">${i + 1}</td>
+        <td style="${cell}">${escapeHtml(p.aciklama ?? '')}</td>
+        <td style="${cell}text-align:right;">${bf(p).toFixed(2)} ₺</td>
+        <td style="${cell}text-align:right;">${Number(p.miktar ?? 0)}</td>
+        <td style="${cell}text-align:right;">${Number(p.tutar ?? 0).toFixed(2)} ₺</td>
+      </tr>`).join('')
+    : [0, 1, 2].map(() => `<tr><td colspan="5" style="${cell}height:22px;">&nbsp;</td></tr>`).join('')
+
+  const fotoSayfasi = Array.isArray(fotograflar) && fotograflar.length > 0 ? `
     <div class="foto-sayfa">
-      <div class="foto-sayfa-baslik">📷 Servis Fotoğrafları</div>
-      <div class="foto-sayfa-meta">${escapeHtml(talep.talepNo ?? '#' + talep.id)} · ${fotograflar.length} fotoğraf</div>
-      <div class="foto-grid">
-        ${fotograflar
-          .map(
-            (f, i) => `
-        <div class="foto-item">
-          <img src="${f.dataUri}" />
-          <div class="foto-alt">
-            ${escapeHtml(f.ad ?? 'Fotoğraf ' + (i + 1))}${f.eklenme ? ' · ' + escapeHtml(tarihSaatFormat(f.eklenme)) : ''}
-          </div>
-        </div>`
-          )
-          .join('')}
+      <div class="foto-baslik">📷 SERVİS FOTOĞRAFLARI</div>
+      <div class="foto-grid">${fotograflar.map((f, i) => `
+        <div class="foto-item"><img src="${f.url}" />
+          <div class="foto-alt">${escapeHtml(f.ad ?? 'Fotoğraf ' + (i + 1))}</div>
+        </div>`).join('')}
       </div>
-    </div>`
-    : ''
+    </div>` : ''
 
-  // Forma özel bloklar
-  // Notlar birleştirilip "Yapılan Müdahale" alanına yazılır (yeni → eski)
-  const notlarMetni = Array.isArray(talep.notlar) && talep.notlar.length > 0
-    ? talep.notlar
-        .slice()
-        .sort((a, b) => new Date(b.tarih ?? 0) - new Date(a.tarih ?? 0))
-        .map((n) => `• ${n.icerik ?? n.metin ?? ''}`)
-        .filter(Boolean)
-        .join('\n')
-    : ''
-
-  // Tespit ve Yapılan Müdahale — tüm form tiplerinde gösterilir (ariza/bakim/servis)
-  const tespitMudahaleBloku = `
-    <div class="grid2">
-      <div class="kart">
-        <h3>Tespit</h3>
-        <div class="aciklama-kutu" style="min-height:60px;background:#fff;border-left:none;border:1px solid #e2e8f0;white-space:pre-line;">
-          ${escapeHtml(talep.kokSebep ?? '').replace(/\n/g, '<br>') || '&nbsp;'}
-        </div>
-      </div>
-      <div class="kart">
-        <h3>Yapılan Müdahale</h3>
-        <div class="aciklama-kutu" style="min-height:60px;background:#fff;border-left:none;border:1px solid #e2e8f0;white-space:pre-line;">
-          ${escapeHtml(talep.yapilanMudahale ?? notlarMetni).replace(/\n/g, '<br>') || '&nbsp;'}
-        </div>
-      </div>
-    </div>
-  `
-
-  const arizaBlogu = profil.tip === 'ariza' ? `
-    <div class="blok">
-      <div class="baslik">Arıza Tanımı</div>
-      <div class="aciklama-kutu" style="border-left-color:${profil.renk};min-height:60px;">
-        ${escapeHtml(talep.aciklama ?? talep.konu ?? '-')}
-      </div>
-    </div>
-    ${tespitMudahaleBloku}
-  ` : ''
-
-  const bakimBlogu = profil.tip === 'bakim' ? `
-    <div class="blok">
-      <div class="baslik">Bakım Kontrol Listesi</div>
-      <table class="kontrol-liste">
-        ${BAKIM_KONTROL_LISTESI.map(
-          (m, i) => `
-          <tr>
-            <td style="width:22px;">${i + 1}.</td>
-            <td>${escapeHtml(m)}</td>
-            <td style="width:50px;" class="center"><span class="kutucuk">✓</span></td>
-            <td style="width:50px;" class="center"><span class="kutucuk">✗</span></td>
-            <td style="width:120px;">Not:</td>
-          </tr>`
-        ).join('')}
-      </table>
-    </div>
-    <div class="grid2">
-      <div class="kart">
-        <h3>Genel Durum</h3>
-        <div class="bos-cizgiler"><div></div><div></div></div>
-      </div>
-      <div class="kart">
-        <h3>Sonraki Bakım Tarihi</h3>
-        <div class="bos-cizgiler"><div style="border-bottom:1px solid #0f172a;height:20px;"></div></div>
-      </div>
-    </div>
-    ${tespitMudahaleBloku}
-  ` : ''
-
-  return `<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8" />
+  return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8" />
 <meta name="viewport" content="width=794, user-scalable=yes, maximum-scale=3" />
-<title>Servis Formu ${escapeHtml(talep.talepNo ?? talep.id)}</title>
 <style>
-  @page { size: A4 portrait; margin: 0; }
+  @page { size: A4 portrait; margin: 6mm; }
   * { box-sizing: border-box; }
-  body {
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-    color: #0f172a;
-    margin: 0;
-    padding: 12mm 14mm 8mm 14mm;
-    position: relative;
-    font-size: 11px;
-    line-height: 1.4;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .watermark {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-30deg);
-    font-size: 200px;
-    font-weight: 900;
-    color: rgba(15, 23, 42, 0.055);
-    z-index: 0;
-    letter-spacing: 24px;
-    white-space: nowrap;
-    pointer-events: none;
-  }
-  .content { position: relative; z-index: 1; }
-
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 3px solid ${profil.renk};
-    padding-bottom: 12px;
-    margin-bottom: 14px;
-  }
-  .logo-wrap img { height: 54px; object-fit: contain; }
-  .logo-wrap .firma-ad { font-size: 9px; color: #64748b; margin-top: 2px; }
-  .form-baslik { text-align: right; }
-  .form-baslik h1 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: 2px;
-    color: ${profil.renk};
-  }
-  .form-baslik .talep-no {
-    margin-top: 4px;
-    font-size: 13px;
-    font-weight: 700;
-    color: ${profil.renk};
-  }
-  .form-baslik .tarih { font-size: 10px; color: #64748b; margin-top: 2px; }
-
-  .badge-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
-  .badge {
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 700;
-    border: 1px solid;
-  }
-
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-  .kart {
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 10px 12px;
-  }
-  .kart h3 {
-    margin: 0 0 8px 0;
-    font-size: 10px;
-    font-weight: 800;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 4px;
-  }
-  .satir { display: flex; padding: 2px 0; }
-  .satir .label { color: #64748b; width: 95px; font-weight: 600; flex-shrink: 0; }
-  .satir .deger { color: #0f172a; flex: 1; word-wrap: break-word; }
-
-  .blok { margin-bottom: 14px; }
-  .blok .baslik {
-    font-size: 11px;
-    font-weight: 800;
-    color: #0f172a;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    margin-bottom: 6px;
-    padding-bottom: 3px;
-    border-bottom: 1px solid #cbd5e1;
-  }
-  .aciklama-kutu {
-    background: #f8fafc;
-    padding: 8px 10px;
-    border-radius: 6px;
-    border-left: 3px solid #2563eb;
-    min-height: 40px;
-  }
-
-  table.malzeme {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 10px;
-  }
-  table.malzeme th {
-    background: #f1f5f9;
-    padding: 6px 8px;
-    text-align: left;
-    font-weight: 700;
-    color: #334155;
-    border: 1px solid #cbd5e1;
-    font-size: 9px;
-    text-transform: uppercase;
-  }
-  table.malzeme td {
-    padding: 5px 8px;
-    border: 1px solid #e2e8f0;
-  }
-  table.malzeme .center { text-align: center; }
-  table.malzeme .right { text-align: right; }
-  table.malzeme .bos {
-    text-align: center;
-    padding: 16px;
-    color: #94a3b8;
-    font-style: italic;
-  }
-
-  .not {
-    padding: 6px 10px;
-    border-left: 3px solid #cbd5e1;
-    margin-bottom: 6px;
-    background: #f8fafc;
-    border-radius: 4px;
-  }
-  .not-meta { font-size: 9px; color: #64748b; font-weight: 600; margin-bottom: 2px; }
-  .not-metin { font-size: 11px; }
-
-  .bos-cizgiler { min-height: 60px; }
-  .bos-cizgiler > div {
-    border-bottom: 1px dashed #cbd5e1;
-    height: 18px;
-    margin-bottom: 8px;
-  }
-
-  table.kontrol-liste {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11px;
-  }
-  table.kontrol-liste td {
-    padding: 6px 8px;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  table.kontrol-liste td.center { text-align: center; }
-  .kutucuk {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 1.5px solid #334155;
-    border-radius: 3px;
-    text-align: center;
-    line-height: 16px;
-    color: transparent;
-    font-weight: 700;
-  }
-
-  .imza-alani {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-top: 14px;
-  }
-  .imza-kutu {
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 12px;
-    min-height: 200px;
-  }
-  .imza-kutu .imza-baslik {
-    font-size: 11px;
-    font-weight: 800;
-    color: #64748b;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    letter-spacing: 0.6px;
-  }
-  .imza-kutu .imza-img {
-    width: 100%;
-    height: 130px;
-    object-fit: contain;
-    display: block;
-  }
-  .imza-bos {
-    height: 130px;
-    border: 1px dashed #cbd5e1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    color: #94a3b8;
-    border-radius: 4px;
-  }
-  .imza-kutu .imza-ad {
-    margin-top: 8px;
-    padding-top: 6px;
-    border-top: 1px solid #e2e8f0;
-    font-size: 10px;
-    color: #0f172a;
-    font-weight: 600;
-  }
-  .imza-kutu .imza-ad-label { color: #64748b; font-weight: 400; font-size: 9px; }
-
-  footer {
-    margin-top: 12px;
-    padding-top: 8px;
-    border-top: 1px solid #cbd5e1;
-    font-size: 9px;
-    color: #64748b;
-    display: flex;
-    justify-content: space-between;
-  }
-
-  /* Fotoğraf eki — içeriğin hemen altında, ayrı sayfaya zorlamadan */
-  .foto-sayfa {
-    margin-top: 14px;
-    page-break-inside: avoid;
-  }
-  .foto-sayfa-baslik {
-    font-size: 15px;
-    font-weight: 800;
-    color: ${profil.renk};
-    letter-spacing: 0.6px;
-    margin-bottom: 2px;
-  }
-  .foto-sayfa-meta {
-    font-size: 10px;
-    color: #64748b;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid ${profil.renk};
-  }
-  .foto-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  .foto-item {
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    overflow: hidden;
-    page-break-inside: avoid;
-  }
-  .foto-item img {
-    width: 100%;
-    height: 170px;
-    object-fit: cover;
-    display: block;
-    background: #f1f5f9;
-  }
-  .foto-alt {
-    font-size: 9px;
-    color: #64748b;
-    padding: 5px 8px;
-    border-top: 1px solid #e2e8f0;
-  }
-</style>
-</head>
-<body>
-  <div class="watermark">ZNA</div>
-  <div class="content">
-    <header>
-      <div class="logo-wrap">
-        ${logoBase64 ? `<img src="${logoBase64}" />` : '<div style="font-size:24px;font-weight:900;">ZNA</div>'}
-        <div class="firma-ad">ZNA Teknoloji</div>
-      </div>
-      <div class="form-baslik">
-        <h1>${profil.baslik}</h1>
-        <div class="talep-no">${escapeHtml(talep.talepNo ?? '#' + talep.id)}</div>
-        <div class="tarih">Düzenlenme: ${escapeHtml(tarihSaatFormat(new Date().toISOString()))}</div>
-      </div>
-    </header>
-
-    <div class="badge-row">
-      ${tur ? `<span class="badge" style="color:${tur.renk};border-color:${tur.renk};background:${tur.renk}15;">${tur.isim}</span>` : ''}
-      ${durum ? `<span class="badge" style="color:${durum.renk};border-color:${durum.renk};background:${durum.renk}15;">${durum.isim}</span>` : ''}
-      ${aciliyet ? `<span class="badge" style="color:${aciliyet.renk};border-color:${aciliyet.renk};background:${aciliyet.renk}15;">${aciliyet.isim}</span>` : ''}
+  body { font-family: "Microsoft Sans Serif", Arial, sans-serif; color:#000; margin:0; padding:0; font-size:9px; line-height:1.35; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .sayfa { padding:2mm 2mm; }
+  .banner-wrap { text-align:center; margin-bottom:8px; }
+  .banner-wrap img { max-width:100%; height:90px; object-fit:contain; }
+  table.f { ${tablo} }
+  .sec { ${secHead} }
+  .kutu-satir span { margin-right:14px; }
+  .foto-sayfa { page-break-before: always; padding-top:4mm; }
+  .foto-baslik { font-size:13px; font-weight:800; color:${ACCENT}; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid ${ACCENT}; }
+  .foto-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .foto-item { border:1px solid #cbd5e1; border-radius:6px; overflow:hidden; page-break-inside:avoid; }
+  .foto-item img { width:100%; height:180px; object-fit:cover; display:block; background:#f1f5f9; }
+  .foto-alt { font-size:9px; color:#64748b; padding:4px 6px; border-top:1px solid #e2e8f0; }
+</style></head><body>
+  <div class="sayfa">
+    <div class="banner-wrap">
+      ${bannerBase64 ? `<img src="${bannerBase64}" alt="ZNA" />` : `<div style="font-size:18px;font-weight:800;color:${ACCENT};letter-spacing:2px;">SERVİS RAPORU</div>`}
     </div>
 
-    <div class="grid2">
-      <div class="kart">
-        <h3>Müşteri Bilgileri</h3>
-        <div class="satir"><div class="label">Firma</div><div class="deger">${escapeHtml(talep.firmaAdi ?? talep.musteriAd ?? '-')}</div></div>
-        <div class="satir"><div class="label">Lokasyon</div><div class="deger">${escapeHtml(talep.lokasyon ?? '-')}</div></div>
-        <div class="satir"><div class="label">İlgili Kişi</div><div class="deger">${escapeHtml(talep.ilgiliKisi ?? '-')}</div></div>
-        <div class="satir"><div class="label">Telefon</div><div class="deger">${escapeHtml(talep.telefon ?? '-')}</div></div>
-      </div>
-      <div class="kart">
-        <h3>Servis Bilgileri</h3>
-        <div class="satir"><div class="label">Talep No</div><div class="deger">${escapeHtml(talep.talepNo ?? '-')}</div></div>
-        <div class="satir"><div class="label">Oluşturma</div><div class="deger">${escapeHtml(tarihSaatFormat(talep.olusturmaTarihi))}</div></div>
-        <div class="satir"><div class="label">Planlı</div><div class="deger">${escapeHtml(tarihFormat(talep.planliTarih) ?? '-')}</div></div>
-        <div class="satir"><div class="label">Teknisyen</div><div class="deger">${escapeHtml(talep.atananKullaniciAd ?? '-')}</div></div>
-        <div class="satir"><div class="label">Cihaz</div><div class="deger">${escapeHtml(talep.cihazTuru ?? '-')}</div></div>
-      </div>
-    </div>
+    <!-- MÜŞTERİ BİLGİLERİ -->
+    <table class="f"><tbody>
+      <tr><td colspan="4" class="sec"><div style="display:flex;justify-content:space-between;"><span>MÜŞTERİ BİLGİLERİ</span><span style="font-size:9px;">${escapeHtml(musteri.no)}</span></div></td></tr>
+      <tr><td style="${label}">Kurum/Kuruluş</td><td style="${value}" colspan="3">${escapeHtml(musteri.kurum)}</td></tr>
+      <tr><td style="${label}">İl/İlçe</td><td style="${value}">${escapeHtml(musteri.ilIlce)}</td><td style="${label}">Şube</td><td style="${value}">${escapeHtml(musteri.sube)}</td></tr>
+      <tr><td style="${label}">Adres</td><td style="${value}" colspan="3">${escapeHtml(musteri.adres)}</td></tr>
+      <tr><td style="${label}">Gsm</td><td style="${value}">${escapeHtml(musteri.gsm)}</td><td style="${label}">E-mail</td><td style="${value}">${escapeHtml(musteri.email)}</td></tr>
+      <tr><td style="${label}">Servis Tipi</td><td style="${value}" colspan="3" class="kutu-satir">
+        <span>${k(servisTipi, 'ariza')} Arıza Tespiti</span><span>${k(servisTipi, 'bakim')} Bakım</span><span>${k(servisTipi, 'urun')} Ürün Alımı</span><span>${k(servisTipi, 'kurulum')} Kurulum</span><span>${k(servisTipi, 'teslimat')} Teslimat</span>
+      </td></tr>
+      <tr><td style="${label}">Yükümlülük</td><td style="${value}" colspan="3" class="kutu-satir">
+        <span>${k(yukum, 'garanti')} Garanti Kapsamında</span><span>${k(yukum, 'servis')} Servis Sözleşmeli</span><span>${k(yukum, 'bakim')} Bakım Sözleşmeli</span>
+      </td></tr>
+      <tr><td style="${label}">Servis Yeri</td><td style="${value}" colspan="3" class="kutu-satir">
+        <span>${k(yer, 'teknik')} ZNA Teknik Servis</span><span>${k(yer, 'yerinde')} Müşteri Yerinde</span><span>${k(yer, 'online')} Online</span><span>${k(yer, 'diger')} Diğer</span>
+      </td></tr>
+    </tbody></table>
 
-    <div class="blok">
-      <div class="baslik">Konu</div>
-      <div class="aciklama-kutu" style="border-left-color:${profil.renk};">${escapeHtml(talep.konu ?? '-')}</div>
-    </div>
+    <!-- SERVİS TALEP BİLGİLERİ -->
+    <table class="f"><tbody>
+      <tr><td colspan="4" class="sec">SERVİS TALEP BİLGİLERİ</td></tr>
+      <tr><td style="${label}">Adı ve Soyadı</td><td style="${value}">${escapeHtml(talep.ilgiliKisi || '—')}</td><td style="${label}">Servis Talep Tarihi / Saati</td><td style="${value}">${escapeHtml(tarihFmt(talep.olusturmaTarihi || talep.tarih))}</td></tr>
+      <tr><td style="${label}">Servis İsteği</td><td style="${value}" colspan="3">${escapeHtml(talep.konu || '—')}</td></tr>
+    </tbody></table>
 
-    ${
-      profil.tip === 'servis' && talep.aciklama
-        ? `<div class="blok"><div class="baslik">Açıklama</div><div class="aciklama-kutu">${escapeHtml(talep.aciklama)}</div></div>`
-        : ''
-    }
+    <!-- SERVİS VERİLEN SİSTEM BİLGİLERİ -->
+    <table class="f"><tbody>
+      <tr><td colspan="4" class="sec">SERVİS VERİLEN SİSTEM BİLGİLERİ</td></tr>
+      <tr><td style="${label}">Ürün Tanımı</td><td style="${value}">${escapeHtml(urunTanimi)}</td><td style="${label}">Seri Numarası</td><td style="${value}">${escapeHtml(seriNo)}</td></tr>
+      <tr><td style="${label}">Marka / Model</td><td style="${value}">${escapeHtml(markaModel)}</td><td style="${label}">Künye Numarası</td><td style="${value}">${escapeHtml(kunye)}</td></tr>
+    </tbody></table>
 
-    ${arizaBlogu}
-    ${bakimBlogu}
-    ${profil.tip === 'servis' ? tespitMudahaleBloku : ''}
+    <!-- ARIZA AÇIKLAMASI -->
+    <table class="f"><tbody>
+      <tr><td class="sec">ARIZA AÇIKLAMASI</td></tr>
+      <tr><td style="${value}min-height:60px;padding:8px 10px;">${nl2br(ariza) || '&nbsp;'}</td></tr>
+    </tbody></table>
 
-    <div class="blok">
-      <div class="baslik">Kullanılan Malzemeler</div>
-      <table class="malzeme">
-        <thead>
-          <tr>
-            <th style="width:28px;" class="center">#</th>
-            <th style="width:82px;">Stok Kodu</th>
-            <th>Ürün</th>
-            <th style="width:55px;" class="right">Planlı</th>
-            <th style="width:60px;" class="right">Kullanılan</th>
-            <th style="width:48px;" class="center">Birim</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${malzemeSatirlari || '<tr><td colspan="6" class="bos">Malzeme kaydı yok</td></tr>'}
-        </tbody>
-      </table>
-    </div>
+    <!-- YAPILAN İŞLEMLER -->
+    <table class="f"><tbody>
+      <tr><td class="sec">YAPILAN İŞLEMLER</td></tr>
+      <tr><td style="${value}min-height:60px;padding:8px 10px;">${nl2br(yapilan) || '&nbsp;'}</td></tr>
+    </tbody></table>
 
-    ${
-      notlar
-        ? `<div class="blok"><div class="baslik">Yapılan İşlemler / Notlar</div>${notlar}</div>`
-        : ''
-    }
+    <!-- YEDEK PARÇALAR -->
+    <table class="f">
+      <thead><tr>
+        <th class="sec" style="width:28px;text-align:center;">#</th>
+        <th class="sec">Yedek Parçalar ve/veya Hizmetler</th>
+        <th class="sec" style="width:80px;text-align:right;">Birim Fiyat</th>
+        <th class="sec" style="width:60px;text-align:right;">Miktar</th>
+        <th class="sec" style="width:90px;text-align:right;">Tutar</th>
+      </tr></thead>
+      <tbody>
+        ${parcaSatirlari}
+        <tr><td colspan="4" style="${cell}text-align:right;font-weight:700;color:${ACCENT};">Genel Toplam</td><td style="${cell}text-align:right;font-weight:700;color:${ACCENT};">${genelToplam.toFixed(2)} ₺</td></tr>
+      </tbody>
+    </table>
 
-    <div class="imza-alani">
-      <div class="imza-kutu">
-        <div class="imza-baslik">Teknisyen</div>
-        <div class="imza-bos" style="border:none;justify-content:flex-start;font-size:12px;color:#0f172a;font-weight:600;">${escapeHtml(talep.atananKullaniciAd ?? '-')}</div>
-        <div class="imza-ad">
-          <div class="imza-ad-label">Ad Soyad / Tarih</div>
-          ${escapeHtml(talep.atananKullaniciAd ?? '')} · ${escapeHtml(tarihFormat(new Date().toISOString()))}
-        </div>
-      </div>
-      <div class="imza-kutu">
-        <div class="imza-baslik">Teslim Alan / Müşteri Onayı</div>
-        ${imzaSection}
-        <div class="imza-ad">
-          <div class="imza-ad-label">Ad Soyad</div>
-          ${escapeHtml(talep.teslimAlanAd ?? talep.ilgiliKisi ?? '-')}
-        </div>
-      </div>
+    <!-- SERVİS KOŞULLARI -->
+    <table class="f"><tbody>
+      <tr><td class="sec">SERVİS KOŞULLARI</td></tr>
+      <tr><td style="${value}font-size:8px;line-height:1.4;color:#333;">
+        - Garanti dışı arıza müdahalelerinde, sistemin çalışır durumda teslim edilmesinden sonra gerçekleşen arızaların giderilmesi ayrıca ücretlendirilecektir.<br/>
+        - Servis Formunda belirtilen değiştirilmesi tespit edilmiş ve kurum yetkilisi tarafından imzalanarak onaylanmış parçaların değiştirilmemesinden kaynaklanan her türlü arızalara müdahale ayrıca ücretlendirilecektir.<br/>
+        - Servis Formunda belirtilen bilgiler doğrultusunda yapılan tüm işlemler müşteri onayı imzasını takiben geçerlilik kazanır.
+      </td></tr>
+    </tbody></table>
+
+    <!-- İMZA ALANLARI -->
+    <table class="f">
+      <thead><tr>
+        <th class="sec">MÜŞTERİ YETKİLİSİ</th><th class="sec">YETKİLİ KURUM/KURULUŞ</th><th class="sec">YETKİLİ SERVİS PERSONELİ</th>
+      </tr></thead>
+      <tbody><tr>
+        <td style="${cell}width:33.3%;">
+          <div style="font-size:8px;color:${ACCENT};font-weight:600;">Servis İstemini Onaylayan</div>
+          <div style="font-size:8px;color:#666;">${escapeHtml(talep.teslimAlanAd || talep.ilgiliKisi || '')}</div>
+          ${imzaMusteri}
+          <div style="border-top:1px solid ${BORDER};padding-top:4px;font-size:8px;color:${ACCENT};font-weight:600;">ONAY / İMZA</div>
+        </td>
+        <td style="${cell}width:33.3%;">
+          <div style="font-size:8px;color:${ACCENT};font-weight:600;">Servis İstemini Onaylayan</div>
+          <div style="font-size:8px;color:#666;">Kurum/Kuruluş Yetkilisi</div>
+          <div style="height:50px;"></div>
+          <div style="border-top:1px solid ${BORDER};padding-top:4px;font-size:8px;color:${ACCENT};font-weight:600;">ONAY / İMZA</div>
+        </td>
+        <td style="${cell}width:33.3%;">
+          <div style="font-size:8px;color:${ACCENT};font-weight:600;">${escapeHtml(talep.atananKullaniciAd || 'ZNA TEKNOLOJİ')}</div>
+          <div style="height:50px;"></div>
+          <div style="border-top:1px solid ${BORDER};padding-top:4px;font-size:8px;color:${ACCENT};font-weight:600;">TEKNİK İNCELEME</div>
+        </td>
+      </tr></tbody>
+    </table>
+
+    <div style="margin-top:8px;font-size:8px;color:${ACCENT};text-align:center;line-height:1.5;">
+      <div style="font-weight:700;">${escapeHtml(cfg.firmaAdi)}</div>
+      <div>${escapeHtml(cfg.adres)}</div>
+      <div>${escapeHtml(cfg.iletisim)}</div>
     </div>
 
     ${fotoSayfasi}
-
-    <footer>
-      <div>ZNA Teknoloji · destek@zna.com.tr</div>
-      <div>${escapeHtml(talep.talepNo ?? '')}</div>
-    </footer>
   </div>
-</body>
-</html>`
+</body></html>`
 }

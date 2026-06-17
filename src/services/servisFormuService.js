@@ -53,12 +53,29 @@ async function gorselleriBase64Getir(dosyalar) {
   return sonuc
 }
 
-// Form HTML'ini üretmek için ortak hazırlık — malzeme + logo + fotoğraflar
+let bannerBase64Cache = null
+async function bannerBase64Getir() {
+  if (bannerBase64Cache) return bannerBase64Cache
+  try {
+    const asset = Asset.fromModule(require('../../assets/servis-formu/zna-banner.png'))
+    await asset.downloadAsync()
+    const uri = asset.localUri ?? asset.uri
+    const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })
+    bannerBase64Cache = `data:image/png;base64,${b64}`
+    return bannerBase64Cache
+  } catch (e) {
+    console.warn('banner yüklenemedi:', e.message)
+    return null
+  }
+}
+
+// Form HTML'ini üretmek için ortak hazırlık — banner + fotoğraflar
+// (web ServisFormu ile ayni duzen; malzeme yerine talep.yedekParcalar kullanilir)
 async function formHtmlOlustur(talep) {
-  const liste = malzemeleriFiltrele(await malzemePlaniGetir(talep.id))
-  const logoBase64 = await logoBase64Getir()
-  const fotograflar = await gorselleriBase64Getir(talep.dosyalar)
-  return servisFormuHtml({ talep, malzemeler: liste, logoBase64, fotograflar })
+  const bannerBase64 = await bannerBase64Getir()
+  const fotoBase64 = await gorselleriBase64Getir(talep.dosyalar)
+  const fotograflar = fotoBase64.map((f) => ({ url: f.dataUri, ad: f.ad }))
+  return servisFormuHtml({ talep, bannerBase64, fotograflar })
 }
 
 // Sadece GERÇEKTEN teslim alınmış / kullanılmış malzemeleri forma dahil et.

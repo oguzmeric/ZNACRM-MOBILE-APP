@@ -45,6 +45,7 @@ import {
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
 import ServisFormuOnizleModal from '../components/ServisFormuOnizleModal'
 import BelgePaylasModal from '../components/BelgePaylasModal'
+import ServisFormBilgileriCard from '../components/ServisFormBilgileriCard'
 import { arsivListele, arsivSignedUrl } from '../services/servisFormuArsivService'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
@@ -867,6 +868,16 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
             {fotoYetkisi ? 'Henüz fotoğraf yok — "Ekle" ile çek/yükle' : 'Fotoğraf eklenmemiş'}
           </Text>
         )}
+
+        {/* Form Bilgileri — servis raporu (form çıktısı) alanları, web ile aynı */}
+        <ServisFormBilgileriCard
+          talep={talep}
+          onKaydet={async (alanlar) => {
+            const guncel = await servisTalepGuncelle(talep.id, alanlar)
+            if (guncel) setTalep(guncel)
+            else throw new Error('Kaydedilemedi')
+          }}
+        />
 
         {/* Müşteri imzası */}
         <View style={styles.imzaHeader}>
