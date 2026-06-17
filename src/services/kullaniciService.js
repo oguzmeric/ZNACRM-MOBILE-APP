@@ -81,6 +81,9 @@ export const kullaniciOnayla = async (id, erisim, ek = {}) => {
     p_izinli_turler: ek.izinliTurler ?? [],
   })
   if (error) { console.error('kullaniciOnayla hata:', error.message); throw error }
+  // Onay maili — best-effort
+  supabase.functions.invoke('kullanici-onay-bildir', { body: { kullaniciId: id } })
+    .catch((e) => console.warn('[onay-bildir]', e?.message))
   return toCamel(data)
 }
 
