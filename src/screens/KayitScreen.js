@@ -82,7 +82,7 @@ export default function KayitScreen({ navigation }) {
           <>
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.borderStrong }]}
-              placeholder="adsoyad@firma.com"
+              placeholder="ornek@eposta.com"
               placeholderTextColor={colors.textFaded}
               autoCapitalize="none"
               autoCorrect={false}
