@@ -46,6 +46,7 @@ export default function BelgePaylasModal({
   const { colors } = useTheme()
   const [kanal, setKanal] = useState('sms')
   const [sablon, setSablon] = useState('trassir')
+  const [sirket, setSirket] = useState('zna') // servis raporu: ZNA / Anadolunet
   const [gsm, setGsm] = useState('')
   const [email, setEmail] = useState('')
   const [ozelMesaj, setOzelMesaj] = useState('')
@@ -58,6 +59,7 @@ export default function BelgePaylasModal({
     if (visible) {
       setKanal('sms')
       setSablon('trassir')
+      setSirket('zna')
       setGsm(prefillGsm ?? '')
       setEmail(prefillEmail ?? '')
       setOzelMesaj('')
@@ -99,6 +101,7 @@ export default function BelgePaylasModal({
       if (smsVar(kanal)) args.gsm = gsm.trim()
       if (mailVar(kanal)) args.email = email.trim()
       if (formatSecimi) args.sablon = sablon
+      if (belgeTipi === 'servis_raporu') args.sirket = sirket
       if (ozelMesaj.trim()) args.ozel_mesaj = ozelMesaj.trim()
 
       const res = await belgePaylas(args)
@@ -218,6 +221,28 @@ export default function BelgePaylasModal({
                           activeOpacity={0.85}
                         >
                           <Text style={[styles.segText, { color: aktif ? '#fff' : colors.textMuted }]}>{f.label}</Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                </>
+              )}
+
+              {/* Şirket/format — servis raporu için ZNA / Anadolunet */}
+              {belgeTipi === 'servis_raporu' && (
+                <>
+                  <Text style={[styles.label, { color: colors.textMuted }]}>Form Şirketi</Text>
+                  <View style={styles.segment}>
+                    {[{ id: 'zna', label: 'ZNA Teknoloji' }, { id: 'anadolunet', label: 'Anadolunet' }].map((s) => {
+                      const aktif = sirket === s.id
+                      return (
+                        <TouchableOpacity
+                          key={s.id}
+                          style={[styles.segItem, { borderColor: colors.border }, aktif && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                          onPress={() => setSirket(s.id)}
+                          activeOpacity={0.85}
+                        >
+                          <Text style={[styles.segText, { color: aktif ? '#fff' : colors.textMuted }]}>{s.label}</Text>
                         </TouchableOpacity>
                       )
                     })}
