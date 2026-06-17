@@ -30,7 +30,13 @@ export default function LoginScreen({ navigation }) {
       const ok = await girisYap(kullaniciAdi, sifre)
       if (!ok) Alert.alert('Giriş başarısız', 'Kullanıcı adı veya şifre hatalı.')
     } catch (err) {
-      Alert.alert('Giriş yapılamadı', err?.message || 'Bir hata oluştu.')
+      if (err?.kod === 'ONAY_BEKLIYOR') {
+        Alert.alert('Hesabınız onay sürecinde', err.message)
+      } else if (err?.kod === 'REDDEDILDI') {
+        Alert.alert('Başvuru reddedildi', err.message)
+      } else {
+        Alert.alert('Giriş yapılamadı', err?.message || 'Bir hata oluştu.')
+      }
     } finally {
       setLoading(false)
     }
