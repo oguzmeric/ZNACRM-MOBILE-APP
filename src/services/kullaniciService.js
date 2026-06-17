@@ -8,7 +8,9 @@ const kullaniciAdiToEmail = (kullaniciAdi) =>
   `${kullaniciAdi.toLowerCase().replace(/[^a-z0-9]/g, '')}@zna.local`
 
 export const kullaniciGirisKontrol = async (kullaniciAdi, sifre) => {
-  const email = kullaniciAdiToEmail(kullaniciAdi)
+  // '@' içeriyorsa gerçek e-posta (self-kayıt kullanıcısı); yoksa kullanıcı adı → sentetik e-posta
+  const girdi = (kullaniciAdi ?? '').trim()
+  const email = girdi.includes('@') ? girdi.toLowerCase() : kullaniciAdiToEmail(girdi)
   const { data: authData, error: authError } =
     await supabase.auth.signInWithPassword({ email, password: sifre })
   if (authError || !authData?.user) {

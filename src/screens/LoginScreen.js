@@ -60,10 +60,10 @@ export default function LoginScreen({ navigation }) {
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>Devam etmek için giriş yap</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>Kullanıcı Adı</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Kullanıcı Adı veya E-posta</Text>
             <TextInput
               style={[styles.input, { backgroundColor: colors.bg, color: colors.textPrimary, borderColor: colors.borderStrong }]}
-              placeholder="kullanici_adi"
+              placeholder="kullanici_adi veya e-posta"
               placeholderTextColor={colors.textFaded}
               autoCapitalize="none"
               autoCorrect={false}
