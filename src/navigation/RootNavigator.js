@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import LoginScreen from '../screens/LoginScreen'
+import KayitScreen from '../screens/KayitScreen'
 import HomeScreen from '../screens/HomeScreen'
 import ProfilScreen from '../screens/ProfilScreen'
 import DestekListeScreen from '../screens/DestekListeScreen'
@@ -54,6 +55,7 @@ import AdminPersonelTakipScreen from '../screens/admin/AdminPersonelTakipScreen'
 import AdminPersonelDetayScreen from '../screens/admin/AdminPersonelDetayScreen'
 import AdminYeniPersonelScreen from '../screens/admin/AdminYeniPersonelScreen'
 import AdminOnayKuyruguScreen from '../screens/admin/AdminOnayKuyruguScreen'
+import AdminKullaniciOnayScreen from '../screens/admin/AdminKullaniciOnayScreen'
 import AdminServisAtamaScreen from '../screens/admin/AdminServisAtamaScreen'
 import AdminStokRaporuScreen from '../screens/admin/AdminStokRaporuScreen'
 import AdminKronikArizaScreen from '../screens/admin/AdminKronikArizaScreen'
@@ -134,7 +136,10 @@ export default function RootNavigator() {
     <NavigationContainer key={navKey} theme={navTheme}>
       <Stack.Navigator screenOptions={stackHeader}>
         {!kullanici ? (
-          <Stack.Screen name="Giriş" component={LoginScreen} options={{ headerShown: false }} />
+          <>
+            <Stack.Screen name="Giriş" component={LoginScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Kayıt" component={KayitScreen} options={{ title: 'Hesap Oluştur' }} />
+          </>
         ) : adminModu ? (
           <>
             <Stack.Screen
@@ -153,6 +158,7 @@ export default function RootNavigator() {
             <Stack.Screen name="AdminPersonelDetay" component={AdminPersonelDetayScreen} options={{ title: 'Personel Detayı' }} />
             <Stack.Screen name="AdminYeniPersonel" component={AdminYeniPersonelScreen} options={{ title: 'Yeni Personel' }} />
             <Stack.Screen name="AdminOnayKuyrugu" component={AdminOnayKuyruguScreen} options={{ title: 'Onay Kuyruğu' }} />
+            <Stack.Screen name="AdminKullaniciOnay" component={AdminKullaniciOnayScreen} options={{ title: 'Kullanıcı Onayları' }} />
             <Stack.Screen name="AdminServisAtama" component={AdminServisAtamaScreen} options={{ title: 'Servis Atama' }} />
             <Stack.Screen name="YeniServisTalebi" component={YeniServisTalebiScreen} options={{ title: 'Yeni Servis Talebi' }} />
             <Stack.Screen name="YeniKişi" component={KisiFormScreen} options={{ title: 'Yeni İlgili Kişi' }} />

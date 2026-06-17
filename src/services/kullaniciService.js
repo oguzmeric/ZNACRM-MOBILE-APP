@@ -29,6 +29,18 @@ export const kullaniciGirisKontrol = async (kullaniciAdi, sifre) => {
     await supabase.auth.signOut()
     return null
   }
+  if (profil.onay_durum === 'beklemede') {
+    await supabase.auth.signOut()
+    const e = new Error('Hesabınız onay bekliyor. Yönetici onayından sonra giriş yapabilirsiniz.')
+    e.kod = 'ONAY_BEKLIYOR'
+    throw e
+  }
+  if (profil.onay_durum === 'reddedildi') {
+    await supabase.auth.signOut()
+    const e = new Error('Başvurunuz reddedildi.' + (profil.red_nedeni ? ' Sebep: ' + profil.red_nedeni : ''))
+    e.kod = 'REDDEDILDI'
+    throw e
+  }
   return toCamel(profil)
 }
 
@@ -39,6 +51,41 @@ export const kullanicilariGetir = async () => {
 
 export const kullaniciDurumGuncelle = async (id, durum) => {
   await supabase.from('kullanicilar').update({ durum }).eq('id', id)
+}
+
+// === Onay/yetkilendirme (admin) ===
+
+export const onayBekleyenleriGetir = async () => {
+  const { data, error } = await supabase.rpc('onay_bekleyen_kullanicilar')
+  if (error) { console.error('onayBekleyenleriGetir hata:', error.message); throw error }
+  return arrayToCamel(data ?? [])
+}
+
+// erisim: 'musteri' | 'personel' | 'yonetici'
+export const kullaniciOnayla = async (id, erisim, ek = {}) => {
+  const harita = {
+    musteri:  { tip: 'musteri', rol: 'musteri' },
+    personel: { tip: 'zna',     rol: 'personel' },
+    yonetici: { tip: 'zna',     rol: 'admin' },
+  }
+  const m = harita[erisim]
+  if (!m) throw new Error('Geçersiz erişim seviyesi: ' + erisim)
+  const { data, error } = await supabase.rpc('kullanici_onayla', {
+    p_id: id,
+    p_tip: m.tip,
+    p_rol: m.rol,
+    p_moduller: ek.moduller ?? [],
+    p_musteri_id: ek.musteriId ?? null,
+    p_izinli_turler: ek.izinliTurler ?? [],
+  })
+  if (error) { console.error('kullaniciOnayla hata:', error.message); throw error }
+  return toCamel(data)
+}
+
+export const kullaniciReddet = async (id, neden = null) => {
+  const { data, error } = await supabase.rpc('kullanici_reddet', { p_id: id, p_neden: neden })
+  if (error) { console.error('kullaniciReddet hata:', error.message); throw error }
+  return toCamel(data)
 }
 
 // Admin: yeni kullanıcı ekle

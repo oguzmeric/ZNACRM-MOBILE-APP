@@ -13,7 +13,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   const { girisYap } = useAuth()
   const { colors } = useTheme()
   const [kullaniciAdi, setKullaniciAdi] = useState('')
@@ -26,9 +26,14 @@ export default function LoginScreen() {
       return
     }
     setLoading(true)
-    const ok = await girisYap(kullaniciAdi, sifre)
-    setLoading(false)
-    if (!ok) Alert.alert('Giriş başarısız', 'Kullanıcı adı veya şifre hatalı.')
+    try {
+      const ok = await girisYap(kullaniciAdi, sifre)
+      if (!ok) Alert.alert('Giriş başarısız', 'Kullanıcı adı veya şifre hatalı.')
+    } catch (err) {
+      Alert.alert('Giriş yapılamadı', err?.message || 'Bir hata oluştu.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -88,6 +93,12 @@ export default function LoginScreen() {
           >
             <Text style={styles.buttonText}>
               {loading ? 'Giriş yapılıyor...' : 'Giriş Yap →'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('Kayıt')} style={{ marginTop: 16 }}>
+            <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 13, fontWeight: '600' }}>
+              Hesabın yok mu? <Text style={{ color: '#60a5fa' }}>Kayıt ol</Text>
             </Text>
           </TouchableOpacity>
         </View>

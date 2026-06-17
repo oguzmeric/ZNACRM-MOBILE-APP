@@ -130,6 +130,13 @@ export default function AdminDashboardScreen({ navigation }) {
               onPress={() => navigation.navigate('AdminOnayKuyrugu')}
             />
             <ModuleCard
+              title="Kullanıcı Onayları"
+              hint="Yeni kayıtları onayla / yetkilendir"
+              ikon="user-check"
+              renk="#0ea5e9"
+              onPress={() => navigation.navigate('AdminKullaniciOnay')}
+            />
+            <ModuleCard
               title="Stok Raporu"
               hint="Depo durumu, uyarılar"
               ikon="package"
