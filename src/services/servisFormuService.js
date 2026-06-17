@@ -53,16 +53,20 @@ async function gorselleriBase64Getir(dosyalar) {
   return sonuc
 }
 
-let bannerBase64Cache = null
-async function bannerBase64Getir() {
-  if (bannerBase64Cache) return bannerBase64Cache
+const bannerCache = {}
+async function bannerBase64Getir(sirket = 'zna') {
+  if (bannerCache[sirket]) return bannerCache[sirket]
   try {
-    const asset = Asset.fromModule(require('../../assets/servis-formu/zna-banner.png'))
+    const mod = sirket === 'anadolunet'
+      ? require('../../assets/servis-formu/anadolunet-logo.jpeg')
+      : require('../../assets/servis-formu/zna-banner.png')
+    const asset = Asset.fromModule(mod)
     await asset.downloadAsync()
     const uri = asset.localUri ?? asset.uri
     const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 })
-    bannerBase64Cache = `data:image/png;base64,${b64}`
-    return bannerBase64Cache
+    const mime = sirket === 'anadolunet' ? 'image/jpeg' : 'image/png'
+    bannerCache[sirket] = `data:${mime};base64,${b64}`
+    return bannerCache[sirket]
   } catch (e) {
     console.warn('banner yüklenemedi:', e.message)
     return null
@@ -71,11 +75,11 @@ async function bannerBase64Getir() {
 
 // Form HTML'ini üretmek için ortak hazırlık — banner + fotoğraflar
 // (web ServisFormu ile ayni duzen; malzeme yerine talep.yedekParcalar kullanilir)
-async function formHtmlOlustur(talep) {
-  const bannerBase64 = await bannerBase64Getir()
+async function formHtmlOlustur(talep, sirket = 'zna') {
+  const bannerBase64 = await bannerBase64Getir(sirket)
   const fotoBase64 = await gorselleriBase64Getir(talep.dosyalar)
   const fotograflar = fotoBase64.map((f) => ({ url: f.dataUri, ad: f.ad }))
-  return servisFormuHtml({ talep, bannerBase64, fotograflar })
+  return servisFormuHtml({ talep, bannerBase64, fotograflar, sirket })
 }
 
 // Sadece GERÇEKTEN teslim alınmış / kullanılmış malzemeleri forma dahil et.
@@ -91,22 +95,22 @@ function malzemeleriFiltrele(liste) {
 }
 
 // Önizleme için HTML stringini döndür (WebView'de göstermek üzere)
-export async function onizlemeHtmlGetir(talep) {
-  return formHtmlOlustur(talep)
+export async function onizlemeHtmlGetir(talep, sirket = 'zna') {
+  return formHtmlOlustur(talep, sirket)
 }
 
 // A4: 595 × 842 pt (≈ 210 × 297 mm). Default Letter (612x792) yanlış kenarlık verir.
 const A4_BOYUT = { width: 595, height: 842 }
 
 // Native print önizlemesini aç (yazıcıya gönder veya PDF olarak kaydet)
-export async function pdfOnizle(talep) {
-  const html = await formHtmlOlustur(talep)
+export async function pdfOnizle(talep, sirket = 'zna') {
+  const html = await formHtmlOlustur(talep, sirket)
   await Print.printAsync({ html, ...A4_BOYUT })
 }
 
 // PDF dosyası üretir, local URI döner
-export async function pdfOlustur(talep) {
-  const html = await formHtmlOlustur(talep)
+export async function pdfOlustur(talep, sirket = 'zna') {
+  const html = await formHtmlOlustur(talep, sirket)
 
   const { uri } = await Print.printToFileAsync({
     html,

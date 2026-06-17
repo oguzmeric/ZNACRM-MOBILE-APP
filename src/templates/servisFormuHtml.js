@@ -14,6 +14,17 @@ const SIRKET_BILGI = {
     iletisim: 'İLETİŞİM: (212) 549-9494 · FAX: (212) 671-7454',
     accent: '#16365D',
     accentBg: '#DCE6F1',
+    bannerYukseklik: 90,
+    showText: false,
+  },
+  anadolunet: {
+    firmaAdi: 'ANADOLUNET DİJİTAL YAPI A.Ş.',
+    adres: 'İ.O.S.B. KERESTECİLER SANAYİ SİTESİ 3B BLOK KAT:3 NO:3 BAŞAKŞEHİR/İSTANBUL',
+    iletisim: 'İLETİŞİM: (212) 549-9494 · FAX: (212) 671-7454',
+    accent: '#1A1A1A',
+    accentBg: '#F0F0F0',
+    bannerYukseklik: 80,
+    showText: true, // Anadolunet logosunda 'SERVIS RAPORU' yok — yazi ekle
   },
 }
 
@@ -76,8 +87,8 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
   const genelToplam = yedekParcalar.reduce((s, p) => s + Number(p.tutar ?? 0), 0)
 
   const imzaMusteri = talep.musteriImza
-    ? `<img src="${talep.musteriImza}" style="max-width:100%;max-height:46px;object-fit:contain;display:block;" />`
-    : '<div style="height:50px;"></div>'
+    ? `<img src="${talep.musteriImza}" style="max-width:100%;max-height:90px;object-fit:contain;display:block;margin:2px 0;" />`
+    : '<div style="height:64px;"></div>'
 
   // ── Stil tokenleri (web ile ayni) ──
   const cell = `border:1px dashed ${BORDER};padding:3px 6px;vertical-align:top;`
@@ -115,7 +126,8 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
   body { font-family: "Microsoft Sans Serif", Arial, sans-serif; color:#000; margin:0; padding:0; font-size:9px; line-height:1.35; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .sayfa { padding:2mm 2mm; }
   .banner-wrap { text-align:center; margin-bottom:8px; }
-  .banner-wrap img { max-width:100%; height:90px; object-fit:contain; }
+  .banner-wrap img { max-width:100%; height:${cfg.bannerYukseklik || 90}px; object-fit:contain; }
+  .banner-text { font-size:18px; font-weight:800; color:${ACCENT}; letter-spacing:2px; margin-top:4px; }
   table.f { ${tablo} }
   .sec { ${secHead} }
   .kutu-satir span { margin-right:14px; }
@@ -128,7 +140,9 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
 </style></head><body>
   <div class="sayfa">
     <div class="banner-wrap">
-      ${bannerBase64 ? `<img src="${bannerBase64}" alt="ZNA" />` : `<div style="font-size:18px;font-weight:800;color:${ACCENT};letter-spacing:2px;">SERVİS RAPORU</div>`}
+      ${bannerBase64 ? `<img src="${bannerBase64}" alt="${escapeHtml(cfg.firmaAdi)}" />` : ''}
+      ${cfg.showText ? '<div class="banner-text">SERVİS RAPORU</div>' : ''}
+      ${!bannerBase64 && !cfg.showText ? '<div class="banner-text">SERVİS RAPORU</div>' : ''}
     </div>
 
     <!-- MÜŞTERİ BİLGİLERİ -->

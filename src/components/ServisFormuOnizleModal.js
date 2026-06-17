@@ -29,6 +29,7 @@ export default function ServisFormuOnizleModal({ visible, onClose, talep, onArsi
   const [html, setHtml] = useState(null)
   const [yukleniyor, setYukleniyor] = useState(false)
   const [aksiyonCalisiyor, setAksiyonCalisiyor] = useState(false)
+  const [sirket, setSirket] = useState('zna') // 'zna' | 'anadolunet'
 
   useEffect(() => {
     if (!visible || !talep) {
@@ -36,20 +37,20 @@ export default function ServisFormuOnizleModal({ visible, onClose, talep, onArsi
       return
     }
     setYukleniyor(true)
-    onizlemeHtmlGetir(talep)
+    onizlemeHtmlGetir(talep, sirket)
       .then(setHtml)
       .catch((e) => Alert.alert('Hata', e.message ?? 'Önizleme oluşturulamadı.'))
       .finally(() => setYukleniyor(false))
-  }, [visible, talep])
+  }, [visible, talep, sirket])
 
   const aksiyon = async (tip) => {
     if (!talep) return
     setAksiyonCalisiyor(true)
     try {
       if (tip === 'print') {
-        await pdfOnizle(talep)
+        await pdfOnizle(talep, sirket)
       } else {
-        const uri = await pdfOlustur(talep)
+        const uri = await pdfOlustur(talep, sirket)
         await paylasPdf(uri)
 
         // Arşive yükle (best-effort — başarısız olsa bile kullanıcı akışı etkilenmez)
@@ -86,6 +87,27 @@ export default function ServisFormuOnizleModal({ visible, onClose, talep, onArsi
           <TouchableOpacity onPress={onClose} style={styles.kapatBtn}>
             <Feather name="x" size={22} color={colors.textMuted} />
           </TouchableOpacity>
+        </View>
+
+        {/* Şirket/format seçici — ZNA / Anadolunet */}
+        <View style={[styles.sirketRow, { borderBottomColor: colors.border }]}>
+          {[
+            { id: 'zna', label: 'ZNA Teknoloji' },
+            { id: 'anadolunet', label: 'Anadolunet' },
+          ].map((s) => {
+            const aktif = sirket === s.id
+            return (
+              <TouchableOpacity
+                key={s.id}
+                style={[styles.sirketBtn, { borderColor: colors.border }, aktif && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                onPress={() => setSirket(s.id)}
+                activeOpacity={0.85}
+                disabled={aksiyonCalisiyor}
+              >
+                <Text style={[styles.sirketText, { color: aktif ? '#fff' : colors.textMuted }]}>{s.label}</Text>
+              </TouchableOpacity>
+            )
+          })}
         </View>
 
         {/* İçerik */}
@@ -195,6 +217,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  sirketRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1 },
+  sirketBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
+  sirketText: { fontSize: 13, fontWeight: '700' },
 
   icerik: { flex: 1 },
   webview: { flex: 1, backgroundColor: '#ffffff' },
