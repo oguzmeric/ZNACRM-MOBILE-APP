@@ -39,6 +39,7 @@ export default function ServisFormBilgileriCard({ talep, onKaydet }) {
   const [marka, setMarka] = useState(talep?.marka || '')
   const [model, setModel] = useState(talep?.model || '')
   const [kunye, setKunye] = useState(talep?.kunyeNumarasi || '')
+  const [ariza, setAriza] = useState(talep?.aciklama || '')
   const [cozum, setCozum] = useState(talep?.cozumAciklamasi || '')
   const [parcalar, setParcalar] = useState(() => (Array.isArray(talep?.yedekParcalar) ? talep.yedekParcalar : []))
   const [acik, setAcik] = useState(false)
@@ -52,6 +53,7 @@ export default function ServisFormBilgileriCard({ talep, onKaydet }) {
     setMarka(talep?.marka || '')
     setModel(talep?.model || '')
     setKunye(talep?.kunyeNumarasi || '')
+    setAriza(talep?.aciklama || '')
     setCozum(talep?.cozumAciklamasi || '')
     setParcalar(Array.isArray(talep?.yedekParcalar) ? talep.yedekParcalar : [])
   }, [talep?.id])
@@ -83,6 +85,7 @@ export default function ServisFormBilgileriCard({ talep, onKaydet }) {
         marka: marka.trim() || null,
         model: model.trim() || null,
         kunyeNumarasi: kunye.trim() || null,
+        aciklama: ariza.trim() || null,
         cozumAciklamasi: cozum.trim() || null,
         yedekParcalar: parcalar.filter((p) => (p.aciklama || '').trim() || Number(p.birim_fiyat) > 0),
       })
@@ -167,6 +170,16 @@ export default function ServisFormBilgileriCard({ talep, onKaydet }) {
               <Text style={[styles.label, { color: colors.textMuted }]}>Model</Text>
               <TextInput style={inputStil} value={model} onChangeText={setModel} placeholder="—" placeholderTextColor={colors.textFaded} />
             </View>
+          </View>
+
+          <View>
+            <Text style={[styles.label, { color: colors.textMuted }]}>Arıza Açıklaması</Text>
+            <TextInput
+              style={[inputStil, { minHeight: 80, textAlignVertical: 'top' }]}
+              value={ariza} onChangeText={setAriza} multiline
+              placeholder="Müşterinin bildirdiği arıza / talep açıklaması…"
+              placeholderTextColor={colors.textFaded}
+            />
           </View>
 
           <View>
