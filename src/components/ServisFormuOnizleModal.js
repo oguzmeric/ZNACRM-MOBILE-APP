@@ -121,6 +121,7 @@ export default function ServisFormuOnizleModal({ visible, onClose, talep, onArsi
             </View>
           ) : (
             <WebView
+              key={sirket}
               source={{ html }}
               originWhitelist={['*']}
               style={styles.webview}
