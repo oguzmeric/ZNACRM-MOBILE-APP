@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import LoginScreen from '../screens/LoginScreen'
 import KayitScreen from '../screens/KayitScreen'
+import SifreSifirlaScreen from '../screens/SifreSifirlaScreen'
 import HomeScreen from '../screens/HomeScreen'
 import ProfilScreen from '../screens/ProfilScreen'
 import DestekListeScreen from '../screens/DestekListeScreen'
@@ -139,6 +140,7 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="Giriş" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Kayıt" component={KayitScreen} options={{ title: 'Hesap Oluştur' }} />
+            <Stack.Screen name="SifreSifirla" component={SifreSifirlaScreen} options={{ title: 'Şifre Sıfırla' }} />
           </>
         ) : adminModu ? (
           <>

@@ -102,7 +102,13 @@ export default function LoginScreen({ navigation }) {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate('Kayıt')} style={{ marginTop: 16 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('SifreSifirla')} style={{ marginTop: 14 }}>
+            <Text style={{ color: '#60a5fa', textAlign: 'center', fontSize: 13, fontWeight: '600' }}>
+              Şifremi unuttum?
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => navigation.navigate('Kayıt')} style={{ marginTop: 14 }}>
             <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 13, fontWeight: '600' }}>
               Hesabın yok mu? <Text style={{ color: '#60a5fa' }}>Kayıt ol</Text>
             </Text>
