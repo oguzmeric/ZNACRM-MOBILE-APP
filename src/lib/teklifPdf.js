@@ -3,6 +3,7 @@ import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system/legacy'
 import { Alert, Platform } from 'react-native'
+import { supabase } from './supabase'
 import { tumGorselleriYukle } from './teklifHtml/imageUtils'
 import { standartHtml } from './teklifHtml/standartHtml'
 import { karelHtml } from './teklifHtml/karelHtml'
@@ -47,9 +48,34 @@ export const teklifPdfUretVePaylas = async ({ teklif, format }) => {
     )
     console.log('[teklifPdf] PDF üretildi:', uri)
 
-    // Dosya adını anlamlandır: teklif numarası + format
-    const teklifNo = (teklif.teklifNo || `teklif-${teklif.id}`).replaceAll('/', '-')
-    const yeniAd = `${teklifNo}-${format}.pdf`
+    // Dosya adını anlamlandır: "<müşteri kodu>-<teklif sıra no>-ZNA.pdf"
+    // (müşteri kodu yoksa "<teklif no>-ZNA.pdf"). Format adı (trassir/karel) yazılmaz.
+    const teklifNoRaw = String(teklif.teklifNo || `teklif-${teklif.id}`)
+    // Teklif sıra no = teklif numarasındaki son rakam grubu (TEK-0547 → 0547, IMP-2026-0064 → 0064)
+    const rakamGruplari = teklifNoRaw.match(/\d+/g)
+    const sira = rakamGruplari ? rakamGruplari[rakamGruplari.length - 1] : teklifNoRaw
+    // Dosya sistemi için güvensiz karakterleri temizle (tire ve nokta korunur)
+    const dosyaTemizle = (s) => String(s ?? '').replace(/[\/\\:*?"<>|\s]+/g, '').trim()
+
+    // Müşteri kodunu çek (teklif nesnesinde yoksa musteriId'den)
+    let musteriKod = teklif.musteriKod ?? null
+    if (!musteriKod && teklif.musteriId) {
+      try {
+        const { data } = await supabase
+          .from('musteriler')
+          .select('kod')
+          .eq('id', teklif.musteriId)
+          .single()
+        musteriKod = data?.kod ?? null
+      } catch (e) {
+        console.warn('[teklifPdf] müşteri kodu alınamadı:', e?.message)
+      }
+    }
+
+    const kodTemiz = dosyaTemizle(musteriKod)
+    const yeniAd = kodTemiz
+      ? `${kodTemiz}-${sira}-ZNA.pdf`
+      : `${dosyaTemizle(teklifNoRaw)}-ZNA.pdf`
     const yeniUri = `${FileSystem.cacheDirectory}${yeniAd}`
 
     try {
