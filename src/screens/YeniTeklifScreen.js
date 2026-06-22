@@ -96,7 +96,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
         setOdeme(t.odemeSecenegi ?? 'Peşin')
         setGenelIskonto(String(t.genelIskonto ?? '0'))
         setSatirlar(t.satirlar ?? [])
-        // Müşteri ve kişiyi yükle
+        // Müşteri ve kişiyi yükle — önce musteriId ile, yoksa firma adından eşleştir
         if (t.musteriId) {
           const { data } = await supabase
             .from('musteriler')
@@ -104,6 +104,17 @@ export default function YeniTeklifScreen({ route, navigation }) {
             .eq('id', t.musteriId)
             .maybeSingle()
           if (data) setMusteri(toCamel(data))
+          else if (t.firmaAdi) setMusteri({ id: null, firma: t.firmaAdi })
+        } else if (t.firmaAdi) {
+          // Eski/içe aktarılmış tekliflerde musteriId boş — firma adıyla müşteri bul
+          const { data } = await supabase
+            .from('musteriler')
+            .select('*')
+            .eq('firma', t.firmaAdi)
+            .limit(1)
+          if (data && data.length) setMusteri(toCamel(data[0]))
+          // Eşleşme yoksa firma adıyla geçici nesne — isim görünsün, değiştirilebilsin
+          else setMusteri({ id: null, firma: t.firmaAdi })
         }
       })()
     } else {
@@ -122,7 +133,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
   }, [editMode, editId])
 
   useEffect(() => {
-    if (!musteri) {
+    if (!musteri || !musteri.id) {
       setKisiler([])
       setKisi(null)
       return
