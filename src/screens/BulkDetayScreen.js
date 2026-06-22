@@ -14,6 +14,7 @@ import {
   Platform,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import {
@@ -138,7 +139,8 @@ export default function BulkDetayScreen({ route, navigation }) {
               )
             }}
           >
-            <Text style={[styles.seriGecText, { color: colors.primary }]}>🔢 Seri No Takibine Geç</Text>
+            <Feather name="hash" size={16} color={colors.primary} />
+            <Text style={[styles.seriGecText, { color: colors.primary }]}>Seri No Takibine Geç</Text>
           </TouchableOpacity>
         )}
 
@@ -515,7 +517,7 @@ const styles = StyleSheet.create({
   },
   clearText: { color: '#ef4444', fontSize: 22, fontWeight: '700' },
 
-  seriGecBtn: { marginTop: 12, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, alignItems: 'center' },
+  seriGecBtn: { marginTop: 12, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   seriGecText: { fontWeight: '700', fontSize: 15 },
 
   onayBtn: {
