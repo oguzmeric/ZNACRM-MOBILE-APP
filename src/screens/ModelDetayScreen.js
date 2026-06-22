@@ -362,9 +362,9 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: '#1e293b',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 8,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 10,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
 
   empty: { color: '#64748b', textAlign: 'center', marginTop: 40 },
 
-  seriKart: { borderRadius: 12, padding: 14, marginTop: 12 },
+  seriKart: { borderRadius: 12, padding: 14, marginTop: 12, marginBottom: 10 },
   seriHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   seriBaslik: { fontSize: 15, fontWeight: '700' },
   seriSayac: { fontSize: 16, fontWeight: '800' },
