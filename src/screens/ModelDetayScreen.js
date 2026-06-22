@@ -28,12 +28,24 @@ import { beklenenAdetGuncelle } from '../services/stokUrunService'
 
 const FILTRELER = [
   { id: 'tumu', label: 'Tümü' },
-  { id: 'depoda', label: '📦 Depoda' },
-  { id: 'teknisyende', label: '🚚 Teknisyen' },
-  { id: 'sahada', label: '✅ Sahada' },
-  { id: 'arizada', label: '⚠️ Arızalı' },
-  { id: 'hurda', label: '🗑️ Hurda' },
+  { id: 'depoda', label: 'Depoda' },
+  { id: 'teknisyende', label: 'Teknisyen' },
+  { id: 'sahada', label: 'Sahada' },
+  { id: 'arizada', label: 'Arızalı' },
+  { id: 'hurda', label: 'Hurda' },
 ]
+
+// Durum / filtre → Feather ikon adı (emoji yerine)
+const DURUM_IKON = {
+  tumu: 'grid',
+  depoda: 'package',
+  teknisyende: 'truck',
+  sahada: 'check-circle',
+  arizada: 'alert-triangle',
+  arizali_depoda: 'alert-octagon',
+  tamirde: 'tool',
+  hurda: 'trash-2',
+}
 
 export default function ModelDetayScreen({ route, navigation }) {
   const { stokKodu } = route.params
@@ -162,6 +174,11 @@ export default function ModelDetayScreen({ route, navigation }) {
               style={[styles.filtre, { backgroundColor: colors.surface }, filtre === f.id && styles.filtreActive]}
               onPress={() => setFiltre(f.id)}
             >
+              <Feather
+                name={DURUM_IKON[f.id] || 'grid'}
+                size={13}
+                color={filtre === f.id ? '#fff' : colors.textMuted}
+              />
               <Text style={[styles.filtreText, { color: colors.textMuted }, filtre === f.id && { color: '#fff' }]}>
                 {f.label}
               </Text>
@@ -227,17 +244,17 @@ export default function ModelDetayScreen({ route, navigation }) {
                 </Text>
                 {d && (
                   <View style={[styles.durumBadge, { backgroundColor: d.renk + '22', borderColor: d.renk }]}>
-                    <Text style={[styles.durumText, { color: d.renk }]}>
-                      {d.ikon} {d.isim}
-                    </Text>
+                    <Feather name={DURUM_IKON[item.durum] || 'box'} size={11} color={d.renk} />
+                    <Text style={[styles.durumText, { color: d.renk }]}>{d.isim}</Text>
                   </View>
                 )}
               </View>
               {!!item.barkod && <Text style={[styles.meta, { color: colors.textMuted }]}>Barkod: {item.barkod}</Text>}
               {item.durum === 'sahada' && !!item.takilmaTarihi && (
-                <Text style={[styles.meta, { color: '#10b981' }]}>
-                  📅 {tarihFormat(item.takilmaTarihi)}
-                </Text>
+                <View style={styles.tarihSatir}>
+                  <Feather name="calendar" size={12} color="#10b981" />
+                  <Text style={[styles.meta, { color: '#10b981', marginTop: 0 }]}>{tarihFormat(item.takilmaTarihi)}</Text>
+                </View>
               )}
             </TouchableOpacity>
           )
@@ -322,6 +339,9 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1e293b',
   },
   filtre: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginHorizontal: 3,
@@ -345,6 +365,9 @@ const styles = StyleSheet.create({
   },
   seriNo: { color: '#fff', fontSize: 14, fontWeight: '700', flex: 1, fontFamily: 'monospace' },
   durumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -352,6 +375,7 @@ const styles = StyleSheet.create({
   },
   durumText: { fontSize: 11, fontWeight: '700' },
   meta: { color: '#94a3b8', fontSize: 12, marginTop: 4 },
+  tarihSatir: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
 
   empty: { color: '#64748b', textAlign: 'center', marginTop: 40 },
 
