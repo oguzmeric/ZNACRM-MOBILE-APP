@@ -12,6 +12,7 @@ import {
   TextInput,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { Feather } from '@expo/vector-icons'
 import {
   modelKalemleriniGetir,
   durumBul,
@@ -141,11 +142,11 @@ export default function ModelDetayScreen({ route, navigation }) {
         </Text>
         <Text style={[styles.modelKod, { color: colors.primary }]}>{stokKodu}</Text>
         <View style={styles.rakamRow}>
-          <Sayi label="📦" sayi={sayilar.depoda} renk="#3b82f6" />
-          <Sayi label="🚚" sayi={sayilar.teknisyende} renk="#a855f7" />
-          <Sayi label="✅" sayi={sayilar.sahada} renk="#10b981" />
-          <Sayi label="⚠️" sayi={sayilar.arizada} renk="#f59e0b" />
-          <Sayi label="🌐" sayi={sayilar.toplam} renk={colors.textPrimary} />
+          <Sayi ikon="package" sayi={sayilar.depoda} renk="#3b82f6" label="Depo" />
+          <Sayi ikon="truck" sayi={sayilar.teknisyende} renk="#a855f7" label="Teknisyen" />
+          <Sayi ikon="check-circle" sayi={sayilar.sahada} renk="#22c55e" label="Saha" />
+          <Sayi ikon="alert-triangle" sayi={sayilar.arizada} renk="#f59e0b" label="Arıza" />
+          <Sayi ikon="layers" sayi={sayilar.toplam} renk={colors.textPrimary} label="Toplam" />
         </View>
       </View>
 
@@ -274,11 +275,15 @@ export default function ModelDetayScreen({ route, navigation }) {
   )
 }
 
-function Sayi({ label, sayi, renk }) {
+function Sayi({ ikon, sayi, renk, label }) {
+  const { colors } = useTheme()
   return (
     <View style={styles.sayiBox}>
-      <Text style={[styles.sayiSayi, { color: renk }]}>{sayi}</Text>
-      <Text style={styles.sayiLabel}>{label}</Text>
+      <View style={[styles.sayiIkonDaire, { backgroundColor: renk + '1f' }]}>
+        <Feather name={ikon} size={15} color={renk} />
+      </View>
+      <Text style={[styles.sayiSayi, { color: colors.textPrimary }]}>{sayi}</Text>
+      <Text style={[styles.sayiLabel, { color: colors.textMuted }]} numberOfLines={1}>{label}</Text>
     </View>
   )
 }
@@ -296,12 +301,19 @@ const styles = StyleSheet.create({
   modelKod: { color: '#3b82f6', fontSize: 12, fontWeight: '600', marginTop: 2 },
   rakamRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 12,
+    marginTop: 16,
   },
-  sayiBox: { alignItems: 'center', minWidth: 50 },
-  sayiSayi: { fontSize: 22, fontWeight: '800' },
-  sayiLabel: { fontSize: 14, marginTop: 2 },
+  sayiBox: { alignItems: 'center', flex: 1 },
+  sayiIkonDaire: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  sayiSayi: { fontSize: 18, fontWeight: '800' },
+  sayiLabel: { fontSize: 10, marginTop: 2, fontWeight: '600', letterSpacing: 0.2 },
 
   filtreWrap: {
     paddingVertical: 8,
