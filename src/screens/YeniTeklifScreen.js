@@ -506,7 +506,10 @@ export default function YeniTeklifScreen({ route, navigation }) {
 
       {/* Müşteri seçici */}
       <Modal visible={musteriPickerOpen} animationType="slide" transparent>
-        <View style={styles.modalBg}>
+        <KeyboardAvoidingView
+          style={styles.modalBg}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={[styles.modalSheet, { backgroundColor: colors.bgDark }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Müşteri Seç</Text>
@@ -544,7 +547,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
               )}
             />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Kişi seçici */}
