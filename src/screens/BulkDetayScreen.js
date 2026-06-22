@@ -122,7 +122,7 @@ export default function BulkDetayScreen({ route, navigation }) {
             activeOpacity={0.85}
             onPress={() => {
               Alert.alert(
-                'Seri Takibine Geç',
+                'Seri No Takibine Geç',
                 `Bu ürün seri-takipli olacak. Mevcut adet (${urun.stokMiktari ?? 0}) hedef olarak alınır; her cihazın seri numarasını tarama veya Excel ile gireceksin.\n\nDevam edilsin mi?`,
                 [
                   { text: 'Vazgeç', style: 'cancel' },
@@ -138,7 +138,7 @@ export default function BulkDetayScreen({ route, navigation }) {
               )
             }}
           >
-            <Text style={[styles.seriGecText, { color: colors.primary }]}>🔢 Seri Takibine Geç</Text>
+            <Text style={[styles.seriGecText, { color: colors.primary }]}>🔢 Seri No Takibine Geç</Text>
           </TouchableOpacity>
         )}
 
