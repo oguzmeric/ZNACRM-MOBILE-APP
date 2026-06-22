@@ -202,16 +202,25 @@ export default function ModelDetayScreen({ route, navigation }) {
                   setHedefModalAcik(true)
                 }}
                 activeOpacity={0.7}
+                style={styles.sayacWrap}
               >
-                <Text style={[styles.seriSayac, { color: colors.textMuted }]}>
+                <Text style={[styles.seriSayac, { color: colors.textPrimary }]}>
                   {seriDurum?.kayitliSeri ?? 0}
-                  {seriDurum?.beklenenAdet != null ? ` / ${seriDurum.beklenenAdet}` : ' / —'}
-                  {'  ✏️'}
+                  {seriDurum?.beklenenAdet != null ? ` / ${seriDurum.beklenenAdet}` : ''}
                 </Text>
+                <View style={styles.sayacAltSatir}>
+                  <Feather name="edit-2" size={10} color={colors.textMuted} />
+                  <Text style={[styles.sayacAlt, { color: colors.textMuted }]}>
+                    {seriDurum?.beklenenAdet != null ? 'kayıtlı / hedef' : 'hedef belirle'}
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
             {seriDurum?.eksik > 0 && (
-              <Text style={styles.seriEksik}>⚠️ {seriDurum.eksik} seri no eksik</Text>
+              <View style={styles.seriEksikSatir}>
+                <Feather name="alert-triangle" size={13} color="#f59e0b" />
+                <Text style={styles.seriEksik}>{seriDurum.eksik} seri no eksik</Text>
+              </View>
             )}
             {seriDurum?.beklenenAdet != null && seriDurum.kayitliSeri > seriDurum.beklenenAdet && (
               <Text style={styles.seriFazla}>
@@ -382,8 +391,12 @@ const styles = StyleSheet.create({
   seriKart: { borderRadius: 12, padding: 14, marginTop: 12 },
   seriHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   seriBaslik: { fontSize: 15, fontWeight: '700' },
-  seriSayac: { fontSize: 15, fontWeight: '700' },
-  seriEksik: { color: '#f59e0b', fontSize: 12, marginTop: 6, fontWeight: '600' },
+  seriSayac: { fontSize: 16, fontWeight: '800' },
+  sayacWrap: { alignItems: 'flex-end' },
+  sayacAltSatir: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  sayacAlt: { fontSize: 10, fontWeight: '600' },
+  seriEksikSatir: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  seriEksik: { color: '#f59e0b', fontSize: 12, fontWeight: '600' },
   seriFazla: { color: '#ef4444', fontSize: 12, marginTop: 6, fontWeight: '600' },
   seriEkleBtn: { marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   seriEkleText: { color: '#fff', fontWeight: '700', fontSize: 15 },
