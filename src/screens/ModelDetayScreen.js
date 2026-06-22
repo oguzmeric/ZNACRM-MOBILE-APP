@@ -8,6 +8,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import {
@@ -21,6 +23,7 @@ import { seriListesiOku } from '../lib/seriExcel'
 import * as DocumentPicker from 'expo-document-picker'
 import { tarihFormat } from '../utils/format'
 import { useTheme } from '../context/ThemeContext'
+import { beklenenAdetGuncelle } from '../services/stokUrunService'
 
 const FILTRELER = [
   { id: 'tumu', label: 'Tümü' },
@@ -39,6 +42,8 @@ export default function ModelDetayScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [seriDurum, setSeriDurum] = useState(null)
+  const [hedefModalAcik, setHedefModalAcik] = useState(false)
+  const [hedefInput, setHedefInput] = useState('')
 
   useEffect(() => {
     navigation.setOptions({ title: stokKodu })
@@ -104,6 +109,13 @@ export default function ModelDetayScreen({ route, navigation }) {
     ])
   }
 
+  const hedefKaydet = async () => {
+    const ok = await beklenenAdetGuncelle(stokKodu, hedefInput.trim() === '' ? null : hedefInput)
+    setHedefModalAcik(false)
+    if (!ok) return Alert.alert('Hata', 'Hedef güncellenemedi.')
+    await yukle()
+  }
+
   const seriEkleMenu = () => {
     Alert.alert('Seri Ekle', 'Yöntem seç', [
       { text: '📷 Tara (kamera)', onPress: () => navigation.navigate('SeriTara', {
@@ -166,10 +178,19 @@ export default function ModelDetayScreen({ route, navigation }) {
           <View style={[styles.seriKart, { backgroundColor: colors.surface }]}>
             <View style={styles.seriHeader}>
               <Text style={[styles.seriBaslik, { color: colors.textPrimary }]}>Seri Numaraları</Text>
-              <Text style={[styles.seriSayac, { color: colors.textMuted }]}>
-                {seriDurum?.kayitliSeri ?? 0}
-                {seriDurum?.beklenenAdet != null ? ` / ${seriDurum.beklenenAdet}` : ''}
-              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setHedefInput(seriDurum?.beklenenAdet != null ? String(seriDurum.beklenenAdet) : '')
+                  setHedefModalAcik(true)
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.seriSayac, { color: colors.textMuted }]}>
+                  {seriDurum?.kayitliSeri ?? 0}
+                  {seriDurum?.beklenenAdet != null ? ` / ${seriDurum.beklenenAdet}` : ' / —'}
+                  {'  ✏️'}
+                </Text>
+              </TouchableOpacity>
             </View>
             {seriDurum?.eksik > 0 && (
               <Text style={styles.seriEksik}>⚠️ {seriDurum.eksik} seri eksik</Text>
@@ -221,6 +242,34 @@ export default function ModelDetayScreen({ route, navigation }) {
           )
         }}
       />
+
+      <Modal visible={hedefModalAcik} animationType="fade" transparent onRequestClose={() => setHedefModalAcik(false)}>
+        <View style={styles.hedefBg}>
+          <View style={[styles.hedefKart, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.hedefBaslik, { color: colors.textPrimary }]}>Beklenen Adet (hedef)</Text>
+            <Text style={[styles.hedefAciklama, { color: colors.textMuted }]}>
+              Depoya gelmesi beklenen toplam adet. Eksik seri sayısı buna göre hesaplanır. Boş bırakırsan hedef kalkar.
+            </Text>
+            <TextInput
+              style={[styles.hedefInput, { color: colors.textPrimary, borderColor: colors.border ?? '#334155' }]}
+              value={hedefInput}
+              onChangeText={setHedefInput}
+              keyboardType="number-pad"
+              placeholder="Örn: 50"
+              placeholderTextColor={colors.textFaded ?? '#64748b'}
+              autoFocus
+            />
+            <View style={styles.hedefBtnRow}>
+              <TouchableOpacity style={styles.hedefBtnIptal} onPress={() => setHedefModalAcik(false)}>
+                <Text style={{ color: colors.textMuted, fontWeight: '700' }}>Vazgeç</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.hedefBtnKaydet, { backgroundColor: colors.primary }]} onPress={hedefKaydet}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Kaydet</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -302,4 +351,13 @@ const styles = StyleSheet.create({
   seriFazla: { color: '#ef4444', fontSize: 12, marginTop: 6, fontWeight: '600' },
   seriEkleBtn: { marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
   seriEkleText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+
+  hedefBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+  hedefKart: { borderRadius: 16, padding: 20 },
+  hedefBaslik: { fontSize: 17, fontWeight: '800', marginBottom: 6 },
+  hedefAciklama: { fontSize: 12, marginBottom: 14, lineHeight: 17 },
+  hedefInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 18, fontWeight: '700' },
+  hedefBtnRow: { flexDirection: 'row', gap: 10, marginTop: 18 },
+  hedefBtnIptal: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  hedefBtnKaydet: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
 })
