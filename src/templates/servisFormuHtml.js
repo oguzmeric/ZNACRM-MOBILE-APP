@@ -90,6 +90,12 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
     ? `<img src="${talep.musteriImza}" style="max-width:100%;max-height:90px;object-fit:contain;display:block;margin:2px 0;" />`
     : '<div style="height:64px;"></div>'
 
+  // Personel imzası — servis kapatılırken kaydedilen snapshot (formu kapatan kişi)
+  const imzaPersonel = talep.personelImza
+    ? `<img src="${talep.personelImza}" style="max-width:100%;max-height:60px;object-fit:contain;display:block;margin:2px 0;" />`
+    : '<div style="height:50px;"></div>'
+  const personelAd = talep.personelImzaAd || talep.atananKullaniciAd || 'ZNA TEKNOLOJİ'
+
   // ── Stil tokenleri (web ile ayni) ──
   const cell = `border:1px dashed ${BORDER};padding:3px 6px;vertical-align:top;`
   const label = `${cell}font-weight:700;color:${ACCENT};width:110px;background:#fff;`
@@ -233,8 +239,8 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
           <div style="border-top:1px solid ${BORDER};padding-top:4px;font-size:8px;color:${ACCENT};font-weight:600;">ONAY / İMZA</div>
         </td>
         <td style="${cell}width:33.3%;">
-          <div style="font-size:8px;color:${ACCENT};font-weight:600;">${escapeHtml(talep.atananKullaniciAd || 'ZNA TEKNOLOJİ')}</div>
-          <div style="height:50px;"></div>
+          <div style="font-size:8px;color:${ACCENT};font-weight:600;">${escapeHtml(personelAd)}</div>
+          ${imzaPersonel}
           <div style="border-top:1px solid ${BORDER};padding-top:4px;font-size:8px;color:${ACCENT};font-weight:600;">TEKNİK İNCELEME</div>
         </td>
       </tr></tbody>

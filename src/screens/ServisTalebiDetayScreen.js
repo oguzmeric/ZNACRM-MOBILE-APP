@@ -282,20 +282,42 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         )
         return
       }
+      // (3) Formu kapatan kişinin imzası — yoksa uyar ama kapatmaya izin ver
+      const kapat = async () => {
+        setUpdating(true)
+        const guncel = await durumGuncelle(id, 'tamamlandi', kullanici?.ad)
+        // Personel imzasını talebe snapshot olarak yaz (varsa)
+        if (kullanici?.imza) {
+          const g2 = await servisTalepGuncelle(id, {
+            personelImza: kullanici.imza,
+            personelImzaAd: kullanici.ad ?? null,
+          })
+          setUpdating(false)
+          if (g2) return setTalep(g2)
+        } else {
+          setUpdating(false)
+        }
+        if (guncel) setTalep(guncel)
+      }
+
+      if (!kullanici?.imza) {
+        Alert.alert(
+          'İmzan Yok',
+          'Profilinde kayıtlı imzan yok; servis formunda imza alanın boş kalacak. Profil > İmzam bölümünden imzanı ekleyebilirsin.\n\nYine de servisi kapatmak istiyor musun?',
+          [
+            { text: 'Vazgeç', style: 'cancel' },
+            { text: 'Yine de Kapat', onPress: kapat },
+          ]
+        )
+        return
+      }
+
       Alert.alert(
         'Servisi Kapat',
-        'Müşteri imzası alındı. Servis "Tamamlandı" olarak kapansın mı?',
+        'Müşteri imzası alındı. Servis "Tamamlandı" olarak kapansın mı? İmzan forma otomatik eklenecek.',
         [
           { text: 'Vazgeç', style: 'cancel' },
-          {
-            text: 'Kapat',
-            onPress: async () => {
-              setUpdating(true)
-              const guncel = await durumGuncelle(id, 'tamamlandi', kullanici?.ad)
-              setUpdating(false)
-              if (guncel) setTalep(guncel)
-            },
-          },
+          { text: 'Kapat', onPress: kapat },
         ]
       )
       return

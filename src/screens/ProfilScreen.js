@@ -11,17 +11,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { useAuth } from '../context/AuthContext'
 import ScreenContainer from '../components/ScreenContainer'
 import Avatar, { initialsAl } from '../components/Avatar'
+import ImzaCizModal from '../components/ImzaCizModal'
 import {
   sifreDegistir,
   profilFotosuYukle,
   profilFotosuKaldir,
   kullaniciUnvanGuncelle,
+  imzaGuncelle,
+  imzaKaldir,
 } from '../services/kullaniciService'
 import { yonetimPaneliErisimi } from '../utils/yetki'
 import { useTheme } from '../context/ThemeContext'
@@ -44,6 +48,38 @@ export default function ProfilScreen({ navigation }) {
   const [unvanModalOpen, setUnvanModalOpen] = useState(false)
   const [unvanInput, setUnvanInput] = useState('')
   const [unvanKaydediliyor, setUnvanKaydediliyor] = useState(false)
+  const [imzaModalOpen, setImzaModalOpen] = useState(false)
+
+  const personel = kullanici?.tip !== 'musteri'
+
+  const imzaKaydet = async (base64) => {
+    if (!kullanici?.id) return
+    const r = await imzaGuncelle(kullanici.id, base64)
+    if (!r.ok) {
+      Alert.alert('Hata', r.hata ?? 'İmza kaydedilemedi.')
+      throw new Error(r.hata ?? 'İmza kaydedilemedi.')
+    }
+    await kullaniciyiTazele()
+  }
+
+  const imzaSilOnay = () => {
+    Alert.alert('İmzayı kaldır', 'Kayıtlı imzan silinsin mi?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Kaldır',
+        style: 'destructive',
+        onPress: async () => {
+          if (!kullanici?.id) return
+          const r = await imzaKaldir(kullanici.id)
+          if (!r.ok) {
+            Alert.alert('Hata', r.hata ?? 'İmza kaldırılamadı.')
+            return
+          }
+          await kullaniciyiTazele()
+        },
+      },
+    ])
+  }
 
   const UNVAN_SECENEK = ['Teknisyen', 'Saha Teknisyeni', 'Mühendis', 'Depo Sorumlusu', 'Müşteri Temsilcisi']
 
@@ -183,6 +219,64 @@ export default function ProfilScreen({ navigation }) {
           )}
         </View>
 
+        {/* İmzam — servis formlarında otomatik kullanılır */}
+        {personel && (
+          <>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>İmzam</Text>
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {kullanici?.imza ? (
+                <View style={{ padding: 14 }}>
+                  <View style={styles.imzaPreviewKutu}>
+                    <Image
+                      source={{ uri: kullanici.imza }}
+                      style={{ width: '100%', height: 90 }}
+                      resizeMode="contain"
+                    />
+                  </View>
+                  <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 8, marginBottom: 12 }}>
+                    Bu imza, kapattığın servis formlarına otomatik eklenir.
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                      style={[styles.imzaActBtn, { borderColor: colors.border }]}
+                      onPress={() => setImzaModalOpen(true)}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="edit-2" size={15} color={colors.primaryLight} />
+                      <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>Değiştir</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.imzaActBtn, { borderColor: 'rgba(239,68,68,0.4)' }]}
+                      onPress={imzaSilOnay}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="trash-2" size={15} color={colors.danger} />
+                      <Text style={{ color: colors.danger, fontWeight: '600', fontSize: 13 }}>Kaldır</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.row]}
+                  onPress={() => setImzaModalOpen(true)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.rowIkon, { backgroundColor: colors.primary + '26' }]}>
+                    <Feather name="edit-3" size={16} color={colors.primaryLight} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.actionText, { color: colors.textPrimary }]}>İmza Ekle</Text>
+                    <Text style={{ color: '#f59e0b', fontSize: 11, marginTop: 2 }}>
+                      Servis formları için imzanı bir kere ekle
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={colors.textFaded} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </>
+        )}
+
         {yetkili && (
           <>
             <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Yönetim</Text>
@@ -296,6 +390,13 @@ export default function ProfilScreen({ navigation }) {
         visible={sifreModalOpen}
         onClose={() => setSifreModalOpen(false)}
         kullaniciId={kullanici?.id}
+      />
+
+      <ImzaCizModal
+        visible={imzaModalOpen}
+        onClose={() => setImzaModalOpen(false)}
+        onKaydet={imzaKaydet}
+        baslik="İmzam"
       />
 
       <Modal visible={unvanModalOpen} animationType="slide" transparent onRequestClose={() => setUnvanModalOpen(false)}>
@@ -592,6 +693,25 @@ const styles = StyleSheet.create({
   },
   rowDeger: { color: '#e2e8f0', fontSize: 14, fontWeight: '500' },
   actionText: { color: '#fff', fontSize: 15, fontWeight: '600', flex: 1 },
+
+  imzaPreviewKutu: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#334155',
+    padding: 6,
+  },
+  imzaActBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
 
   footer: {
     color: '#475569',

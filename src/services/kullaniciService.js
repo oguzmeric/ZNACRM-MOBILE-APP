@@ -246,6 +246,30 @@ export const profilFotosuYukle = async (kullaniciId, uri) => {
   }
 }
 
+// Kişisel imza kaydet (base64 PNG data-URI). Servis formu kapatılırken kullanılır.
+export const imzaGuncelle = async (kullaniciId, base64) => {
+  if (!kullaniciId) return { ok: false, hata: 'Kullanıcı yok.' }
+  const { error } = await supabase
+    .from('kullanicilar')
+    .update({ imza: base64 ?? null })
+    .eq('id', kullaniciId)
+  if (error) {
+    console.error('imzaGuncelle hata:', error.message)
+    return { ok: false, hata: error.message }
+  }
+  return { ok: true }
+}
+
+// Kişisel imzayı kaldır
+export const imzaKaldir = async (kullaniciId) => {
+  if (!kullaniciId) return { ok: false, hata: 'Kullanıcı yok.' }
+  const { error } = await supabase
+    .from('kullanicilar')
+    .update({ imza: null })
+    .eq('id', kullaniciId)
+  return { ok: !error, hata: error?.message }
+}
+
 // Profil fotoğrafını kaldır
 export const profilFotosuKaldir = async (kullaniciId) => {
   const { error } = await supabase
