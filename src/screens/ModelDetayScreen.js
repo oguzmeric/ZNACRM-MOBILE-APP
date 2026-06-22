@@ -193,11 +193,11 @@ export default function ModelDetayScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
             {seriDurum?.eksik > 0 && (
-              <Text style={styles.seriEksik}>⚠️ {seriDurum.eksik} seri eksik</Text>
+              <Text style={styles.seriEksik}>⚠️ {seriDurum.eksik} seri no eksik</Text>
             )}
             {seriDurum?.beklenenAdet != null && seriDurum.kayitliSeri > seriDurum.beklenenAdet && (
               <Text style={styles.seriFazla}>
-                {'Beklenenden fazla seri var (' + seriDurum.kayitliSeri + ' > ' + seriDurum.beklenenAdet + ').'}
+                {'Beklenenden fazla seri no var (' + seriDurum.kayitliSeri + ' > ' + seriDurum.beklenenAdet + ').'}
               </Text>
             )}
             <TouchableOpacity
