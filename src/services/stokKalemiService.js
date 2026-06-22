@@ -91,8 +91,22 @@ export const modellerOzetiniGetir = async () => {
         ...kalemOzet,
         mevcut: kalemOzet.depoda + kalemOzet.teknisyende,
       })
+    } else if (u.seriTakipli) {
+      // Seri-takipli ama henüz kalemi yok → boş seri modeli
+      sonuc.push({
+        tip: 'seri',
+        stokKodu: u.stokKodu,
+        stokAdi: u.stokAdi,
+        marka: u.marka ?? null,
+        model: u.stokAdi,
+        birim: u.birim ?? 'Adet',
+        stokMiktari: u.stokMiktari ?? 0,
+        beklenenAdet: u.beklenenAdet ?? null,
+        toplam: 0, depoda: 0, teknisyende: 0, sahada: 0, arizada: 0, hurda: 0,
+        mevcut: 0,
+      })
     } else {
-      // Bulk / toplu (S/N yok, sadece stok_urunler'da)
+      // Bulk / toplu (S/N yok, seri-takipli değil)
       sonuc.push({
         tip: 'bulk',
         stokKodu: u.stokKodu,
@@ -531,4 +545,78 @@ export const personeldenIade = async ({
     })
   }
   return guncel
+}
+
+// Bir seri stringini normalize et (trim + görünmez/zero-width karakter temizliği)
+const seriNormalize = (s) =>
+  String(s ?? '').replace(/[​-‍﻿ ]/g, '').trim()
+
+// Toplu seri ekle. seriler: string[] (ham). Dönüş: { eklenen, zatenVar[], bos }
+export const serileriTopluEkle = async (stokKodu, seriler, meta = {}) => {
+  // 1) Temizle + uygulama içi dedupe
+  const temiz = []
+  const gorulen = new Set()
+  let bos = 0
+  for (const ham of seriler ?? []) {
+    const s = seriNormalize(ham)
+    if (!s) { bos += 1; continue }
+    const key = s.toLocaleLowerCase('tr')
+    if (gorulen.has(key)) continue
+    gorulen.add(key)
+    temiz.push(s)
+  }
+  if (temiz.length === 0) return { eklenen: 0, zatenVar: [], bos }
+
+  // 2) DB'de zaten var olanları ayıkla
+  const { data: varOlan } = await supabase
+    .from('stok_kalemleri')
+    .select('seri_no')
+    .in('seri_no', temiz)
+  const varSet = new Set((varOlan ?? []).map((r) => (r.seri_no ?? '').toLocaleLowerCase('tr')))
+  const zatenVar = temiz.filter((s) => varSet.has(s.toLocaleLowerCase('tr')))
+  const eklenecek = temiz.filter((s) => !varSet.has(s.toLocaleLowerCase('tr')))
+  if (eklenecek.length === 0) return { eklenen: 0, zatenVar, bos }
+
+  // 3) Katalog satırını garanti et (trigger doğru stok_kodu görsün)
+  const { data: urun } = await supabase
+    .from('stok_urunler').select('stok_kodu, stok_adi, marka').eq('stok_kodu', stokKodu).maybeSingle()
+  if (!urun) {
+    await supabase.from('stok_urunler').insert({
+      stok_kodu: stokKodu,
+      stok_adi: [meta.marka, meta.model].filter(Boolean).join(' ').trim() || stokKodu,
+      birim: 'Adet', stok_miktari: 0, seri_takipli: true,
+    })
+  }
+
+  // 4) Batch insert (durum='depoda'). DB unique index yarış koşulunu korur;
+  //    ignoreDuplicates ile çakışan satırlar sessizce atlanır.
+  const rows = eklenecek.map((seri_no) => ({
+    stok_kodu: stokKodu,
+    seri_no,
+    marka: meta.marka ?? urun?.marka ?? null,
+    model: meta.model ?? null,
+    durum: 'depoda',
+  }))
+  const { data, error } = await supabase
+    .from('stok_kalemleri')
+    .upsert(rows, { onConflict: 'seri_no', ignoreDuplicates: true })
+    .select('id')
+  if (error) {
+    console.error('serileriTopluEkle hata:', error.message)
+    return { eklenen: 0, zatenVar, bos, hata: error.message }
+  }
+  return { eklenen: (data ?? []).length, zatenVar, bos }
+}
+
+// Ürünün seri durumu: { beklenenAdet, kayitliSeri, eksik, depoda }
+export const urunSeriDurumu = async (stokKodu) => {
+  const [{ data: urun }, toplam, depoda] = await Promise.all([
+    supabase.from('stok_urunler').select('beklenen_adet').eq('stok_kodu', stokKodu).maybeSingle(),
+    supabase.from('stok_kalemleri').select('*', { count: 'exact', head: true }).eq('stok_kodu', stokKodu),
+    supabase.from('stok_kalemleri').select('*', { count: 'exact', head: true }).eq('stok_kodu', stokKodu).eq('durum', 'depoda'),
+  ])
+  const beklenenAdet = urun?.beklenen_adet ?? null
+  const kayitliSeri = toplam.count ?? 0
+  const eksik = beklenenAdet != null ? Math.max(0, beklenenAdet - kayitliSeri) : null
+  return { beklenenAdet, kayitliSeri, eksik, depoda: depoda.count ?? 0 }
 }

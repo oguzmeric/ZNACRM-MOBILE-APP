@@ -110,3 +110,29 @@ export const bulkHareketEkle = async ({
 
   return toCamel(h)
 }
+
+// Ürünü seri-takibe al: bayrağı set et + mevcut adedi hedef olarak kopyala
+export const seriTakibineGec = async (stokKodu) => {
+  const { data: mevcut } = await supabase
+    .from('stok_urunler')
+    .select('stok_miktari, seri_takipli, beklenen_adet')
+    .eq('stok_kodu', stokKodu)
+    .maybeSingle()
+  if (!mevcut) return { ok: false, hata: 'Ürün bulunamadı.' }
+  const hedef = mevcut.beklenen_adet ?? mevcut.stok_miktari ?? 0
+  const { error } = await supabase
+    .from('stok_urunler')
+    .update({ seri_takipli: true, beklenen_adet: hedef })
+    .eq('stok_kodu', stokKodu)
+  return error ? { ok: false, hata: error.message } : { ok: true, beklenenAdet: hedef }
+}
+
+// Beklenen (hedef) adedi güncelle
+export const beklenenAdetGuncelle = async (stokKodu, adet) => {
+  const sayi = Number.isFinite(Number(adet)) ? Math.max(0, Math.trunc(Number(adet))) : null
+  const { error } = await supabase
+    .from('stok_urunler')
+    .update({ beklenen_adet: sayi })
+    .eq('stok_kodu', stokKodu)
+  return !error
+}
