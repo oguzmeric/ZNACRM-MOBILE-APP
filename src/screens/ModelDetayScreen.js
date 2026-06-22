@@ -117,7 +117,7 @@ export default function ModelDetayScreen({ route, navigation }) {
   }
 
   const seriEkleMenu = () => {
-    Alert.alert('Seri Ekle', 'Yöntem seç', [
+    Alert.alert('Seri No Ekle', 'Yöntem seç', [
       { text: '📷 Tara (kamera)', onPress: () => navigation.navigate('SeriTara', {
           stokKodu, marka: ornek?.marka ?? null, model: ornek?.model ?? null }) },
       { text: "📄 Excel'den Yükle", onPress: excelYukle },
@@ -205,7 +205,7 @@ export default function ModelDetayScreen({ route, navigation }) {
               activeOpacity={0.85}
               onPress={seriEkleMenu}
             >
-              <Text style={styles.seriEkleText}>+ Seri Ekle</Text>
+              <Text style={styles.seriEkleText}>+ Seri No Ekle</Text>
             </TouchableOpacity>
           </View>
         ) : null}
