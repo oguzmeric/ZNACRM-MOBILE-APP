@@ -352,7 +352,10 @@ export default function YeniGorevScreen({ navigation, route }) {
 
       {/* Müşteri seçici (aramalı) */}
       <Modal visible={musteriPickerOpen} animationType="slide" transparent>
-        <View style={styles.modalBg}>
+        <KeyboardAvoidingView
+          style={styles.modalBg}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
               <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Müşteri Seç</Text>
@@ -401,7 +404,7 @@ export default function YeniGorevScreen({ navigation, route }) {
               )}
             />
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
     </KeyboardAvoidingView>
