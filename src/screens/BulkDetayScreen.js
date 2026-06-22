@@ -20,6 +20,7 @@ import {
   stokUrunGetir,
   stokKoduHareketleriniGetir,
   bulkHareketEkle,
+  seriTakibineGec,
 } from '../services/stokUrunService'
 import { musterileriGetir } from '../services/musteriService'
 import { trIcerir } from '../utils/trSearch'
@@ -114,6 +115,32 @@ export default function BulkDetayScreen({ route, navigation }) {
             </TouchableOpacity>
           ))}
         </View>
+
+        {!urun.seriTakipli && (
+          <TouchableOpacity
+            style={[styles.seriGecBtn, { borderColor: colors.primary }]}
+            activeOpacity={0.85}
+            onPress={() => {
+              Alert.alert(
+                'Seri Takibine Geç',
+                `Bu ürün seri-takipli olacak. Mevcut adet (${urun.stokMiktari ?? 0}) hedef olarak alınır; her cihazın seri numarasını tarama veya Excel ile gireceksin.\n\nDevam edilsin mi?`,
+                [
+                  { text: 'Vazgeç', style: 'cancel' },
+                  {
+                    text: 'Geç',
+                    onPress: async () => {
+                      const r = await seriTakibineGec(urun.stokKodu)
+                      if (!r.ok) return Alert.alert('Hata', r.hata ?? 'İşlem başarısız.')
+                      navigation.replace('ModelDetay', { stokKodu: urun.stokKodu })
+                    },
+                  },
+                ]
+              )
+            }}
+          >
+            <Text style={[styles.seriGecText, { color: colors.primary }]}>🔢 Seri Takibine Geç</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Bilgi */}
         {!!urun.aciklama && (
@@ -487,6 +514,9 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
   },
   clearText: { color: '#ef4444', fontSize: 22, fontWeight: '700' },
+
+  seriGecBtn: { marginTop: 12, paddingVertical: 14, borderRadius: 12, borderWidth: 1.5, alignItems: 'center' },
+  seriGecText: { fontWeight: '700', fontSize: 15 },
 
   onayBtn: {
     marginTop: 24,
