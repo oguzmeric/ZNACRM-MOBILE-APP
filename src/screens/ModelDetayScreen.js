@@ -7,13 +7,18 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import {
   modelKalemleriniGetir,
   durumBul,
   DURUMLAR,
+  urunSeriDurumu,
+  serileriTopluEkle,
 } from '../services/stokKalemiService'
+import { seriListesiOku } from '../lib/seriExcel'
+import * as DocumentPicker from 'expo-document-picker'
 import { tarihFormat } from '../utils/format'
 import { useTheme } from '../context/ThemeContext'
 
@@ -33,14 +38,19 @@ export default function ModelDetayScreen({ route, navigation }) {
   const [filtre, setFiltre] = useState('tumu')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [seriDurum, setSeriDurum] = useState(null)
 
   useEffect(() => {
     navigation.setOptions({ title: stokKodu })
   }, [navigation, stokKodu])
 
   const yukle = useCallback(async () => {
-    const liste = await modelKalemleriniGetir(stokKodu)
+    const [liste, durum] = await Promise.all([
+      modelKalemleriniGetir(stokKodu),
+      urunSeriDurumu(stokKodu),
+    ])
     setKalemler(liste ?? [])
+    setSeriDurum(durum ?? null)
     setLoading(false)
   }, [stokKodu])
 
@@ -66,6 +76,42 @@ export default function ModelDetayScreen({ route, navigation }) {
     : kalemler.filter((k) => k.durum === filtre)
 
   const ornek = kalemler[0]
+
+  const excelYukle = async () => {
+    const sec = await DocumentPicker.getDocumentAsync({
+      type: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+             'application/vnd.ms-excel', '*/*'],
+      copyToCacheDirectory: true,
+    })
+    if (sec.canceled || !sec.assets?.[0]) return
+    let seriler = []
+    try {
+      seriler = await seriListesiOku(sec.assets[0].uri)
+    } catch (e) {
+      return Alert.alert('Hata', 'Excel okunamadı: ' + (e?.message ?? ''))
+    }
+    if (seriler.length === 0) return Alert.alert('Boş', "Excel'de seri bulunamadı (ilk sütun).")
+    Alert.alert('Onay', `${seriler.length} satır okundu. Eklensin mi?`, [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'Ekle', onPress: async () => {
+          const r = await serileriTopluEkle(stokKodu, seriler, { marka: ornek?.marka, model: ornek?.model })
+          await yukle()
+          Alert.alert('Tamam',
+            `${r.eklenen} eklendi.` +
+            (r.zatenVar?.length ? `\n${r.zatenVar.length} zaten kayıtlıydı.` : '') +
+            (r.bos ? `\n${r.bos} boş atlandı.` : ''))
+      } },
+    ])
+  }
+
+  const seriEkleMenu = () => {
+    Alert.alert('Seri Ekle', 'Yöntem seç', [
+      { text: '📷 Tara (kamera)', onPress: () => navigation.navigate('SeriTara', {
+          stokKodu, marka: ornek?.marka ?? null, model: ornek?.model ?? null }) },
+      { text: "📄 Excel'den Yükle", onPress: excelYukle },
+      { text: 'Vazgeç', style: 'cancel' },
+    ])
+  }
 
   if (loading) {
     return (
@@ -116,6 +162,32 @@ export default function ModelDetayScreen({ route, navigation }) {
         keyExtractor={(k) => String(k.id)}
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
+        ListHeaderComponent={seriDurum ? (
+          <View style={[styles.seriKart, { backgroundColor: colors.surface }]}>
+            <View style={styles.seriHeader}>
+              <Text style={[styles.seriBaslik, { color: colors.textPrimary }]}>Seri Numaraları</Text>
+              <Text style={[styles.seriSayac, { color: colors.textMuted }]}>
+                {seriDurum?.kayitliSeri ?? 0}
+                {seriDurum?.beklenenAdet != null ? ` / ${seriDurum.beklenenAdet}` : ''}
+              </Text>
+            </View>
+            {seriDurum?.eksik > 0 && (
+              <Text style={styles.seriEksik}>⚠️ {seriDurum.eksik} seri eksik</Text>
+            )}
+            {seriDurum?.beklenenAdet != null && seriDurum.kayitliSeri > seriDurum.beklenenAdet && (
+              <Text style={styles.seriFazla}>
+                {'Beklenenden fazla seri var (' + seriDurum.kayitliSeri + ' > ' + seriDurum.beklenenAdet + ').'}
+              </Text>
+            )}
+            <TouchableOpacity
+              style={[styles.seriEkleBtn, { backgroundColor: colors.primary }]}
+              activeOpacity={0.85}
+              onPress={seriEkleMenu}
+            >
+              <Text style={styles.seriEkleText}>+ Seri Ekle</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         ListEmptyComponent={
           <Text style={[styles.empty, { color: colors.textFaded }]}>Bu durumda kalem yok.</Text>
         }
@@ -221,4 +293,13 @@ const styles = StyleSheet.create({
   meta: { color: '#94a3b8', fontSize: 12, marginTop: 4 },
 
   empty: { color: '#64748b', textAlign: 'center', marginTop: 40 },
+
+  seriKart: { borderRadius: 12, padding: 14, marginTop: 12 },
+  seriHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  seriBaslik: { fontSize: 15, fontWeight: '700' },
+  seriSayac: { fontSize: 15, fontWeight: '700' },
+  seriEksik: { color: '#f59e0b', fontSize: 12, marginTop: 6, fontWeight: '600' },
+  seriFazla: { color: '#ef4444', fontSize: 12, marginTop: 6, fontWeight: '600' },
+  seriEkleBtn: { marginTop: 12, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  seriEkleText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 })
