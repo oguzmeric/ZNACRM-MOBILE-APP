@@ -128,7 +128,8 @@ export default function YeniTeklifScreen({ route, navigation }) {
       setGecerlilikTarihi(
         `${sonra.getFullYear()}-${String(sonra.getMonth() + 1).padStart(2, '0')}-${String(sonra.getDate()).padStart(2, '0')}`
       )
-      sonrakiTeklifNo().then(setTeklifNo)
+      // Tahmin amacli on-goster (DB trigger uretir, gercek deger save sonrasi gelir)
+      sonrakiTeklifNo().then(setTeklifNo).catch(() => setTeklifNo('Yeni teklif'))
     }
   }, [editMode, editId])
 
@@ -255,9 +256,10 @@ export default function YeniTeklifScreen({ route, navigation }) {
         hazirlayan: kullanici?.ad ?? null,
       })
     } else {
+      // teklifNo gondermiyoruz — DB trigger 'tr_teklif_no_uret' otomatik uretir
+      // (migration 055). Client-side count+1 mantigi duplicate veriyordu.
       sonuc = await teklifEkle({
         ...veri,
-        teklifNo,
         revizyon: 0,
         hazirlayan: kullanici?.ad ?? '',
         onayDurumu: 'takipte',
