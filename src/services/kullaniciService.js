@@ -8,11 +8,33 @@ const kullaniciAdiToEmail = (kullaniciAdi) =>
   `${kullaniciAdi.toLowerCase().replace(/[^a-z0-9]/g, '')}@zna.local`
 
 export const kullaniciGirisKontrol = async (kullaniciAdi, sifre) => {
-  // '@' içeriyorsa gerçek e-posta (self-kayıt kullanıcısı); yoksa kullanıcı adı → sentetik e-posta
+  // '@' içeriyorsa gerçek e-posta (self-kayıt kullanıcısı); yoksa kullanıcı adı
+  // → önce DB'den gercek email cozumle (RPC), bulunamazsa sentetik @zna.local
   const girdi = (kullaniciAdi ?? '').trim()
-  const email = girdi.includes('@') ? girdi.toLowerCase() : kullaniciAdiToEmail(girdi)
-  const { data: authData, error: authError } =
+  let email = null
+  if (girdi.includes('@')) {
+    email = girdi.toLowerCase()
+  } else {
+    try {
+      const { data: cozulen } = await supabase.rpc('kullanici_adi_email_cozumle', { p_kullanici_adi: girdi })
+      if (cozulen && typeof cozulen === 'string') email = cozulen.toLowerCase()
+    } catch (e) { console.warn('[kullaniciGirisKontrol] email cozumle hata:', e?.message) }
+    if (!email) email = kullaniciAdiToEmail(girdi)
+  }
+  let { data: authData, error: authError } =
     await supabase.auth.signInWithPassword({ email, password: sifre })
+  // Fallback: gercek email basarisizsa sentetik denenmis olabilir — tersi denenmedi.
+  // RPC null donduyse kullaniciAdiToEmail kullaniliyor, asagidaki fallback gercek
+  // emaili bulduktan sonra eski sentetik @zna.local ile kayitli kullanicilar icin.
+  if ((authError || !authData?.user) && !girdi.includes('@')) {
+    const sentetik = kullaniciAdiToEmail(girdi)
+    if (sentetik !== email) {
+      const retry = await supabase.auth.signInWithPassword({ email: sentetik, password: sifre })
+      if (!retry.error && retry.data?.user) {
+        authData = retry.data; authError = null
+      }
+    }
+  }
   if (authError || !authData?.user) {
     console.warn('[kullaniciGirisKontrol] auth hata:', authError?.message)
     return null
