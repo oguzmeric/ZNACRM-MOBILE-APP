@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native'
+import {
+  View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity,
+  TextInput, Alert, KeyboardAvoidingView, Platform,
+} from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
 import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
-import { gorusmeGetir } from '../services/gorusmeService'
+import { useAuth } from '../context/AuthContext'
+import { gorusmeGetir, gorusmeGuncelle } from '../services/gorusmeService'
 
 const DURUM_ETIKET = {
   acik: 'Açık',
@@ -13,12 +17,18 @@ const DURUM_ETIKET = {
   tamamlandi: 'Tamamlandı',
   planlandi: 'Planlandı',
 }
+const DURUMLAR = ['acik', 'beklemede', 'kapali']
+const IRTIBAT_SEKILLERI = ['Telefon', 'WhatsApp', 'E-posta', 'Yüz yüze', 'Video görüşme', 'Mesaj', 'Link']
 
 export default function GorusmeDetayScreen({ route, navigation }) {
   const { id } = route.params
   const { colors } = useTheme()
+  const { kullanicilar } = useAuth()
   const [g, setG] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [duzenleAcik, setDuzenleAcik] = useState(false)
+  const [form, setForm] = useState(null)
+  const [kaydediliyor, setKaydediliyor] = useState(false)
 
   const yukle = useCallback(async () => {
     const veri = await gorusmeGetir(id)
@@ -28,6 +38,57 @@ export default function GorusmeDetayScreen({ route, navigation }) {
 
   useEffect(() => { yukle() }, [yukle])
   useFocusEffect(useCallback(() => { yukle() }, [yukle]))
+
+  const duzenleAc = () => {
+    setForm({
+      konu: g.konu || '',
+      muhatapAd: g.muhatapAd || '',
+      gorusen: g.gorusen || '',
+      irtibatSekli: g.irtibatSekli || '',
+      tarih: g.tarih || '',
+      durum: g.durum || 'acik',
+      takipNotu: g.takipNotu ?? g.notlar ?? '',
+    })
+    setDuzenleAcik(true)
+  }
+
+  const duzenleIptal = () => { setDuzenleAcik(false); setForm(null) }
+
+  const duzenleKaydet = async () => {
+    if (!form.konu?.trim()) {
+      Alert.alert('Eksik bilgi', 'Konu zorunludur.')
+      return
+    }
+    setKaydediliyor(true)
+    try {
+      const guncellenen = await gorusmeGuncelle(id, {
+        konu: form.konu.trim(),
+        muhatapAd: (form.muhatapAd || '').trim(),
+        gorusen: form.gorusen || '',
+        irtibatSekli: form.irtibatSekli || null,
+        tarih: form.tarih || null,
+        durum: form.durum,
+        takipNotu: form.takipNotu || null,
+      })
+      if (!guncellenen) {
+        Alert.alert('Hata', 'Güncelleme başarısız oldu.')
+        return
+      }
+      setG(guncellenen)
+      setDuzenleAcik(false)
+      setForm(null)
+    } catch (e) {
+      Alert.alert('Hata', e?.message || 'Güncellenemedi.')
+    } finally {
+      setKaydediliyor(false)
+    }
+  }
+
+  const toggleGorusen = (ad) => {
+    const list = (form.gorusen || '').split(',').map(x => x.trim()).filter(Boolean)
+    const yeni = list.includes(ad) ? list.filter(x => x !== ad) : [...list, ad]
+    setForm({ ...form, gorusen: yeni.join(', ') })
+  }
 
   if (loading) {
     return <ScreenContainer><ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} /></ScreenContainer>
@@ -43,59 +104,200 @@ export default function GorusmeDetayScreen({ route, navigation }) {
     )
   }
 
+  const gorusenList = (g.gorusen || '').split(',').map(s => s.trim()).filter(Boolean)
+  const formGorusenList = form ? (form.gorusen || '').split(',').map(s => s.trim()).filter(Boolean) : []
+
   return (
     <ScreenContainer>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-        {/* Başlık */}
-        <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.firmaAd, { color: colors.textPrimary }]}>{g.firmaAdi || '—'}</Text>
-          {!!g.musteriAdi && (
-            <Text style={[styles.alt, { color: colors.textMuted }]}>{g.musteriAdi}</Text>
-          )}
-          <View style={styles.rozetRow}>
-            {!!g.konu && <Rozet renk={colors.primary} text={g.konu} />}
-            {!!g.tip && <Rozet renk={colors.info ?? '#06b6d4'} text={g.tip} />}
-            {!!g.durum && <Rozet renk={colors.warning ?? '#f59e0b'} text={DURUM_ETIKET[g.durum] ?? g.durum} />}
-          </View>
-        </View>
-
-        {/* Bilgiler */}
-        <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Satir ikon="calendar" label="Tarih" value={g.tarih ? `${g.tarih}${g.saat ? ` · ${g.saat}` : ''}` : '—'} colors={colors} />
-          <Satir ikon="user" label="Hazırlayan" value={g.hazirlayan ?? '—'} colors={colors} />
-          {!!g.aktNo && <Satir ikon="hash" label="Akt No" value={g.aktNo} colors={colors} />}
-        </View>
-
-        {/* Notlar */}
-        {!!g.notlar && (
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+          {/* Başlık */}
           <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.label, { color: colors.textMuted }]}>NOTLAR</Text>
-            <Text style={[styles.notlar, { color: colors.textPrimary }]} selectable>
-              {g.notlar}
-            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[styles.firmaAd, { color: colors.textPrimary }]}>{g.firmaAdi || '—'}</Text>
+                {!!g.musteriAdi && (
+                  <Text style={[styles.alt, { color: colors.textMuted }]}>{g.musteriAdi}</Text>
+                )}
+              </View>
+              {!duzenleAcik && (
+                <TouchableOpacity
+                  onPress={duzenleAc}
+                  style={[styles.duzenleBtn, { borderColor: colors.border }]}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="edit-2" size={13} color={colors.textPrimary} />
+                  <Text style={[styles.duzenleText, { color: colors.textPrimary }]}>Düzenle</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={styles.rozetRow}>
+              {!!g.konu && <Rozet renk={colors.primary} text={g.konu} />}
+              {!!g.irtibatSekli && <Rozet renk={colors.info ?? '#06b6d4'} text={g.irtibatSekli} />}
+              {!!g.durum && <Rozet renk={colors.warning ?? '#f59e0b'} text={DURUM_ETIKET[g.durum] ?? g.durum} />}
+              {!!g.aktNo && <Rozet renk={colors.textMuted} text={g.aktNo} />}
+            </View>
           </View>
-        )}
 
-        {/* Aksiyonlar */}
-        <TouchableOpacity
-          style={[styles.aksiyonBtn, { backgroundColor: colors.primary }]}
-          onPress={() => navigation.navigate('YeniGörev', {
-            baslangicGorusmeId: g.id,
-            baslangicMusteriId: g.musteriId,
-            baslangicLokasyonId: g.lokasyonId,
-            baslangicBaslik: g.konu ? `Görüşme: ${g.konu}` : '',
-            baslangicAciklama: [
-              g.firmaAdi && `Firma: ${g.firmaAdi}`,
-              g.tarih && `Görüşme tarihi: ${g.tarih}${g.saat ? ' ' + g.saat : ''}`,
-              g.notlar && `\nNotlar:\n${g.notlar}`,
-            ].filter(Boolean).join('\n'),
-          })}
-          activeOpacity={0.85}
-        >
-          <Feather name="check-square" size={18} color="#fff" />
-          <Text style={styles.aksiyonText}>Bu Görüşmeden Görev Oluştur</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {duzenleAcik ? (
+            /* DÜZENLEME FORMU */
+            <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[styles.label, { color: colors.textMuted }]}>KONU</Text>
+              <TextInput
+                value={form.konu}
+                onChangeText={v => setForm({ ...form, konu: v })}
+                style={[styles.input, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bg }]}
+                placeholder="Görüşme konusu"
+                placeholderTextColor={colors.textFaded}
+              />
+
+              <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>GÖRÜŞÜLEN KİŞİ</Text>
+              <TextInput
+                value={form.muhatapAd}
+                onChangeText={v => setForm({ ...form, muhatapAd: v })}
+                style={[styles.input, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bg }]}
+                placeholder="Karşı taraf"
+                placeholderTextColor={colors.textFaded}
+              />
+
+              <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>GÖRÜŞEN (bizden)</Text>
+              {formGorusenList.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {formGorusenList.map(ad => (
+                    <TouchableOpacity key={ad} onPress={() => toggleGorusen(ad)} style={styles.chipAktif}>
+                      <Text style={styles.chipAktifText}>{ad} ✕</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {(kullanicilar || []).filter(k => !formGorusenList.includes(k.ad)).map(k => (
+                  <TouchableOpacity key={k.id} onPress={() => toggleGorusen(k.ad)} style={[styles.chipPasif, { borderColor: colors.border }]}>
+                    <Text style={[styles.chipPasifText, { color: colors.textPrimary }]}>+ {k.ad}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>İRTİBAT ŞEKLİ</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {IRTIBAT_SEKILLERI.map(s => {
+                  const aktif = form.irtibatSekli === s
+                  return (
+                    <TouchableOpacity
+                      key={s}
+                      onPress={() => setForm({ ...form, irtibatSekli: aktif ? '' : s })}
+                      style={[aktif ? styles.chipAktif : styles.chipPasif, !aktif && { borderColor: colors.border }]}
+                    >
+                      <Text style={aktif ? styles.chipAktifText : [styles.chipPasifText, { color: colors.textPrimary }]}>{s}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+
+              <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>TARİH (YYYY-MM-DD)</Text>
+              <TextInput
+                value={form.tarih}
+                onChangeText={v => setForm({ ...form, tarih: v })}
+                style={[styles.input, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bg }]}
+                placeholder="2026-07-01"
+                placeholderTextColor={colors.textFaded}
+              />
+
+              <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>DURUM</Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {DURUMLAR.map(d => {
+                  const aktif = form.durum === d
+                  return (
+                    <TouchableOpacity
+                      key={d}
+                      onPress={() => setForm({ ...form, durum: d })}
+                      style={[aktif ? styles.chipAktif : styles.chipPasif, !aktif && { borderColor: colors.border }]}
+                    >
+                      <Text style={aktif ? styles.chipAktifText : [styles.chipPasifText, { color: colors.textPrimary }]}>{DURUM_ETIKET[d]}</Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+
+              <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>TAKİP NOTU</Text>
+              <TextInput
+                value={form.takipNotu}
+                onChangeText={v => setForm({ ...form, takipNotu: v })}
+                style={[styles.input, styles.textarea, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bg }]}
+                placeholder="Takip edilecek konular / notlar..."
+                placeholderTextColor={colors.textFaded}
+                multiline
+              />
+
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+                <TouchableOpacity
+                  onPress={duzenleKaydet}
+                  disabled={kaydediliyor}
+                  style={[styles.aksiyonBtn, { backgroundColor: colors.primary, flex: 1, marginTop: 0, opacity: kaydediliyor ? 0.6 : 1 }]}
+                  activeOpacity={0.85}
+                >
+                  <Feather name="check" size={16} color="#fff" />
+                  <Text style={styles.aksiyonText}>{kaydediliyor ? 'Kaydediliyor...' : 'Kaydet'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={duzenleIptal}
+                  style={[styles.aksiyonBtnSecondary, { borderColor: colors.border }]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.aksiyonText, { color: colors.textPrimary }]}>İptal</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <>
+              {/* Bilgiler */}
+              <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Satir ikon="calendar" label="Tarih" value={g.tarih ? `${g.tarih}${g.saat ? ` · ${g.saat}` : ''}` : '—'} colors={colors} />
+                <Satir ikon="user-plus" label="Hazırlayan" value={g.hazirlayan ?? '—'} colors={colors} />
+                {gorusenList.length > 0 && (
+                  <Satir ikon="users" label={`Görüşen (${gorusenList.length})`} value={gorusenList.join(', ')} colors={colors} />
+                )}
+                {!!g.muhatapAd && <Satir ikon="user" label="Görüşülen kişi" value={g.muhatapAd} colors={colors} />}
+                {!!g.irtibatSekli && <Satir ikon="phone" label="İrtibat şekli" value={g.irtibatSekli} colors={colors} />}
+                {!!g.aktNo && <Satir ikon="hash" label="Aktivite No" value={g.aktNo} colors={colors} />}
+              </View>
+
+              {/* Takip Notu */}
+              {!!(g.takipNotu || g.notlar) && (
+                <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Text style={[styles.label, { color: colors.textMuted }]}>TAKİP NOTU</Text>
+                  <Text style={[styles.notlar, { color: colors.textPrimary }]} selectable>
+                    {g.takipNotu || g.notlar}
+                  </Text>
+                </View>
+              )}
+
+              {/* Aksiyonlar */}
+              <TouchableOpacity
+                style={[styles.aksiyonBtn, { backgroundColor: colors.primary }]}
+                onPress={() => navigation.navigate('YeniGörev', {
+                  baslangicGorusmeId: g.id,
+                  baslangicMusteriId: g.musteriId,
+                  baslangicLokasyonId: g.lokasyonId,
+                  baslangicBaslik: g.konu ? `Görüşme: ${g.konu}` : '',
+                  baslangicAciklama: [
+                    g.firmaAdi && `Firma: ${g.firmaAdi}`,
+                    g.tarih && `Görüşme tarihi: ${g.tarih}${g.saat ? ' ' + g.saat : ''}`,
+                    (g.takipNotu || g.notlar) && `\nNotlar:\n${g.takipNotu || g.notlar}`,
+                  ].filter(Boolean).join('\n'),
+                })}
+                activeOpacity={0.85}
+              >
+                <Feather name="check-square" size={18} color="#fff" />
+                <Text style={styles.aksiyonText}>Bu Görüşmeden Görev Oluştur</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   )
 }
@@ -129,6 +331,39 @@ const styles = StyleSheet.create({
   rozetRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 },
   label: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 8 },
   notlar: { fontSize: 13, lineHeight: 20 },
+  duzenleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  duzenleText: { fontSize: 12, fontWeight: '600' },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  textarea: { minHeight: 80, textAlignVertical: 'top' },
+  chipAktif: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#3b82f6',
+  },
+  chipAktifText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  chipPasif: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  chipPasifText: { fontSize: 12, fontWeight: '500' },
   aksiyonBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -137,6 +372,16 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     marginTop: 8,
+  },
+  aksiyonBtnSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   aksiyonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 })

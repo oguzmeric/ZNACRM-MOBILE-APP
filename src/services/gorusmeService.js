@@ -46,3 +46,18 @@ export const gorusmeEkle = async (gorusme) => {
   }
   return toCamel(data)
 }
+
+export const gorusmeGuncelle = async (id, guncellenmis) => {
+  const { id: _id, olusturmaTarih, ...rest } = guncellenmis
+  const { data, error } = await supabase
+    .from('gorusmeler')
+    .update(toSnake(rest))
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) {
+    console.error('[gorusme] guncelle hatası:', error.message)
+    return null
+  }
+  return toCamel(data)
+}
