@@ -256,7 +256,9 @@ export default function GorusmeDetayScreen({ route, navigation }) {
               {/* Bilgiler */}
               <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Satir ikon="calendar" label="Tarih" value={g.tarih ? `${g.tarih}${g.saat ? ` · ${g.saat}` : ''}` : '—'} colors={colors} />
-                <Satir ikon="user-plus" label="Hazırlayan" value={g.hazirlayan ?? '—'} colors={colors} />
+                {!!g.hazirlayan && (
+                  <Satir ikon="user-plus" label="Hazırlayan" value={g.hazirlayan} colors={colors} />
+                )}
                 {gorusenList.length > 0 && (
                   <Satir ikon="users" label={`Görüşen (${gorusenList.length})`} value={gorusenList.join(', ')} colors={colors} />
                 )}
