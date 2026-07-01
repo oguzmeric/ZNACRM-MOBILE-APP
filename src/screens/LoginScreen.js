@@ -15,7 +15,8 @@ import Constants from 'expo-constants'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 
-const APP_VERSION = Constants.expoConfig?.version || '1.0.0'
+const APP_VERSION = '1.0.23'
+const YIL = new Date().getFullYear()
 
 export default function LoginScreen({ navigation }) {
   const { girisYap } = useAuth()
@@ -138,9 +139,14 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          <Text style={[styles.footer, { color: colors.textFaded }]}>
-            ZNA Teknoloji · v{APP_VERSION}
-          </Text>
+          <View style={styles.footerWrap}>
+            <Text style={[styles.footer, { color: colors.textFaded }]}>
+              ZNA Teknoloji · v{APP_VERSION}
+            </Text>
+            <Text style={[styles.copyright, { color: colors.textFaded }]}>
+              © {YIL} ZNA Teknoloji. Tüm hakları saklıdır.
+            </Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -305,11 +311,22 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  footerWrap: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
   footer: {
     color: '#475569',
     fontSize: 11,
     textAlign: 'center',
-    marginTop: 20,
     letterSpacing: 0.5,
+  },
+  copyright: {
+    color: '#475569',
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 4,
+    opacity: 0.7,
+    letterSpacing: 0.2,
   },
 })
