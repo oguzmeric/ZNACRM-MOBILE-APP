@@ -383,7 +383,7 @@ export default function ProfilScreen({ navigation }) {
           />
         </View>
 
-        <Text style={[styles.footer, { color: colors.textFaded }]}>ZNA CRM · v1.0.0</Text>
+        <Text style={[styles.footer, { color: colors.textFaded }]}>ZNA CRM · v1.0.23</Text>
       </ScrollView>
 
       <SifreDegistirModal
