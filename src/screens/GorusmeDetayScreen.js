@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity,
   TextInput, Alert, KeyboardAvoidingView, Platform,
@@ -9,6 +9,13 @@ import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { gorusmeGetir, gorusmeGuncelle } from '../services/gorusmeService'
+import { musterileriGetir } from '../services/musteriService'
+
+const trIcerir = (haystack, q) => {
+  if (!q) return true
+  const norm = (s) => String(s || '').toLocaleLowerCase('tr').replace(/i̇/g, 'i')
+  return norm(haystack).includes(norm(q))
+}
 
 const DURUM_ETIKET = {
   acik: 'Açık',
@@ -29,6 +36,19 @@ export default function GorusmeDetayScreen({ route, navigation }) {
   const [duzenleAcik, setDuzenleAcik] = useState(false)
   const [form, setForm] = useState(null)
   const [kaydediliyor, setKaydediliyor] = useState(false)
+  const [musteriler, setMusteriler] = useState([])
+  const [firmaOneriGoster, setFirmaOneriGoster] = useState(false)
+
+  useEffect(() => {
+    musterileriGetir().then((v) => setMusteriler(v ?? [])).catch(() => setMusteriler([]))
+  }, [])
+
+  const firmaOneriler = useMemo(() => {
+    if (!form?.firmaAdi) return musteriler.slice(0, 20)
+    return musteriler
+      .filter((m) => trIcerir(`${m.firma || ''} ${m.ad || ''} ${m.soyad || ''}`, form.firmaAdi))
+      .slice(0, 20)
+  }, [musteriler, form?.firmaAdi])
 
   const yukle = useCallback(async () => {
     const veri = await gorusmeGetir(id)
@@ -41,6 +61,8 @@ export default function GorusmeDetayScreen({ route, navigation }) {
 
   const duzenleAc = () => {
     setForm({
+      firmaAdi: g.firmaAdi || '',
+      musteriId: g.musteriId || null,
       konu: g.konu || '',
       muhatapAd: g.muhatapAd || '',
       gorusen: g.gorusen || '',
@@ -49,7 +71,18 @@ export default function GorusmeDetayScreen({ route, navigation }) {
       durum: g.durum || 'acik',
       takipNotu: g.takipNotu ?? g.notlar ?? '',
     })
+    setFirmaOneriGoster(false)
     setDuzenleAcik(true)
+  }
+
+  const firmaSec = (m) => {
+    setForm({
+      ...form,
+      firmaAdi: m.firma || '',
+      musteriId: m.id,
+      muhatapAd: form.muhatapAd || (m.ad && m.soyad ? `${m.ad} ${m.soyad}` : ''),
+    })
+    setFirmaOneriGoster(false)
   }
 
   const duzenleIptal = () => { setDuzenleAcik(false); setForm(null) }
@@ -62,6 +95,8 @@ export default function GorusmeDetayScreen({ route, navigation }) {
     setKaydediliyor(true)
     try {
       const guncellenen = await gorusmeGuncelle(id, {
+        firmaAdi: (form.firmaAdi || '').trim() || null,
+        musteriId: form.musteriId || null,
         konu: form.konu.trim(),
         muhatapAd: (form.muhatapAd || '').trim(),
         gorusen: form.gorusen || '',
@@ -145,7 +180,54 @@ export default function GorusmeDetayScreen({ route, navigation }) {
           {duzenleAcik ? (
             /* DÜZENLEME FORMU */
             <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.label, { color: colors.textMuted }]}>KONU</Text>
+              <Text style={[styles.label, { color: colors.textMuted }]}>FİRMA</Text>
+              <TextInput
+                value={form.firmaAdi}
+                onChangeText={(t) => { setForm({ ...form, firmaAdi: t, musteriId: null }); setFirmaOneriGoster(true) }}
+                onFocus={() => setFirmaOneriGoster(true)}
+                style={[styles.input, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bg }]}
+                placeholder="Müşteri seçmek için dokun veya yaz"
+                placeholderTextColor={colors.textFaded}
+              />
+              {firmaOneriGoster && (
+                <View style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    <Text style={{ color: colors.textMuted, fontSize: 11 }}>
+                      {musteriler.length === 0 ? 'Yükleniyor…' : `${firmaOneriler.length} müşteri`}
+                    </Text>
+                    <TouchableOpacity onPress={() => setFirmaOneriGoster(false)} activeOpacity={0.7}>
+                      <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>Kapat</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {firmaOneriler.length === 0 && musteriler.length > 0 ? (
+                    <Text style={{ padding: 14, color: colors.textMuted, fontSize: 12, fontStyle: 'italic' }}>
+                      Eşleşen müşteri yok. Yazılı olarak da kaydedebilirsin.
+                    </Text>
+                  ) : (
+                    <ScrollView style={{ maxHeight: 220 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                      {firmaOneriler.map((m) => (
+                        <TouchableOpacity
+                          key={m.id}
+                          onPress={() => firmaSec(m)}
+                          activeOpacity={0.7}
+                          style={{ paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                        >
+                          <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>
+                            {m.firma || 'Firma yok'}
+                          </Text>
+                          {(m.ad || m.soyad) && (
+                            <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                              {[m.ad, m.soyad].filter(Boolean).join(' ')}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
+              )}
+
+              <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>KONU</Text>
               <TextInput
                 value={form.konu}
                 onChangeText={v => setForm({ ...form, konu: v })}
@@ -352,20 +434,26 @@ const styles = StyleSheet.create({
   },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
   chipAktif: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 6,
     backgroundColor: '#3b82f6',
   },
-  chipAktifText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  chipAktifText: { color: '#fff', fontSize: 11, fontWeight: '600' },
   chipPasif: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 6,
     borderWidth: 1,
     backgroundColor: 'transparent',
   },
-  chipPasifText: { fontSize: 12, fontWeight: '500' },
+  chipPasifText: { fontSize: 11, fontWeight: '500' },
+  dropdown: {
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
   aksiyonBtn: {
     flexDirection: 'row',
     alignItems: 'center',

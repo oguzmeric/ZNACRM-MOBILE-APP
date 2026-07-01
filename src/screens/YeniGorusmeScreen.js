@@ -223,7 +223,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
                   activeOpacity={0.85}
                   style={[styles.chip, { borderColor: colors.border, backgroundColor: aktif ? colors.primary : colors.surface }]}
                 >
-                  <Text style={{ color: aktif ? '#fff' : colors.textPrimary, fontSize: 12, fontWeight: '600' }}>{k}</Text>
+                  <Text style={{ color: aktif ? '#fff' : colors.textPrimary, fontSize: 11, fontWeight: '600' }}>{k}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -232,7 +232,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
               activeOpacity={0.85}
               style={[styles.chip, { borderColor: colors.border, backgroundColor: manuelKonuAcik ? colors.primary : colors.surface }]}
             >
-              <Text style={{ color: manuelKonuAcik ? '#fff' : colors.textPrimary, fontSize: 12, fontWeight: '600' }}>✏ Manuel</Text>
+              <Text style={{ color: manuelKonuAcik ? '#fff' : colors.textPrimary, fontSize: 11, fontWeight: '600' }}>✏ Manuel</Text>
             </TouchableOpacity>
           </View>
           {manuelKonuAcik && (
@@ -257,7 +257,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
                   activeOpacity={0.85}
                   style={[styles.chip, { borderColor: colors.border, backgroundColor: aktif ? colors.primary : colors.surface }]}
                 >
-                  <Text style={{ color: aktif ? '#fff' : colors.textPrimary, fontSize: 12, fontWeight: '600' }}>{i}</Text>
+                  <Text style={{ color: aktif ? '#fff' : colors.textPrimary, fontSize: 11, fontWeight: '600' }}>{i}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -275,7 +275,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
                   activeOpacity={0.85}
                   style={[styles.chip, { borderColor: colors.border, backgroundColor: aktif ? colors.primary : colors.surface }]}
                 >
-                  <Text style={{ color: aktif ? '#fff' : colors.textPrimary, fontSize: 12, fontWeight: '600' }}>{d.isim}</Text>
+                  <Text style={{ color: aktif ? '#fff' : colors.textPrimary, fontSize: 11, fontWeight: '600' }}>{d.isim}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -331,11 +331,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     overflow: 'hidden',
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 7,
     borderWidth: 1,
   },
   btn: {
