@@ -52,7 +52,7 @@ export default function GorusmelerScreen({ navigation }) {
     const liste = await gorusmeleriGetir({
       baslangic: 0,
       limit: SAYFA,
-      hazirlayan: aktifSekme === 'bana' ? kullanici?.ad : null,
+      benimAd: aktifSekme === 'bana' ? kullanici?.ad : null,
       q: debouncedArama,
     })
     setVeri(liste)
@@ -78,7 +78,7 @@ export default function GorusmelerScreen({ navigation }) {
     const ek = await gorusmeleriGetir({
       baslangic,
       limit: SAYFA,
-      hazirlayan: aktifSekme === 'bana' ? kullanici?.ad : null,
+      benimAd: aktifSekme === 'bana' ? kullanici?.ad : null,
       q: arama,
     })
     setVeri((onceki) => [...onceki, ...ek])

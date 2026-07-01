@@ -2,13 +2,17 @@ import { supabase } from './../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 
 // Sayfalı görüşme listesi (mobile için infinite scroll)
-export const gorusmeleriGetir = async ({ baslangic = 0, limit = 30, hazirlayan = null, q = null } = {}) => {
+// benimAd verildiğinde: hazirlayan === benimAd VEYA gorusen içinde benimAd var
+export const gorusmeleriGetir = async ({ baslangic = 0, limit = 30, hazirlayan = null, benimAd = null, q = null } = {}) => {
   let query = supabase
     .from('gorusmeler')
     .select('*')
     .order('olusturma_tarih', { ascending: false })
 
-  if (hazirlayan) {
+  if (benimAd) {
+    // OR: kullanıcı ya hazırlayan ya da görüşen içinde olsun
+    query = query.or(`hazirlayan.eq.${benimAd},gorusen.ilike.%${benimAd}%`)
+  } else if (hazirlayan) {
     query = query.eq('hazirlayan', hazirlayan)
   }
   if (q && q.trim()) {
