@@ -146,6 +146,9 @@ export default function LoginScreen({ navigation }) {
             <Text style={[styles.copyright, { color: colors.textFaded }]}>
               © {YIL} ZNA Teknoloji. Tüm hakları saklıdır.
             </Text>
+            <Text style={[styles.developer, { color: colors.textFaded }]}>
+              Oğuz Meriç tarafından geliştirildi
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -327,6 +330,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     opacity: 0.7,
+    letterSpacing: 0.2,
+  },
+  developer: {
+    color: '#475569',
+    fontSize: 9,
+    textAlign: 'center',
+    marginTop: 2,
+    opacity: 0.5,
     letterSpacing: 0.2,
   },
 })
