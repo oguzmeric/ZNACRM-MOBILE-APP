@@ -21,6 +21,7 @@ import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { trIcerir } from '../utils/trSearch'
 import LokasyonPicker from '../components/LokasyonPicker'
+import SecimPicker from '../components/SecimPicker'
 
 // Web ile aynı listeler
 const VARSAYILAN_KONULAR = [
@@ -213,28 +214,16 @@ export default function YeniGorusmeScreen({ navigation, route }) {
 
           {/* Konu */}
           <Text style={[styles.label, { color: colors.textMuted }]}>Konu *</Text>
-          <View style={styles.chipRow}>
-            {VARSAYILAN_KONULAR.map((k) => {
-              const aktif = !manuelKonuAcik && konu === k
-              return (
-                <TouchableOpacity
-                  key={k}
-                  onPress={() => { setKonu(k); setManuelKonuAcik(false) }}
-                  activeOpacity={0.85}
-                  style={[styles.chip, { borderColor: colors.border, backgroundColor: aktif ? colors.primary : colors.surface }]}
-                >
-                  <Text style={{ color: aktif ? '#fff' : colors.textPrimary, fontSize: 11, fontWeight: '600' }}>{k}</Text>
-                </TouchableOpacity>
-              )
-            })}
-            <TouchableOpacity
-              onPress={() => setManuelKonuAcik((v) => !v)}
-              activeOpacity={0.85}
-              style={[styles.chip, { borderColor: colors.border, backgroundColor: manuelKonuAcik ? colors.primary : colors.surface }]}
-            >
-              <Text style={{ color: manuelKonuAcik ? '#fff' : colors.textPrimary, fontSize: 11, fontWeight: '600' }}>✏ Manuel</Text>
-            </TouchableOpacity>
-          </View>
+          <SecimPicker
+            deger={manuelKonuAcik ? '__manuel__' : konu}
+            onSec={(v) => {
+              if (v === '__manuel__') { setManuelKonuAcik(true); return }
+              setKonu(v); setManuelKonuAcik(false)
+            }}
+            secenekler={VARSAYILAN_KONULAR}
+            placeholder="Konu seç"
+            ekstraSecenek={{ etiket: 'Manuel yaz…', deger: '__manuel__', ikon: 'edit-2' }}
+          />
           {manuelKonuAcik && (
             <TextInput
               value={manuelKonu}
@@ -247,21 +236,12 @@ export default function YeniGorusmeScreen({ navigation, route }) {
 
           {/* İrtibat */}
           <Text style={[styles.label, { color: colors.textMuted }]}>İrtibat Şekli</Text>
-          <View style={styles.chipRow}>
-            {IRTIBAT_SEKILLERI.map((i) => {
-              const aktif = irtibatSekli === i
-              return (
-                <TouchableOpacity
-                  key={i}
-                  onPress={() => setIrtibatSekli(i)}
-                  activeOpacity={0.85}
-                  style={[styles.chip, { borderColor: colors.border, backgroundColor: aktif ? colors.primary : colors.surface }]}
-                >
-                  <Text style={{ color: aktif ? '#fff' : colors.textPrimary, fontSize: 11, fontWeight: '600' }}>{i}</Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
+          <SecimPicker
+            deger={irtibatSekli}
+            onSec={setIrtibatSekli}
+            secenekler={IRTIBAT_SEKILLERI}
+            placeholder="İrtibat şekli seç"
+          />
 
           {/* Durum */}
           <Text style={[styles.label, { color: colors.textMuted }]}>Durum</Text>
