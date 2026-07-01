@@ -4,13 +4,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 import { Component, useEffect, useRef } from 'react'
 import { StatusBar } from 'expo-status-bar'
-import { View, Text, ScrollView } from 'react-native'
+import { View, Text, ScrollView, AppState, Linking } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import * as Sentry from '@sentry/react-native'
 import * as Notifications from 'expo-notifications'
-import { AuthProvider } from './src/context/AuthContext'
+import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { ThemeProvider, useTheme } from './src/context/ThemeContext'
 import RootNavigator from './src/navigation/RootNavigator'
+import { toplantiHatirlaticilariniYenile } from './src/lib/toplantiHatirlatici'
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
@@ -56,6 +57,22 @@ class ErrorBoundary extends Component {
   }
 }
 
+function ToplantiHatirlaticiKurulum() {
+  const { kullanici } = useAuth()
+
+  // Kullanıcı değişince + app foreground'a alınınca toplantı hatırlaticılarını yenile
+  useEffect(() => {
+    if (!kullanici?.id) return
+    toplantiHatirlaticilariniYenile(kullanici.id)
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') toplantiHatirlaticilariniYenile(kullanici.id)
+    })
+    return () => sub.remove()
+  }, [kullanici?.id])
+
+  return null
+}
+
 function AppInner() {
   const { colors, mod } = useTheme()
   const responseListener = useRef(null)
@@ -65,9 +82,13 @@ function AppInner() {
     // Foreground'da bildirim geldiğinde — sadece logla, handler shouldShowAlert ile zaten gösterir
     receivedListener.current = Notifications.addNotificationReceivedListener(() => {})
 
-    // Kullanıcı bildirime dokunduğunda — şimdilik özel deep link yok,
-    // app açılır ve son ekranda kalır. Realtime subscription badge'i otomatik günceller.
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {})
+    // Kullanıcı bildirime dokunduğunda — toplantı bildirimindeyse Meet linkini aç
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((resp) => {
+      const data = resp?.notification?.request?.content?.data
+      if (data?.tip === 'toplanti' && data?.link) {
+        try { Linking.openURL(data.link) } catch {}
+      }
+    })
 
     return () => {
       try { Notifications.removeNotificationSubscription(receivedListener.current) } catch {}
@@ -78,6 +99,7 @@ function AppInner() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style={mod === 'gunduz' ? 'dark' : 'light'} />
+      <ToplantiHatirlaticiKurulum />
       <RootNavigator />
     </View>
   )
