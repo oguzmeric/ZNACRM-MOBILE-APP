@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useState, useMemo } from 'react'
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import { useTheme } from '../context/ThemeContext'
 import { kullanicilariGetir } from '../services/kullaniciService'
 import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
-import { gorevEkle } from '../services/gorevService'
+import { gorevEkle, gorevGuncelle } from '../services/gorevService'
 import { talepOlusturGorevden } from '../services/servisService'
 import { bildirimEkleDb } from '../services/bildirimService'
 import { trIcerir } from '../utils/trSearch'
@@ -37,10 +37,11 @@ export default function YeniGorevScreen({ navigation, route }) {
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
   const baslangic = route?.params || {}
-  const [baslik, setBaslik] = useState(baslangic.baslangicBaslik || '')
-  const [aciklama, setAciklama] = useState(baslangic.baslangicAciklama || '')
-  const [oncelik, setOncelik] = useState('normal')
-  const [bitisTarihi, setBitisTarihi] = useState('') // YYYY-MM-DD
+  const duzenle = baslangic.duzenlenecekGorev || null   // varsa edit mode
+  const [baslik, setBaslik] = useState(duzenle?.baslik || baslangic.baslangicBaslik || '')
+  const [aciklama, setAciklama] = useState(duzenle?.aciklama || baslangic.baslangicAciklama || '')
+  const [oncelik, setOncelik] = useState(duzenle?.oncelik || 'normal')
+  const [bitisTarihi, setBitisTarihi] = useState(duzenle?.bitisTarihi || '') // YYYY-MM-DD
 
   const [atanan, setAtanan] = useState(null)
   const [kullanicilar, setKullanicilar] = useState([])
@@ -57,14 +58,27 @@ export default function YeniGorevScreen({ navigation, route }) {
 
   const [kaydediliyor, setKaydediliyor] = useState(false)
 
+  useLayoutEffect(() => {
+    if (duzenle) navigation.setOptions({ title: 'Görevi Düzenle' })
+  }, [navigation, duzenle])
+
   useEffect(() => {
-    kullanicilariGetir().then((list) => setKullanicilar(list ?? []))
+    kullanicilariGetir().then((list) => {
+      const kl = list ?? []
+      setKullanicilar(kl)
+      // Edit modda atananı ön-seç
+      if (duzenle?.atananId) {
+        const u = kl.find((x) => String(x.id) === String(duzenle.atananId))
+        if (u) setAtanan(u)
+      }
+    })
     musterileriGetir().then((list) => {
       const liste = list ?? []
       setMusteriler(liste)
-      // Görüşmeden gelinmişse müşteriyi ön-seç
-      if (baslangic.baslangicMusteriId) {
-        const m = liste.find((x) => String(x.id) === String(baslangic.baslangicMusteriId))
+      // Görüşmeden gelinmişse veya edit modunda müşteriyi ön-seç
+      const musteriId = duzenle?.musteriId || baslangic.baslangicMusteriId
+      if (musteriId) {
+        const m = liste.find((x) => String(x.id) === String(musteriId))
         if (m) setMusteri(m)
       }
     })
@@ -114,18 +128,36 @@ export default function YeniGorevScreen({ navigation, route }) {
     }
 
     setKaydediliyor(true)
-    const yeni = await gorevEkle({
+
+    const payload = {
       baslik: baslik.trim(),
       aciklama: aciklama.trim() || null,
-      durum: 'bekliyor',
       oncelik,
       atananId: atanan.id,
       atananAd: atanan.ad,
-      olusturanAd: kullanici?.ad ?? '',
       bitisTarihi: bitisTarihi || null,
       musteriId: musteri?.id ?? null,
       firmaAdi: musteri ? (musteri.firma || `${musteri.ad ?? ''} ${musteri.soyad ?? ''}`.trim()) : null,
       lokasyonId: lokasyonSecili?.id ?? null,
+    }
+
+    // Edit modu — güncelle ve geri dön
+    if (duzenle?.id) {
+      const guncel = await gorevGuncelle(duzenle.id, payload)
+      setKaydediliyor(false)
+      if (!guncel) {
+        Alert.alert('Hata', 'Görev güncellenemedi.')
+        return
+      }
+      navigation.goBack()
+      return
+    }
+
+    // Yeni görev
+    const yeni = await gorevEkle({
+      ...payload,
+      durum: 'bekliyor',
+      olusturanAd: kullanici?.ad ?? '',
       gorusmeId: baslangic.baslangicGorusmeId ?? null,
     })
 
@@ -247,8 +279,8 @@ export default function YeniGorevScreen({ navigation, route }) {
           </>
         )}
 
-        {/* Servis talebi de oluştur toggle — sadece müşteri seçiliyse */}
-        {musteri?.id && (
+        {/* Servis talebi de oluştur toggle — sadece yeni görev + müşteri seçiliyse */}
+        {!duzenle && musteri?.id && (
           <TouchableOpacity
             onPress={() => setServisTalebiOlustur((v) => !v)}
             activeOpacity={0.7}
@@ -313,7 +345,7 @@ export default function YeniGorevScreen({ navigation, route }) {
           disabled={kaydediliyor}
         >
           <Text style={styles.kaydetText}>
-            {kaydediliyor ? 'Kaydediliyor...' : 'Görevi Oluştur'}
+            {kaydediliyor ? 'Kaydediliyor...' : (duzenle?.id ? 'Değişiklikleri Kaydet' : 'Görevi Oluştur')}
           </Text>
         </TouchableOpacity>
       </ScrollView>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -71,6 +71,31 @@ export default function GorevDetayScreen({ route, navigation }) {
   useEffect(() => {
     yukle()
   }, [id])
+
+  // Ekrana dönüldüğünde (örn. YeniGorev düzenlemeden geri gelinince) yeniden yükle
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => { if (!loading) yukle() })
+    return unsub
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation])
+
+  // Header sağa 'Düzenle' butonu — sadece görev yüklendiyse
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        gorev ? (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('YeniGorev', { duzenlenecekGorev: gorev })}
+            hitSlop={10}
+            style={{ paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          >
+            <Feather name="edit-2" size={16} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>Düzenle</Text>
+          </TouchableOpacity>
+        ) : null
+      ),
+    })
+  }, [navigation, gorev, colors.primary])
 
   const durumDegistir = async (yeniDurum) => {
     if (yeniDurum === gorev?.durum) return

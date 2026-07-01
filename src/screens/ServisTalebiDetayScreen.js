@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -245,6 +245,24 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
 
   useEffect(() => { yukle() }, [yukle])
   useFocusEffect(useCallback(() => { yukle() }, [yukle]))
+
+  // Header sağa 'Düzenle' butonu — talep yüklendiyse
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        talep ? (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('YeniServisTalebi', { duzenlenecekTalep: talep })}
+            hitSlop={10}
+            style={{ paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          >
+            <Feather name="edit-2" size={16} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 14 }}>Düzenle</Text>
+          </TouchableOpacity>
+        ) : null
+      ),
+    })
+  }, [navigation, talep, colors.primary])
 
   const durumDegistir = async (yeniDurum) => {
     if (yeniDurum === talep?.durum) return

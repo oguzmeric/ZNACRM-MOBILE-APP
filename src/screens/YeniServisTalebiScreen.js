@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -25,7 +25,7 @@ import { musterileriGetir } from '../services/musteriService'
 import { musteriKisileriniGetir } from '../services/musteriKisiService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { musteriCihazlariniGetir } from '../services/stokKalemiService'
-import { servisTalepEkle, sonrakiTalepNo } from '../services/servisService'
+import { servisTalepEkle, servisTalepGuncelle, sonrakiTalepNo } from '../services/servisService'
 import { malzemePlanEkle } from '../services/servisMalzemeService'
 import { servisEkiYukle } from '../services/servisEkService'
 import { trIcerir } from '../utils/trSearch'
@@ -41,17 +41,18 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
+  const duzenle = route?.params?.duzenlenecekTalep || null   // varsa edit mode
 
-  const [talepNo, setTalepNo] = useState('')
+  const [talepNo, setTalepNo] = useState(duzenle?.talepNo || '')
   const [musteri, setMusteri] = useState(null)
   const [kisi, setKisi] = useState(null)
-  const [anaTur, setAnaTur] = useState('ariza')
-  const [altKategori, setAltKategori] = useState(null)
-  const [konu, setKonu] = useState('')
-  const [aciklama, setAciklama] = useState('')
-  const [lokasyon, setLokasyon] = useState('') // serbest metin (müşteri lokasyonu yoksa fallback)
+  const [anaTur, setAnaTur] = useState(duzenle?.anaTur || 'ariza')
+  const [altKategori, setAltKategori] = useState(duzenle?.altKategori || null)
+  const [konu, setKonu] = useState(duzenle?.konu || '')
+  const [aciklama, setAciklama] = useState(duzenle?.aciklama || '')
+  const [lokasyon, setLokasyon] = useState(duzenle?.lokasyon || '') // serbest metin (müşteri lokasyonu yoksa fallback)
   const [lokasyonSecili, setLokasyonSecili] = useState(null) // müşteri lokasyonu objesi
-  const [cihazTuru, setCihazTuru] = useState('') // serbest metin fallback
+  const [cihazTuru, setCihazTuru] = useState(duzenle?.cihazTuru || '') // serbest metin fallback
   const [cihazSecili, setCihazSecili] = useState(null) // stok_kalemleri satırı
   const [musteriLokasyonlari, setMusteriLokasyonlari] = useState([])
   const [musteriCihazlari, setMusteriCihazlari] = useState([])
@@ -62,11 +63,11 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
   const [malzemeModalOpen, setMalzemeModalOpen] = useState(false)
   const [duzenlenenMalzemeIdx, setDuzenlenenMalzemeIdx] = useState(null)
   const [ekler, setEkler] = useState([]) // local URI'ler (upload save'de yapılır)
-  const [periyodikMi, setPeriyodikMi] = useState(false)
-  const [periyodikAraligi, setPeriyodikAraligi] = useState('aylik')
-  const [aciliyet, setAciliyet] = useState('normal')
-  const [uygunZaman, setUygunZaman] = useState('')
-  const [planliTarih, setPlanliTarih] = useState('')
+  const [periyodikMi, setPeriyodikMi] = useState(!!duzenle?.periyodikMi)
+  const [periyodikAraligi, setPeriyodikAraligi] = useState(duzenle?.periyodikAraligi || 'aylik')
+  const [aciliyet, setAciliyet] = useState(duzenle?.aciliyet || 'normal')
+  const [uygunZaman, setUygunZaman] = useState(duzenle?.uygunZaman || '')
+  const [planliTarih, setPlanliTarih] = useState(duzenle?.planliTarih || '')
   const [atanan, setAtanan] = useState(null)
 
   const [musteriler, setMusteriler] = useState([])
@@ -121,23 +122,34 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
   }
 
   useEffect(() => {
-    musterileriGetir().then((l) => setMusteriler(l ?? []))
+    musterileriGetir().then((l) => {
+      const liste = l ?? []
+      setMusteriler(liste)
+      // Edit modunda müşteriyi ön-seç
+      if (duzenle?.musteriId) {
+        const m = liste.find((x) => String(x.id) === String(duzenle.musteriId))
+        if (m) setMusteri(m)
+      }
+    })
     kullanicilariGetir().then((l) => {
       const liste = l ?? []
       setKullanicilar(liste)
-      // Yeni talep oluşturulurken: oturum açan kullanıcı atanan olarak ön-seçili gelsin.
-      // Böylece "Bana" sekmesinde anında görünür. Düzenleme modunda ise mevcut atamayı koru.
-      if (!route?.params?.editId && !atanan && kullanici?.id) {
+      // Edit modunda atananı ön-seç, yeni modda oturum açan kullanıcı
+      if (duzenle?.atananKullaniciId) {
+        const u = liste.find((x) => String(x.id) === String(duzenle.atananKullaniciId))
+        if (u) setAtanan({ id: u.id, ad: u.ad })
+      } else if (!route?.params?.editId && !atanan && kullanici?.id) {
         const ben = liste.find((u) => String(u.id) === String(kullanici.id))
         if (ben) setAtanan({ id: ben.id, ad: ben.ad })
       }
     })
   }, [])
 
-  // Tür değiştikçe prefix'e göre sıradaki numarayı al
+  // Tür değiştikçe prefix'e göre sıradaki numarayı al — düzenleme modunda talepNo değişmez
   useEffect(() => {
+    if (duzenle) return
     sonrakiTalepNo(turPrefix(anaTur)).then(setTalepNo)
-  }, [anaTur])
+  }, [anaTur, duzenle])
 
   // Müşteri seçilince o müşterinin ilgili kişilerini, lokasyonlarını ve cihazlarını yükle
   useEffect(() => {
@@ -151,16 +163,37 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       return
     }
     musteriKisileriniGetir(musteri.id).then((l) => {
-      setKisiler(l ?? [])
-      const ana = (l ?? []).find((k) => k.anaKisi)
-      if (ana) setKisi(ana)
+      const liste = l ?? []
+      setKisiler(liste)
+      // Edit modu: mevcut ilgiliKisi adına göre eşleşen kişiyi seç
+      if (duzenle?.ilgiliKisi) {
+        const eslesen = liste.find((k) => `${k.ad ?? ''} ${k.soyad ?? ''}`.trim() === duzenle.ilgiliKisi)
+        if (eslesen) { setKisi(eslesen); return }
+      }
+      const ana = liste.find((k) => k.anaKisi)
+      if (ana && !duzenle) setKisi(ana)
     })
-    musteriLokasyonlariniGetir(musteri.id).then((l) => setMusteriLokasyonlari(l ?? []))
+    musteriLokasyonlariniGetir(musteri.id).then((l) => {
+      const liste = l ?? []
+      setMusteriLokasyonlari(liste)
+      if (duzenle?.lokasyon) {
+        const eslesen = liste.find((x) => x.ad === duzenle.lokasyon)
+        if (eslesen) setLokasyonSecili(eslesen)
+      }
+    })
     musteriCihazlariniGetir(musteri.id).then((l) => setMusteriCihazlari(l ?? []))
-  }, [musteri])
+  }, [musteri, duzenle])
 
-  // Tür değişince alt kategoriyi sıfırla
-  useEffect(() => { setAltKategori(null) }, [anaTur])
+  // Tür değişince alt kategoriyi sıfırla — düzenleme modunda ilk açılışta çalışmasın
+  useEffect(() => {
+    if (duzenle && duzenle.anaTur === anaTur) return
+    setAltKategori(null)
+  }, [anaTur, duzenle])
+
+  // Header title — edit modu
+  useLayoutEffect(() => {
+    if (duzenle) navigation.setOptions({ title: 'Talebi Düzenle' })
+  }, [navigation, duzenle])
 
   const filtrelenmisMusteriler = useMemo(() => {
     if (!musteriArama.trim()) return musteriler
@@ -194,8 +227,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       ? `${cihazSecili.marka ? cihazSecili.marka + ' ' : ''}${cihazSecili.model ?? cihazSecili.stokKodu}${cihazSecili.seriNo ? ' · S/N: ' + cihazSecili.seriNo : ''}`
       : cihazTuru.trim() || null
 
-    const yeni = await servisTalepEkle({
-      talepNo,
+    const ortakPayload = {
       musteriId: musteri.id,
       musteriAd: `${musteri.ad ?? ''} ${musteri.soyad ?? ''}`.trim() || musteri.firma,
       firmaAdi: musteri.firma,
@@ -209,10 +241,27 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       ilgiliKisi: ilgiliKisiAd,
       telefon: ilgiliKisiTel,
       uygunZaman: uygunZaman.trim() || null,
-      durum: atanan ? 'atandi' : 'bekliyor',
       atananKullaniciId: atanan?.id ?? null,
       atananKullaniciAd: atanan?.ad ?? null,
       planliTarih: planliTarih || null,
+      periyodikMi,
+      periyodikAraligi: periyodikMi ? periyodikAraligi : null,
+    }
+
+    // Edit modu — güncelle ve geri dön. Notlar, ekler, malzemeler ve durum
+    // detay ekranından ayrıca yönetiliyor; bu ekranda temel alanları güncelle.
+    if (duzenle?.id) {
+      const guncel = await servisTalepGuncelle(duzenle.id, ortakPayload)
+      setKaydediliyor(false)
+      if (!guncel) { Alert.alert('Hata', 'Talep güncellenemedi.'); return }
+      navigation.goBack()
+      return
+    }
+
+    const yeni = await servisTalepEkle({
+      talepNo,
+      ...ortakPayload,
+      durum: atanan ? 'atandi' : 'bekliyor',
       notlar: [],
       durumGecmisi: [
         {
@@ -222,8 +271,6 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
         },
       ],
       musteriOnay: false,
-      periyodikMi,
-      periyodikAraligi: periyodikMi ? periyodikAraligi : null,
     })
 
     if (!yeni) {
@@ -710,7 +757,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
           disabled={kaydediliyor}
         >
           <Text style={styles.kaydetText}>
-            {kaydediliyor ? 'Kaydediliyor...' : 'Talebi Oluştur'}
+            {kaydediliyor ? 'Kaydediliyor...' : (duzenle?.id ? 'Değişiklikleri Kaydet' : 'Talebi Oluştur')}
           </Text>
         </TouchableOpacity>
       </ScrollView>
