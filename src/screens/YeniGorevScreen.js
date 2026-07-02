@@ -175,7 +175,7 @@ export default function YeniGorevScreen({ navigation, route }) {
         gonderenId: kullanici?.id,
         baslik: 'Yeni Görev Atandı',
         mesaj: `"${baslik.trim()}" görevi size atandı. Öncelik: ${oncelikAd}`,
-        tip: 'bilgi',
+        tip: 'gorev',
         link: `/gorevler/${yeni.id}`,
       }).catch((e) => console.warn('[bildirim] yeni görev:', e?.message))
     }
