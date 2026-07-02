@@ -14,6 +14,7 @@ import { kullaniciMenuYetkileri } from '../services/menuYetkiService'
 import { okunmamisBildirimSayisi, bildirimleriDinle } from '../services/bildirimService'
 import { aktifZimmetleriGetir } from '../services/demoService'
 import { demoBildirimleriniKontrolEt } from '../lib/demoBildirim'
+import DuyuruBanner from '../components/DuyuruBanner'
 
 export default function HomeScreen({ navigation }) {
   const { kullanici } = useAuth()
@@ -113,6 +114,9 @@ export default function HomeScreen({ navigation }) {
             />
           </TouchableOpacity>
         </View>
+
+        {/* Aktif duyurular — Oğuz'un yayınladığı bildirimler herkese düşer */}
+        <DuyuruBanner kullaniciId={kullanici?.id} />
 
         {/* Grid */}
         <View style={styles.gridArea}>
