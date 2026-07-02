@@ -333,9 +333,21 @@ export default function GorevDetayScreen({ route, navigation }) {
       )}
 
       <View style={styles.row2}>
+        {!!gorev.baslamaTarih && (
+          <View style={[styles.section, { flex: 1 }]}>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Başlama</Text>
+            <Text style={[styles.body, { color: colors.textSecondary }]}>
+              {new Date(gorev.baslamaTarih).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}
+            </Text>
+          </View>
+        )}
         <View style={[styles.section, { flex: 1 }]}>
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Bitiş</Text>
-          <Text style={[styles.body, { color: colors.textSecondary }]}>{gorev.bitisTarihi ?? '—'}</Text>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>
+            {gorev.bitisTarih
+              ? new Date(gorev.bitisTarih).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })
+              : (gorev.bitisTarihi ?? '—')}
+          </Text>
         </View>
         <View style={[styles.section, { flex: 1 }]}>
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Oluşturuldu</Text>

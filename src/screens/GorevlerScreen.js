@@ -116,7 +116,10 @@ export default function GorevlerScreen({ navigation }) {
               <Text style={[styles.meta, { color: colors.textFaded }]} numberOfLines={1}>
                 {[
                   item.atananAd && `→ ${item.atananAd}`,
-                  item.bitisTarihi && tarihFormat(item.bitisTarihi),
+                  (item.bitisTarih || item.bitisTarihi) &&
+                    (item.bitisTarih
+                      ? new Date(item.bitisTarih).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })
+                      : tarihFormat(item.bitisTarihi)),
                 ].filter(Boolean).join(' · ')}
               </Text>
             </TouchableOpacity>

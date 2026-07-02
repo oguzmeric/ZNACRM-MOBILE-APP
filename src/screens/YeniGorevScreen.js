@@ -22,9 +22,10 @@ import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { gorevEkle, gorevGuncelle } from '../services/gorevService'
 import { talepOlusturGorevden } from '../services/servisService'
 import { bildirimEkleDb } from '../services/bildirimService'
+import { smsGonder } from '../services/smsService'
 import { trIcerir } from '../utils/trSearch'
 import LokasyonPicker from '../components/LokasyonPicker'
-import TarihSec from '../components/TarihSec'
+import TarihSaatSec from '../components/TarihSaatSec'
 
 const ONCELIKLER = [
   { id: 'dusuk', label: 'Düşük' },
@@ -41,7 +42,11 @@ export default function YeniGorevScreen({ navigation, route }) {
   const [baslik, setBaslik] = useState(duzenle?.baslik || baslangic.baslangicBaslik || '')
   const [aciklama, setAciklama] = useState(duzenle?.aciklama || baslangic.baslangicAciklama || '')
   const [oncelik, setOncelik] = useState(duzenle?.oncelik || 'normal')
-  const [bitisTarihi, setBitisTarihi] = useState(duzenle?.bitisTarihi || '') // YYYY-MM-DD
+  // Yeni: saatli ISO datetime (YYYY-MM-DDTHH:mm). Web ile uyumlu (bitis_tarih / baslama_tarih kolonları).
+  const [baslamaTarih, setBaslamaTarih] = useState(duzenle?.baslamaTarih || null)
+  const [bitisTarih, setBitisTarih] = useState(
+    duzenle?.bitisTarih || (duzenle?.bitisTarihi ? `${duzenle.bitisTarihi}T23:59` : null)
+  )
 
   const [atanan, setAtanan] = useState(null)
   const [kullanicilar, setKullanicilar] = useState([])
@@ -122,12 +127,15 @@ export default function YeniGorevScreen({ navigation, route }) {
       Alert.alert('Eksik', 'Bir kullanıcıya atayın.')
       return
     }
-    if (bitisTarihi && !/^\d{4}-\d{2}-\d{2}$/.test(bitisTarihi)) {
-      Alert.alert('Tarih hatalı', 'YYYY-AA-GG formatında yaz (örn 2026-04-25).')
+    if (!bitisTarih) {
+      Alert.alert('Eksik', 'Bitiş tarihi gerekli.')
       return
     }
 
     setKaydediliyor(true)
+
+    // Legacy YYYY-MM-DD (mobile'ın eski bitis_tarihi date kolonu için)
+    const bitisTarihiLegacy = bitisTarih ? bitisTarih.slice(0, 10) : null
 
     const payload = {
       baslik: baslik.trim(),
@@ -135,7 +143,9 @@ export default function YeniGorevScreen({ navigation, route }) {
       oncelik,
       atananId: atanan.id,
       atananAd: atanan.ad,
-      bitisTarihi: bitisTarihi || null,
+      bitisTarih,                    // yeni timestamptz (web ile uyumlu)
+      bitisTarihi: bitisTarihiLegacy, // legacy date kolonu (geriye uyum)
+      baslamaTarih: baslamaTarih || null,
       musteriId: musteri?.id ?? null,
       firmaAdi: musteri ? (musteri.firma || `${musteri.ad ?? ''} ${musteri.soyad ?? ''}`.trim()) : null,
       lokasyonId: lokasyonSecili?.id ?? null,
@@ -168,8 +178,8 @@ export default function YeniGorevScreen({ navigation, route }) {
     }
 
     // Atanan kullanıcıya bildirim — kendi atadıysak gönderme
+    const oncelikAd = ONCELIKLER.find((o) => o.id === oncelik)?.label ?? oncelik
     if (atanan?.id && String(atanan.id) !== String(kullanici?.id)) {
-      const oncelikAd = ONCELIKLER.find((o) => o.id === oncelik)?.label ?? oncelik
       bildirimEkleDb({
         aliciId: atanan.id,
         gonderenId: kullanici?.id,
@@ -178,6 +188,21 @@ export default function YeniGorevScreen({ navigation, route }) {
         tip: 'gorev',
         link: `/gorevler/${yeni.id}`,
       }).catch((e) => console.warn('[bildirim] yeni görev:', e?.message))
+    }
+    // SMS — atanan kişinin cep telefonuna kurumsal bildirim (kendine de gönderiyoruz istenirse)
+    if (atanan?.cepTelefon) {
+      const trAsciify = (s) => (s || '')
+        .replace(/İ/g, 'I').replace(/ı/g, 'i')
+        .replace(/Ğ/g, 'G').replace(/ğ/g, 'g')
+        .replace(/Ş/g, 'S').replace(/ş/g, 's')
+        .replace(/Ç/g, 'C').replace(/ç/g, 'c')
+        .replace(/Ö/g, 'O').replace(/ö/g, 'o')
+        .replace(/Ü/g, 'U').replace(/ü/g, 'u')
+      const baslikSMS = trAsciify(baslik.trim()).slice(0, 60)
+      const tarihStr = bitisTarih ? new Date(bitisTarih).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : ''
+      const oncStr = oncelik && oncelik !== 'normal' ? ` [${trAsciify(oncelikAd).toUpperCase()}]` : ''
+      const mesajSMS = `ZNA CRM: Size yeni gorev atandi${oncStr}.\n"${baslikSMS}"\nSon tarih: ${tarihStr}\ntalep.znateknoloji.com`
+      smsGonder(atanan.cepTelefon, mesajSMS).catch((e) => console.warn('[sms] yeni görev:', e?.message))
     }
 
     // Servis talebi de istendiyse oluştur ve oraya yönlendir
@@ -332,11 +357,18 @@ export default function YeniGorevScreen({ navigation, route }) {
           ))}
         </View>
 
-        <TarihSec
-          value={bitisTarihi}
-          onChange={(iso) => setBitisTarihi(iso || '')}
-          label="Bitiş Tarihi"
-          placeholder="Tarih seç"
+        <TarihSaatSec
+          value={baslamaTarih}
+          onChange={(iso) => setBaslamaTarih(iso || null)}
+          label="Başlama Tarihi"
+          placeholder="Tarih ve saat seç (opsiyonel)"
+        />
+
+        <TarihSaatSec
+          value={bitisTarih}
+          onChange={(iso) => setBitisTarih(iso || null)}
+          label="Bitiş Tarihi *"
+          placeholder="Tarih ve saat seç"
         />
 
         <TouchableOpacity
