@@ -33,7 +33,6 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
   const [not, setNot] = useState('')
   const [arama, setArama] = useState('')
   const [urunPickerOpen, setUrunPickerOpen] = useState(false)
-  const [debugInfo, setDebugInfo] = useState('')
 
   useEffect(() => {
     if (visible) {
@@ -64,10 +63,8 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
           // Sıkı: sadece kullanıcının envanterindeki stok kodları (S/N veya sarf farketmez)
           const filtrelenmis = hepsi.filter(m => benimStokKodlarim.has(m.stokKodu))
           setUrunler(filtrelenmis)
-          setDebugInfo(`v3 · envanter:${(envanter || []).length} → ${filtrelenmis.length}`)
         } else {
           setUrunler(hepsi)
-          setDebugInfo(`v3 · user:YOK · katalog:${hepsi.length}`)
         }
       })()
     }
@@ -125,11 +122,6 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
               <Feather name="x" size={24} color="#94a3b8" />
             </TouchableOpacity>
           </View>
-          {debugInfo ? (
-            <Text style={{ color: '#fbbf24', fontSize: 11, paddingHorizontal: 16, paddingBottom: 6, fontFamily: 'monospace' }}>
-              {debugInfo}
-            </Text>
-          ) : null}
 
           <View style={{ padding: 16 }}>
             <Text style={styles.label}>Ürün *</Text>
