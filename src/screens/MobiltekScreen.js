@@ -4,8 +4,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, RefreshControl, ActivityIndicator, Dimensions, Platform } from 'react-native'
 import { WebView } from 'react-native-webview'
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps'
 import { Feather } from '@expo/vector-icons'
+
+// react-native-maps native modül — mevcut app binary'de yoksa çökme yerine
+// güvenli fallback ver. EAS Build ile yeni binary yayınlanınca gerçek harita yüklenir.
+let MapView = null
+let Marker = null
+let PROVIDER_DEFAULT = null
+let haritaKullanilabilir = false
+try {
+  const maps = require('react-native-maps')
+  MapView = maps.default
+  Marker = maps.Marker
+  PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT
+  haritaKullanilabilir = !!MapView
+} catch (e) {
+  console.warn('[mobiltek] react-native-maps yüklenemedi — liste görünümü kullanılacak:', e?.message)
+}
 import { useFocusEffect } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../context/ThemeContext'
@@ -51,6 +66,7 @@ export default function MobiltekScreen() {
 
   // İlk yüklemede araç varsa haritayı ortala
   useEffect(() => {
+    if (!haritaKullanilabilir) return
     if (araclar.length && mapRef.current) {
       const konumlar = araclar.filter(a => a.lat && a.lng).map(a => ({
         latitude: Number(a.lat), longitude: Number(a.lng),
@@ -69,7 +85,7 @@ export default function MobiltekScreen() {
   const aracSec = async (a) => {
     setSeciliArac(a)
     setKameralar([])
-    if (a.lat && a.lng && mapRef.current) {
+    if (haritaKullanilabilir && a.lat && a.lng && mapRef.current) {
       mapRef.current.animateToRegion({
         latitude: Number(a.lat),
         longitude: Number(a.lng),
@@ -113,42 +129,52 @@ export default function MobiltekScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surfaceDark }}>
-      {/* HARİTA */}
+      {/* HARİTA — native modül yoksa placeholder */}
       <View style={{ height: HARITA_YUKSEKLIK, backgroundColor: '#dfe6ee' }}>
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_DEFAULT}
-          style={{ flex: 1 }}
-          initialRegion={TR_MERKEZ}
-          showsUserLocation
-          showsMyLocationButton={false}
-        >
-          {araclar.map(a => {
-            if (!a.lat || !a.lng) return null
-            const kontak = a.ignition === '1' || a.engineStatus === 'on'
-            return (
-              <Marker
-                key={a.id}
-                coordinate={{ latitude: Number(a.lat), longitude: Number(a.lng) }}
-                title={a.plateNo}
-                description={`${Number(a.gpsSpeed || 0)} km/s · ${kontak ? 'aktif' : 'kapalı'}`}
-                pinColor={kontak ? '#10b981' : '#94a3b8'}
-                onPress={() => aracSec(a)}
-              />
-            )
-          })}
-          {kameralar.map((k, i) => {
-            if (!k.lat || !k.lng) return null
-            return (
-              <Marker
-                key={`k-${i}`}
-                coordinate={{ latitude: Number(k.lat), longitude: Number(k.lng) }}
-                title={`Kamera ${i + 1}`}
-                pinColor="#3b82f6"
-              />
-            )
-          })}
-        </MapView>
+        {haritaKullanilabilir ? (
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_DEFAULT}
+            style={{ flex: 1 }}
+            initialRegion={TR_MERKEZ}
+            showsUserLocation
+            showsMyLocationButton={false}
+          >
+            {araclar.map(a => {
+              if (!a.lat || !a.lng) return null
+              const kontak = a.ignition === '1' || a.engineStatus === 'on'
+              return (
+                <Marker
+                  key={a.id}
+                  coordinate={{ latitude: Number(a.lat), longitude: Number(a.lng) }}
+                  title={a.plateNo}
+                  description={`${Number(a.gpsSpeed || 0)} km/s · ${kontak ? 'aktif' : 'kapalı'}`}
+                  pinColor={kontak ? '#10b981' : '#94a3b8'}
+                  onPress={() => aracSec(a)}
+                />
+              )
+            })}
+            {kameralar.map((k, i) => {
+              if (!k.lat || !k.lng) return null
+              return (
+                <Marker
+                  key={`k-${i}`}
+                  coordinate={{ latitude: Number(k.lat), longitude: Number(k.lng) }}
+                  title={`Kamera ${i + 1}`}
+                  pinColor="#3b82f6"
+                />
+              )
+            })}
+          </MapView>
+        ) : (
+          <View style={{ flex: 1, backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
+            <Feather name="map" size={44} color="#64748b" />
+            <Text style={{ color: '#e2e8f0', fontSize: 15, fontWeight: '700', marginTop: 12 }}>Harita bekleniyor</Text>
+            <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
+              Harita modülü bir sonraki uygulama güncellemesinde aktifleşecek.{'\n'}Aşağıdan araç listesini kullanabilirsin.
+            </Text>
+          </View>
+        )}
 
         {/* Üst bar — geri + mock rozeti + yenile */}
         <View style={[styles.ustBar, { paddingTop: insets.top + 8 }]}>
