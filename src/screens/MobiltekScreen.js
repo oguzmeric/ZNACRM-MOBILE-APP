@@ -2,24 +2,31 @@
 // react-native-maps ile (Android: Google, iOS: Apple). Marker rengi motor durumuna göre.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, RefreshControl, ActivityIndicator, Dimensions, Platform } from 'react-native'
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, RefreshControl, ActivityIndicator, Dimensions, Platform, NativeModules, UIManager } from 'react-native'
 import { WebView } from 'react-native-webview'
 import { Feather } from '@expo/vector-icons'
 
-// react-native-maps native modül — mevcut app binary'de yoksa çökme yerine
-// güvenli fallback ver. EAS Build ile yeni binary yayınlanınca gerçek harita yüklenir.
+// react-native-maps native modül gerektirir — binary'de yoksa render'da 'AIRMap'
+// view config not found hatası verir. Sadece require başarılı olmak yetmez,
+// native view'ın da register olması lazım. UIManager kontrolü ile bakalım.
 let MapView = null
 let Marker = null
 let PROVIDER_DEFAULT = null
 let haritaKullanilabilir = false
 try {
-  const maps = require('react-native-maps')
-  MapView = maps.default
-  Marker = maps.Marker
-  PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT
-  haritaKullanilabilir = !!MapView
+  const cfg =
+    (UIManager.getViewManagerConfig && UIManager.getViewManagerConfig('AIRMap')) ||
+    UIManager.AIRMap ||
+    null
+  if (cfg) {
+    const maps = require('react-native-maps')
+    MapView = maps.default
+    Marker = maps.Marker
+    PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT
+    haritaKullanilabilir = !!MapView
+  }
 } catch (e) {
-  console.warn('[mobiltek] react-native-maps yüklenemedi — liste görünümü kullanılacak:', e?.message)
+  console.warn('[mobiltek] harita init hata:', e?.message)
 }
 import { useFocusEffect } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
