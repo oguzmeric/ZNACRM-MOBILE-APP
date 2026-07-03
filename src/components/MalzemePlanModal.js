@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { modellerOzetiniGetir } from '../services/stokKalemiService'
+import { modellerOzetiniGetir, teknisyenStoktariniGetir } from '../services/stokKalemiService'
 import { trIcerir } from '../utils/trSearch'
 
 // Malzeme planına yeni satır ekleme modalı.
@@ -26,7 +26,7 @@ import { trIcerir } from '../utils/trSearch'
 //     onSave={(plan) => persistPlan(plan)}
 //   />
 
-export default function MalzemePlanModal({ visible, onClose, initial, onSave }) {
+export default function MalzemePlanModal({ visible, onClose, initial, onSave, kullaniciId = null }) {
   const [urunler, setUrunler] = useState([])
   const [secili, setSecili] = useState(null)
   const [miktar, setMiktar] = useState('1')
@@ -48,14 +48,28 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave }) 
       } else {
         setSecili(null)
       }
-      // Ürün listesi: hem stok_urunler (bulk/katalog) hem stok_kalemleri (scan ile eklenen S/N'liler)
-      // Modellerde bu iki kaynak zaten birleştirilmiş — kullanalım
       ;(async () => {
         const modeller = await modellerOzetiniGetir()
-        setUrunler(modeller ?? [])
+        const hepsi = modeller ?? []
+
+        // kullaniciId verildiyse: S/N ürünlerini kullanıcının kendi envanteriyle
+        // filtrele (kendine QR ile aldığı ürünler). Bulk/sarf malzemeler ortak
+        // stoktan olduğu için filtrelenmez — tüm katalog görünür.
+        if (kullaniciId) {
+          const envanter = await teknisyenStoktariniGetir(kullaniciId)
+          const benimStokKodlarim = new Set(
+            (envanter || []).map(k => k.stokKodu).filter(Boolean)
+          )
+          const filtrelenmis = hepsi.filter(m =>
+            m.tip !== 'seri' || benimStokKodlarim.has(m.stokKodu)
+          )
+          setUrunler(filtrelenmis)
+        } else {
+          setUrunler(hepsi)
+        }
       })()
     }
-  }, [visible, initial])
+  }, [visible, initial, kullaniciId])
 
   const filtrelenmis = useMemo(() => {
     // Tüm ürünler — stok yok olanlar da listelense "stok: 0" olarak görünsün

@@ -1008,6 +1008,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
           setMalzemeModalOpen(false)
           setDuzenlenenMalzemeIdx(null)
         }}
+        kullaniciId={kullanici?.id}
         initial={duzenlenenMalzemeIdx != null ? malzemeler[duzenlenenMalzemeIdx] : null}
         onSave={(yeni) => {
           setMalzemeler((prev) => {

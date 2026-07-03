@@ -1164,6 +1164,7 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
           setMalzemeModalOpen(false)
           setDuzenlenenPlan(null)
         }}
+        kullaniciId={kullanici?.id}
         initial={duzenlenenPlan}
         onSave={malzemeKaydet}
       />
