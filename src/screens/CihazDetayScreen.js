@@ -838,9 +838,17 @@ function TransferModal({ visible, onClose, kalem, kullanici, onDone }) {
       setSecili(null)
       setArama('')
       setNot('')
-      kullanicilariGetir().then((l) => setKullanicilar(l ?? []))
+      // Zimmet operasyonu her zaman giriş yapan kişiye ait olmalı — başkasına
+      // vermek zimmet sorumluluğunu bulanıklaştırır. Kullanıcı listesi sadece
+      // giriş yapan kişi.
+      if (kullanici?.id) {
+        setKullanicilar([kullanici])
+        setSecili(kullanici)
+      } else {
+        setKullanicilar([])
+      }
     }
-  }, [visible])
+  }, [visible, kullanici?.id])
 
   const filtrelenmis = useMemo(() => {
     if (!arama.trim()) return kullanicilar
