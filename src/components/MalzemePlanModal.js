@@ -61,14 +61,13 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
           const benimStokKodlarim = new Set(
             (envanter || []).map(k => k.stokKodu).filter(Boolean)
           )
-          const filtrelenmis = hepsi.filter(m =>
-            m.tip !== 'seri' || benimStokKodlarim.has(m.stokKodu)
-          )
+          // Sıkı: sadece kullanıcının envanterindeki stok kodları (S/N veya sarf farketmez)
+          const filtrelenmis = hepsi.filter(m => benimStokKodlarim.has(m.stokKodu))
           setUrunler(filtrelenmis)
-          setDebugInfo(`v2 · user:${kullaniciId} · envanter:${(envanter || []).length} · katalog:${hepsi.length} → gösterilen:${filtrelenmis.length}`)
+          setDebugInfo(`v3 · envanter:${(envanter || []).length} → ${filtrelenmis.length}`)
         } else {
           setUrunler(hepsi)
-          setDebugInfo(`v2 · user:YOK · katalog:${hepsi.length} (filtresiz)`)
+          setDebugInfo(`v3 · user:YOK · katalog:${hepsi.length}`)
         }
       })()
     }
