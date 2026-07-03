@@ -92,7 +92,7 @@ export default function TaraScreen({ navigation }) {
     setAraniyor(false)
 
     if (kalem) {
-      navigation.replace('CihazDetay', { id: kalem.id, taradigimKod: kod })
+      navigation.navigate('CihazDetay', { id: kalem.id, taradigimKod: kod })
     } else {
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning) } catch {}
       Alert.alert(
@@ -108,7 +108,7 @@ export default function TaraScreen({ navigation }) {
           },
           {
             text: 'Yeni Cihaz Ekle',
-            onPress: () => navigation.replace('YeniCihaz', { onaySeriNo: kod }),
+            onPress: () => navigation.navigate('YeniCihaz', { onaySeriNo: kod }),
           },
         ]
       )
