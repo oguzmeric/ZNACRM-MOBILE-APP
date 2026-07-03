@@ -30,6 +30,7 @@ import {
 import {
   stokKalemGetir,
   cihazTak,
+  teknisyenStoktariniGetir,
 } from '../services/stokKalemiService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 
@@ -90,20 +91,27 @@ export default function MalzemeKullanScreen({ route, navigation }) {
   const [envanter, setEnvanter] = useState([])
   useEffect(() => {
     ;(async () => {
+      // (a) Bu servis için teslim alınmış ama henüz kullanılmamış kalemler
       const ids = kullanilacakKalemIdleri()
-      if (ids.length === 0) {
-        setEnvanter([])
-        return
-      }
-      // Her kalem için veri al (basit yaklaşım)
       const items = []
       for (const kid of ids) {
         const k = await stokKalemGetir(kid)
         if (k) items.push(k)
       }
+
+      // (b) Teknisyenin kendi envanteri — SN'yi envantere alırken zaten okuttu,
+      // tekrar 'teslim al' adımına gerek yok. Bu servisin plan stok kodlarıyla
+      // eşleşenler ya da sarf olarak eklenebilecekler buraya düşer.
+      if (kullanici?.id) {
+        const tumEnvanter = await teknisyenStoktariniGetir(kullanici.id)
+        const eklenmisIds = new Set(items.map(i => i.id))
+        for (const k of tumEnvanter || []) {
+          if (!eklenmisIds.has(k.id)) items.push(k)
+        }
+      }
       setEnvanter(items)
     })()
-  }, [kayitlar, kullanilacakKalemIdleri])
+  }, [kayitlar, kullanilacakKalemIdleri, kullanici?.id])
 
   const kullanilanKayitlar = kayitlar.filter((k) => k.durum === 'kullanildi')
 
@@ -136,8 +144,32 @@ export default function MalzemeKullanScreen({ route, navigation }) {
       return
     }
 
-    // 2) Kullanım kaydı (kullanildi)
     const plan_id = (plan.find((p) => p.stokKodu === kalem.stokKodu))?.id ?? null
+
+    // 2a) Bu servis için teslim_alindi kaydı yoksa oluştur — teknisyen envanterinden
+    // direkt kullanıldıysa 'malzeme teslim al' adımı atlanmıştır, planın sayaçları
+    // yine de doğru güncellensin diye burada arka planda eklenir.
+    const teslimVarMi = kayitlar.some(
+      (k) => k.kalemId === kalem.id && k.durum === 'teslim_alindi',
+    )
+    if (!teslimVarMi) {
+      await kalemKullanimEkle({
+        servisTalepId,
+        kalemId: kalem.id,
+        planId: plan_id,
+        durum: 'teslim_alindi',
+        kullaniciId: kullanici?.id,
+        kullaniciAd: kullanici?.ad,
+      })
+      if (plan_id) {
+        const p = plan.find((x) => x.id === plan_id)
+        await malzemePlanGuncelle(plan_id, {
+          teslimAlinanMiktar: (p.teslimAlinanMiktar ?? 0) + 1,
+        })
+      }
+    }
+
+    // 2b) Kullanım kaydı (kullanildi)
     await kalemKullanimEkle({
       servisTalepId,
       kalemId: kalem.id,

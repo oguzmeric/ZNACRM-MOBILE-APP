@@ -276,9 +276,10 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         const teslim = Number(p.teslimAlinanMiktar ?? 0)
         const kullanilan = Number(p.kullanilanMiktar ?? 0)
         // Bulk (sarf) için: teslim VEYA kullanılan en az 1 olsun yeter
-        // S/N'lik için: teslim alınan = planlı miktar olmalı
+        // S/N'lik için: teslim VEYA kullanılan planlı miktarı karşılıyorsa yeterli
+        // (teknisyen kendi envanterinden direkt kullanmış olabilir)
         if (p.tip === 'bulk') return planli > 0 && teslim === 0 && kullanilan === 0
-        return planli > 0 && teslim < planli
+        return planli > 0 && teslim < planli && kullanilan < planli
       })
       if (eksikler.length > 0) {
         const ozet = eksikler.slice(0, 3).map((p) => `• ${p.stokAdi || p.stokKodu}`).join('\n')
