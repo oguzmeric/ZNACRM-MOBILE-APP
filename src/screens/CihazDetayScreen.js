@@ -103,8 +103,8 @@ export default function CihazDetayScreen({ route, navigation }) {
       ? 'Tamir edildi → depoya'
       : sebep === 'geri_kazan'
       ? 'Hurdadan geri kazan'
-      : 'Personelden iade'
-    Alert.alert(baslik, 'Onaylıyor musun?', [
+      : 'Depoya teslim al'
+    Alert.alert(baslik, 'Cihaz personelden depoya alınacak. Onaylıyor musun?', [
       { text: 'Vazgeç', style: 'cancel' },
       {
         text: 'Onayla',
@@ -356,7 +356,7 @@ export default function CihazDetayScreen({ route, navigation }) {
             <>
               <ActionBtn
                 ikon={<Feather name="corner-up-left" size={18} color="#fff" />}
-                label="Personelden İade"
+                label="Depoya Teslim Al"
                 renk="#3b82f6"
                 onPress={() => iadeEt()}
               />
