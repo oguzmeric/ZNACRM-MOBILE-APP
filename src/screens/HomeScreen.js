@@ -155,6 +155,14 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => navigation.navigate('Stok')}
               />
             )}
+            {gorunur('arac_takip') && (
+              <Tile
+                title="Mobiltek"
+                hint="Araç takip · kamera"
+                icon={<Feather name="truck" size={28} color="#60a5fa" />}
+                onPress={() => navigation.navigate('Mobiltek')}
+              />
+            )}
             {gorunur('teklif') && (
               <Tile
                 title="Teklif"
