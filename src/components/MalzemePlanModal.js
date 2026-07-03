@@ -56,17 +56,22 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
         // filtrele (kendine QR ile aldığı ürünler). Bulk/sarf malzemeler ortak
         // stoktan olduğu için filtrelenmez — tüm katalog görünür.
         if (kullaniciId) {
+          // Envanterdeki her S/N kalemi ayrı satır — aynı stok kodundan 3 tane
+          // varsa 3 satır olarak listelenir. Kullanıcı hangi kalemi (hangi S/N'yi)
+          // hangi lokasyona takacaksa onu seçebilsin diye.
           const envanter = await teknisyenStoktariniGetir(kullaniciId)
-          // Stok kodu bazında envanterdeki adet
-          const benimAdetler = new Map()
-          for (const k of envanter || []) {
-            if (!k.stokKodu) continue
-            benimAdetler.set(k.stokKodu, (benimAdetler.get(k.stokKodu) || 0) + 1)
-          }
-          const filtrelenmis = hepsi
-            .filter(m => benimAdetler.has(m.stokKodu))
-            .map(m => ({ ...m, benimAdet: benimAdetler.get(m.stokKodu) }))
-          setUrunler(filtrelenmis)
+          const satirlar = (envanter || []).map(k => ({
+            tip: 'seri',
+            kalemId: k.id,
+            stokKodu: k.stokKodu,
+            stokAdi: k.model || k.marka || k.stokKodu,
+            marka: k.marka || null,
+            model: k.model || null,
+            seriNo: k.seriNo || null,
+            birim: 'Adet',
+            benimAdet: 1,
+          }))
+          setUrunler(satirlar)
         } else {
           setUrunler(hepsi)
         }
@@ -100,12 +105,20 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
       initial?.tip ??
       (secili.tip === 'seri' ? 'serialized' : 'bulk')
 
+    // S/N'li kalem seçildiyse notMetni başına S/N bilgisini yerleştir ki plan
+    // satırında hangi kalemin planlandığı belli olsun (plan tablosunda seriNo
+    // alanı yok, notMetni içinde saklanır).
+    const kullaniciNotu = not.trim()
+    const notFinal = secili.seriNo
+      ? `S/N: ${secili.seriNo}${kullaniciNotu ? ` · ${kullaniciNotu}` : ''}`
+      : (kullaniciNotu || null)
+
     onSave({
       stokKodu: secili.stokKodu,
       stokAdi: secili.stokAdi,
       birim: secili.birim ?? 'Adet',
       planliMiktar: sayi,
-      notMetni: not.trim() || null,
+      notMetni: notFinal,
       tip,
     })
     onClose?.()
@@ -143,6 +156,7 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
             {!!secili && (
               <Text style={styles.hint}>
                 {secili.stokKodu} · Birim: {secili.birim ?? 'Adet'}
+                {secili.seriNo ? ` · S/N: ${secili.seriNo}` : ''}
               </Text>
             )}
 
@@ -263,6 +277,11 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
                             {stokBilgi}
                           </Text>
                         </View>
+                        {item.seriNo ? (
+                          <Text style={[styles.urunKod, { marginTop: 2, color: '#c084fc', fontFamily: 'monospace' }]}>
+                            S/N: {item.seriNo}
+                          </Text>
+                        ) : null}
                       </TouchableOpacity>
                     )
                   }}
