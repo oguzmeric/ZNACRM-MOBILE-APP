@@ -57,11 +57,15 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
         // stoktan olduğu için filtrelenmez — tüm katalog görünür.
         if (kullaniciId) {
           const envanter = await teknisyenStoktariniGetir(kullaniciId)
-          const benimStokKodlarim = new Set(
-            (envanter || []).map(k => k.stokKodu).filter(Boolean)
-          )
-          // Sıkı: sadece kullanıcının envanterindeki stok kodları (S/N veya sarf farketmez)
-          const filtrelenmis = hepsi.filter(m => benimStokKodlarim.has(m.stokKodu))
+          // Stok kodu bazında envanterdeki adet
+          const benimAdetler = new Map()
+          for (const k of envanter || []) {
+            if (!k.stokKodu) continue
+            benimAdetler.set(k.stokKodu, (benimAdetler.get(k.stokKodu) || 0) + 1)
+          }
+          const filtrelenmis = hepsi
+            .filter(m => benimAdetler.has(m.stokKodu))
+            .map(m => ({ ...m, benimAdet: benimAdetler.get(m.stokKodu) }))
           setUrunler(filtrelenmis)
         } else {
           setUrunler(hepsi)
@@ -228,11 +232,17 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
                       stokBilgi = m > 0 ? `📦 ${m} ${item.birim ?? ''}` : '❌ Stok yok'
                       stokRenk = m > 0 ? '#22c55e' : '#ef4444'
                     }
+                    // Kullanıcının kendi envanterindeki adet varsa onu öne çıkar
+                    if (item.benimAdet > 0) {
+                      stokBilgi = `👤 ${item.benimAdet} üstümde`
+                      stokRenk = '#a855f7'
+                    }
                     return (
                       <TouchableOpacity
                         style={styles.urunItem}
                         onPress={() => {
                           setSecili(item)
+                          if (item.benimAdet > 0) setMiktar(String(item.benimAdet))
                           setUrunPickerOpen(false)
                           setArama('')
                         }}
