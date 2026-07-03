@@ -340,7 +340,7 @@ export default function CihazDetayScreen({ route, navigation }) {
             <>
               <ActionBtn
                 ikon={<Feather name="user" size={18} color="#fff" />}
-                label="Personele Transfer"
+                label="Envanterime Al"
                 renk="#a855f7"
                 onPress={() => setTransferModalOpen(true)}
               />
