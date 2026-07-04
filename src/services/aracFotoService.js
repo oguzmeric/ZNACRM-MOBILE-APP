@@ -1,6 +1,6 @@
 // Şirket aracı foto kayıt servisi.
 // Storage bucket: arac-fotolari. Path: {arac_id}/{tarih}/{zaman}/{bolge}.jpg
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 import { supabase } from '../lib/supabase'
 
 // base64 → ArrayBuffer (base64-arraybuffer paketi bağımlılık olmadan)
