@@ -34,3 +34,44 @@ export async function acikMesaiGetir() {
 export function mesaiTakipVarMi(kullanici) {
   return (kullanici?.moduller ?? []).includes('mesai_takip')
 }
+
+// Kendi mesai geçmişimi getir (son N gün).
+export async function kendiMesaiGecmisim({ gun = 30 } = {}) {
+  const { data: sess } = await supabase.auth.getSession()
+  const uid = sess?.session?.user?.id
+  if (!uid) return []
+  const { data: k } = await supabase
+    .from('kullanicilar').select('id').eq('auth_id', uid).maybeSingle()
+  if (!k) return []
+  const sinir = new Date(Date.now() - gun * 24 * 60 * 60 * 1000).toISOString()
+  const { data } = await supabase
+    .from('mesai_kayitlari')
+    .select('id, giris_zamani, cikis_zamani, sure_dakika, giris_mesafe_m, not_')
+    .eq('kullanici_id', k.id)
+    .gte('giris_zamani', sinir)
+    .order('giris_zamani', { ascending: false })
+  return data ?? []
+}
+
+// Ekip mesai durumu — sadece yönetim görsün (Ali/Oğuz). Bugünkü giriş var mı, aktif mi?
+export async function ekipBugunMesai() {
+  const bugunBas = new Date()
+  bugunBas.setHours(0, 0, 0, 0)
+  const { data: kullanicilar } = await supabase
+    .from('kullanicilar')
+    .select('id, ad, unvan')
+    .contains('moduller', ['mesai_takip'])
+    .order('ad')
+  if (!kullanicilar) return []
+  const { data: kayitlar } = await supabase
+    .from('mesai_kayitlari')
+    .select('kullanici_id, giris_zamani, cikis_zamani, sure_dakika, giris_mesafe_m, not_')
+    .gte('giris_zamani', bugunBas.toISOString())
+    .order('giris_zamani', { ascending: false })
+  const harita = new Map()
+  ;(kayitlar ?? []).forEach(k => { if (!harita.has(k.kullanici_id)) harita.set(k.kullanici_id, k) })
+  return kullanicilar.map(k => ({
+    kullanici_id: k.id, ad: k.ad, unvan: k.unvan,
+    kayit: harita.get(k.id) ?? null,
+  }))
+}

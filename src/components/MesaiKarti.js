@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity, Alert, Linking, ActivityIndicator } from 
 import { Feather } from '@expo/vector-icons'
 import * as Location from 'expo-location'
 import { CameraView, useCameraPermissions } from 'expo-camera'
+import { useNavigation } from '@react-navigation/native'
 import { useTheme } from '../context/ThemeContext'
 import { mesaiyeBasla, mesaiyiBitir, acikMesaiGetir } from '../services/mesaiService'
 
@@ -17,6 +18,7 @@ function sureFormat(baslangicIso) {
 
 export default function MesaiKarti() {
   const { colors } = useTheme()
+  const nav = useNavigation()
   const [acik, setAcik] = useState(null)
   const [_tick, setTick] = useState(0)
   const [qrAcik, setQrAcik] = useState(false)
@@ -145,25 +147,30 @@ export default function MesaiKarti() {
       alignItems: 'center',
       gap: 12,
     }}>
-      {/* Sol — ikon + durum */}
-      <View style={{
-        width: 40, height: 40, borderRadius: 10,
-        backgroundColor: acik ? colors.success : colors.surfaceDark,
-        alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Feather name="clock" size={20} color={acik ? '#fff' : colors.textMuted} />
-      </View>
-
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
-          {acik ? `Mesaide · ${sureFormat(acik.giris_zamani)}` : 'Mesai'}
-        </Text>
-        <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
-          {acik
-            ? `Başlangıç ${new Date(acik.giris_zamani).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`
-            : 'Bugün henüz başlamadın'}
-        </Text>
-      </View>
+      {/* Sol — ikon + durum (tıklanınca geçmişe git) */}
+      <TouchableOpacity
+        onPress={() => nav.navigate('MesaiGecmisi')}
+        activeOpacity={0.7}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}
+      >
+        <View style={{
+          width: 40, height: 40, borderRadius: 10,
+          backgroundColor: acik ? colors.success : colors.surfaceDark,
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Feather name="clock" size={20} color={acik ? '#fff' : colors.textMuted} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
+            {acik ? `Mesaide · ${sureFormat(acik.giris_zamani)}` : 'Mesai'}
+          </Text>
+          <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
+            {acik
+              ? `Başlangıç ${new Date(acik.giris_zamani).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} · geçmişi gör →`
+              : 'Bugün henüz başlamadın · geçmişi gör →'}
+          </Text>
+        </View>
+      </TouchableOpacity>
 
       {/* Sağ — buton */}
       <TouchableOpacity
