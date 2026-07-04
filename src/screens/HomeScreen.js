@@ -17,6 +17,7 @@ import { demoBildirimleriniKontrolEt } from '../lib/demoBildirim'
 import DuyuruBanner from '../components/DuyuruBanner'
 import MesaiKarti from '../components/MesaiKarti'
 import { mesaiTakipVarMi } from '../services/mesaiService'
+import { aracFotoModulVarMi } from '../services/aracFotoService'
 
 export default function HomeScreen({ navigation }) {
   const { kullanici } = useAuth()
@@ -174,6 +175,14 @@ export default function HomeScreen({ navigation }) {
                 hint="Araç takip · kamera"
                 icon={<Feather name="truck" size={22} color="#60a5fa" />}
                 onPress={() => navigation.navigate('Mobiltek')}
+              />
+            )}
+            {aracFotoModulVarMi(kullanici) && (
+              <Tile width={tileGenislik}
+                title="Araç Foto"
+                hint="Sabah / akşam kayıt"
+                icon={<Feather name="camera" size={22} color="#ec4899" />}
+                onPress={() => navigation.navigate('AracKayit')}
               />
             )}
             {gorunur('teklif') && (

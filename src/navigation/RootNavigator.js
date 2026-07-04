@@ -46,6 +46,8 @@ import YeniCihazScreen from '../screens/YeniCihazScreen'
 import StokScreen from '../screens/StokScreen'
 import MobiltekScreen from '../screens/MobiltekScreen'
 import MesaiGecmisiScreen from '../screens/MesaiGecmisiScreen'
+import AracKayitScreen from '../screens/AracKayitScreen'
+import AracFotoDetayScreen from '../screens/AracFotoDetayScreen'
 import ModelDetayScreen from '../screens/ModelDetayScreen'
 import SeriTaraScreen from '../screens/SeriTaraScreen'
 import BulkDetayScreen from '../screens/BulkDetayScreen'
@@ -215,6 +217,8 @@ export default function RootNavigator() {
             <Stack.Screen name="Stok" component={StokScreen} />
             <Stack.Screen name="Mobiltek" component={MobiltekScreen} options={{ title: 'Mobiltek', headerShown: true }} />
             <Stack.Screen name="MesaiGecmisi" component={MesaiGecmisiScreen} options={{ title: 'Mesai Geçmişi', headerShown: true }} />
+            <Stack.Screen name="AracKayit" component={AracKayitScreen} options={{ title: 'Araç Foto Kayıt', headerShown: true }} />
+            <Stack.Screen name="AracFotoDetay" component={AracFotoDetayScreen} options={{ title: 'Foto Kayıt', headerShown: true }} />
             <Stack.Screen name="ModelDetay" component={ModelDetayScreen} options={{ title: 'Model Detayı' }} />
             <Stack.Screen name="SeriTara" component={SeriTaraScreen} options={{ title: 'Seri Tara' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
