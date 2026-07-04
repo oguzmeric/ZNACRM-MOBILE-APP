@@ -89,7 +89,10 @@ export default function MesaiKarti() {
         return
       }
       if (cvp.hata === 'cok_uzak') {
-        Alert.alert('Çok uzak', `Ofis konumundan ~${cvp.mesafe_m} m uzaktasın (sınır: ${cvp.sert_limit} m). Mesai açılamaz.`)
+        Alert.alert(
+          'Görünüşe göre henüz ofiste değilsin',
+          `Ofis konumundan ~${cvp.mesafe_m} m uzaktasın. Ofise geldiğinde tekrar dene.`
+        )
         return
       }
       if (cvp.hata === 'gecersiz_qr') { Alert.alert('QR', 'Bu QR mesai kodu değil.'); return }
