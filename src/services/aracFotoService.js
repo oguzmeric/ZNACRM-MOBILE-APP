@@ -129,6 +129,17 @@ export async function fotoKaydet({ aracId, zaman, bolge, dosyaUri }) {
   return { ok: true, foto_url: fotoUrl, yeni: true }
 }
 
+// Kayıt sil + dosyayı storage'dan kaldır
+export async function fotoKaydiSil(kayit) {
+  if (!kayit?.id) return { ok: false, hata: 'Kayıt bulunamadı' }
+  if (kayit.foto_url) {
+    await supabase.storage.from('arac-fotolari').remove([kayit.foto_url]).catch(() => {})
+  }
+  const { error } = await supabase.from('arac_foto_kayitlari').delete().eq('id', kayit.id)
+  if (error) return { ok: false, hata: error.message }
+  return { ok: true }
+}
+
 // Signed URL üret (görüntüleme için)
 export async function imzaliUrl(yol, saniye = 3600) {
   if (!yol) return null

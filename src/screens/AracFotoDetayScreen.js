@@ -6,7 +6,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useTheme } from '../context/ThemeContext'
 import ScreenContainer from '../components/ScreenContainer'
-import { BOLGELER, ZAMANLAR, bugunkuKayitlariGetir, fotoKaydet, imzaliUrl } from '../services/aracFotoService'
+import { BOLGELER, ZAMANLAR, bugunkuKayitlariGetir, fotoKaydet, imzaliUrl, fotoKaydiSil } from '../services/aracFotoService'
 
 const ekranGen = Dimensions.get('window').width
 
@@ -19,6 +19,7 @@ export default function AracFotoDetayScreen({ route, navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [tazele, setTazele] = useState(false)
   const [seciliBolge, setSeciliBolge] = useState(null)
+  const [onIzleme, setOnIzleme] = useState(null)   // { bolge, kayit, url }
   const [kameraAcik, setKameraAcik] = useState(false)
   const [kaydediliyor, setKaydediliyor] = useState(false)
   const [izin, izinIste] = useCameraPermissions()
@@ -50,13 +51,43 @@ export default function AracFotoDetayScreen({ route, navigation }) {
 
   const tamamSayisi = Object.keys(zamanKayitlari).length
 
-  const bolgeSec = async (bolge) => {
+  const kamerayaGit = async (bolge) => {
     setSeciliBolge(bolge)
     if (!izin?.granted) {
       const r = await izinIste()
       if (!r.granted) { Alert.alert('Kamera İzni', 'Kamera izni verilmedi.'); return }
     }
     setKameraAcik(true)
+  }
+
+  const bolgeSec = (bolge) => {
+    // Zaten çekilmişse önizleme modal'ı, değilse doğrudan kamera
+    const kayit = zamanKayitlari[bolge.id]
+    if (kayit) {
+      setOnIzleme({ bolge, kayit, url: imzaMap[kayit.foto_url] })
+    } else {
+      kamerayaGit(bolge)
+    }
+  }
+
+  const yenidenCek = (bolge) => {
+    setOnIzleme(null)
+    kamerayaGit(bolge)
+  }
+
+  const kaydiSil = (bolge, kayit) => {
+    Alert.alert(
+      'Fotoğrafı sil?',
+      `${bolge.ad} bölgesi için çekilmiş foto silinecek.`,
+      [
+        { text: 'İptal', style: 'cancel' },
+        { text: 'Sil', style: 'destructive', onPress: async () => {
+          const r = await fotoKaydiSil(kayit)
+          if (r.ok) { setOnIzleme(null); yukle() }
+          else Alert.alert('Hata', r.hata ?? 'Silinemedi')
+        }},
+      ]
+    )
   }
 
   const cek = async () => {
@@ -128,6 +159,56 @@ export default function AracFotoDetayScreen({ route, navigation }) {
           </View>
         )}
       </ScrollView>
+
+      {/* Önizleme modal — çekilmiş foto için Yeniden Çek / Sil / Kapat */}
+      <Modal visible={!!onIzleme} animationType="fade" transparent onRequestClose={() => setOnIzleme(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', padding: 16 }}>
+          {onIzleme && (
+            <View style={{ gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View>
+                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>{onIzleme.bolge.ad}</Text>
+                  <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 2 }}>
+                    {ZAMANLAR.find(z => z.id === zaman).ad} · {new Date(onIzleme.kayit.cekim_zamani).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setOnIzleme(null)} style={{ padding: 8 }}>
+                  <Feather name="x" size={22} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              {onIzleme.url ? (
+                <Image source={{ uri: onIzleme.url }} style={{ width: '100%', height: 400, borderRadius: 12 }} resizeMode="cover" />
+              ) : (
+                <View style={{ height: 200, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+                  <ActivityIndicator color="#fff" />
+                </View>
+              )}
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                <TouchableOpacity onPress={() => kaydiSil(onIzleme.bolge, onIzleme.kayit)}
+                  style={{
+                    flex: 1, padding: 14, borderRadius: 12,
+                    backgroundColor: colors.danger,
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}>
+                  <Feather name="trash-2" size={16} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Sil</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => yenidenCek(onIzleme.bolge)}
+                  style={{
+                    flex: 1, padding: 14, borderRadius: 12,
+                    backgroundColor: colors.primary,
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}>
+                  <Feather name="camera" size={16} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Yeniden Çek</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
 
       {/* Kamera modal */}
       <Modal visible={kameraAcik} animationType="slide" onRequestClose={kameraKapat}>
