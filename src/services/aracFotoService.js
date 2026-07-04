@@ -1,6 +1,16 @@
 // Şirket aracı foto kayıt servisi.
 // Storage bucket: arac-fotolari. Path: {arac_id}/{tarih}/{zaman}/{bolge}.jpg
+import * as FileSystem from 'expo-file-system'
 import { supabase } from '../lib/supabase'
+
+// base64 → ArrayBuffer (base64-arraybuffer paketi bağımlılık olmadan)
+function base64ToArrayBuffer(base64) {
+  const binaryString = atob(base64)
+  const len = binaryString.length
+  const bytes = new Uint8Array(len)
+  for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i)
+  return bytes.buffer
+}
 
 export const BOLGELER = [
   { id: 'on',     ad: 'Ön',        aciklama: 'Aracın önü' },
@@ -79,16 +89,17 @@ export async function fotoKaydet({ aracId, zaman, bolge, dosyaUri }) {
   const zamanAn = Date.now()
   const yol = `${aracId}/${tarih}/${zaman}/${bolge}_${zamanAn}.jpg`
 
-  // Dosyayı blob'a çevir (RN — file:// URI'dan fetch)
-  let blob
+  // Dosyayı ArrayBuffer'a çevir (RN'de fetch(file://) iOS'te boş blob dönüyor)
+  let veri
   try {
-    const r = await fetch(dosyaUri)
-    blob = await r.blob()
+    const base64 = await FileSystem.readAsStringAsync(dosyaUri, { encoding: FileSystem.EncodingType.Base64 })
+    veri = base64ToArrayBuffer(base64)
+    if (!veri || veri.byteLength === 0) throw new Error('Boş dosya')
   } catch (e) {
     return { ok: false, hata: 'Dosya okunamadı: ' + e.message }
   }
 
-  const { error: upErr } = await supabase.storage.from('arac-fotolari').upload(yol, blob, {
+  const { error: upErr } = await supabase.storage.from('arac-fotolari').upload(yol, veri, {
     contentType: 'image/jpeg',
     upsert: false,
   })
