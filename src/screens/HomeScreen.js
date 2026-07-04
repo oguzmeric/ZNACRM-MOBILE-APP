@@ -130,7 +130,7 @@ export default function HomeScreen({ navigation }) {
               <Tile
                 title="Görevlerim"
                 hint="Bana atananlar"
-                icon={<Feather name="check-square" size={28} color="#60a5fa" />}
+                icon={<Feather name="check-square" size={20} color="#60a5fa" />}
                 badge={gorevSayisi}
                 onPress={() => navigation.navigate('Görevler')}
               />
@@ -139,7 +139,7 @@ export default function HomeScreen({ navigation }) {
               <Tile
                 title="Servislerim"
                 hint="Atanan talepler"
-                icon={<Feather name="tool" size={28} color="#f59e0b" />}
+                icon={<Feather name="tool" size={20} color="#f59e0b" />}
                 badge={servisSayisi}
                 onPress={() => navigation.navigate('Servisler')}
               />
@@ -148,7 +148,7 @@ export default function HomeScreen({ navigation }) {
               <Tile
                 title="Tara"
                 hint="S/N · Barkod · QR"
-                icon={<MaterialCommunityIcons name="barcode-scan" size={30} color="#ef4444" />}
+                icon={<MaterialCommunityIcons name="barcode-scan" size={22} color="#ef4444" />}
                 onPress={() => navigation.navigate('Tara')}
               />
             )}
@@ -156,7 +156,7 @@ export default function HomeScreen({ navigation }) {
               <Tile
                 title="Stok"
                 hint="Tüm stok + cihazlar"
-                icon={<Feather name="package" size={28} color="#22c55e" />}
+                icon={<Feather name="package" size={20} color="#22c55e" />}
                 onPress={() => navigation.navigate('Stok')}
               />
             )}
@@ -164,7 +164,7 @@ export default function HomeScreen({ navigation }) {
               <Tile
                 title="Mobiltek"
                 hint="Araç takip · kamera"
-                icon={<Feather name="truck" size={28} color="#60a5fa" />}
+                icon={<Feather name="truck" size={20} color="#60a5fa" />}
                 onPress={() => navigation.navigate('Mobiltek')}
               />
             )}
@@ -172,7 +172,7 @@ export default function HomeScreen({ navigation }) {
               <Tile
                 title="Teklif"
                 hint="Hazırla & gönder"
-                icon={<Feather name="file-text" size={28} color="#a855f7" />}
+                icon={<Feather name="file-text" size={20} color="#a855f7" />}
                 onPress={() => navigation.navigate('Teklif')}
               />
             )}
@@ -180,7 +180,7 @@ export default function HomeScreen({ navigation }) {
               <Tile
                 title="Müşteriler"
                 hint="Arama / detay"
-                icon={<Feather name="users" size={28} color="#06b6d4" />}
+                icon={<Feather name="users" size={20} color="#06b6d4" />}
                 onPress={() => navigation.navigate('Müşteriler')}
               />
             )}
@@ -188,7 +188,7 @@ export default function HomeScreen({ navigation }) {
               <Tile
                 title="Görüşmelerim"
                 hint="Yeni & geçmiş"
-                icon={<Feather name="message-circle" size={28} color="#fbbf24" />}
+                icon={<Feather name="message-circle" size={20} color="#fbbf24" />}
                 onPress={() => navigation.navigate('Gorusmeler')}
               />
             )}
@@ -196,7 +196,7 @@ export default function HomeScreen({ navigation }) {
               <Tile
                 title="Demo Takip"
                 hint="Müşteride/depoda"
-                icon={<Feather name="package" size={28} color="#a855f7" />}
+                icon={<Feather name="package" size={20} color="#a855f7" />}
                 badge={demoGecikmisSayisi}
                 onPress={() => navigation.navigate('Demolar')}
               />
@@ -204,13 +204,13 @@ export default function HomeScreen({ navigation }) {
             <Tile
               title="Notlarım"
               hint="Keşif & fikirler"
-              icon={<Feather name="edit-3" size={28} color="#f59e0b" />}
+              icon={<Feather name="edit-3" size={20} color="#f59e0b" />}
               onPress={() => navigation.navigate('Notlarim')}
             />
             <Tile
               title="Takvim"
               hint="Toplantı + Meet"
-              icon={<Feather name="calendar" size={28} color="#1a73e8" />}
+              icon={<Feather name="calendar" size={20} color="#1a73e8" />}
               onPress={() => navigation.navigate('Takvim')}
             />
           </View>
@@ -312,29 +312,28 @@ const styles = StyleSheet.create({
   },
 
   gridArea: {
-    paddingTop: 32,
-    paddingBottom: 28,
+    paddingTop: 20,
+    paddingBottom: 20,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
+    gap: 10,
   },
   tile: {
-    width: '48%',
+    width: '31.8%',
     backgroundColor: 'rgba(30, 41, 59, 0.7)',
-    padding: 18,
-    borderRadius: 14,
-    minHeight: 120,
+    padding: 12,
+    borderRadius: 12,
+    minHeight: 96,
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
     position: 'relative',
   },
-  iconWrap: { marginBottom: 10 },
-  tileTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  tileHint: { color: '#94a3b8', marginTop: 4, fontSize: 12 },
+  iconWrap: { marginBottom: 6 },
+  tileTitle: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  tileHint: { color: '#94a3b8', marginTop: 2, fontSize: 10 },
 
   badge: {
     position: 'absolute',
