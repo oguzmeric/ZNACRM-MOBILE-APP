@@ -92,7 +92,7 @@ export async function fotoKaydet({ aracId, zaman, bolge, dosyaUri }) {
   // Dosyayı ArrayBuffer'a çevir (RN'de fetch(file://) iOS'te boş blob dönüyor)
   let veri
   try {
-    const base64 = await FileSystem.readAsStringAsync(dosyaUri, { encoding: FileSystem.EncodingType.Base64 })
+    const base64 = await FileSystem.readAsStringAsync(dosyaUri, { encoding: 'base64' })
     veri = base64ToArrayBuffer(base64)
     if (!veri || veri.byteLength === 0) throw new Error('Boş dosya')
   } catch (e) {
