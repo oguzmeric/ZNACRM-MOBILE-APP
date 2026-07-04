@@ -30,6 +30,18 @@ export default function MesaiKarti() {
     try { setAcik(await acikMesaiGetir()) } catch {}
   }
   useEffect(() => { yenile() }, [])
+
+  // Kart yüklendiğinde konum izni iste — verilmemişse kullanıcı ayarlara yönlendirilir.
+  useEffect(() => {
+    (async () => {
+      try {
+        const mevcut = await Location.getForegroundPermissionsAsync()
+        if (mevcut.status === 'granted') return
+        if (mevcut.canAskAgain === false) return
+        await Location.requestForegroundPermissionsAsync()
+      } catch {}
+    })()
+  }, [])
   useEffect(() => {
     if (!acik) return
     const t = setInterval(() => setTick(x => x + 1), 30000)
