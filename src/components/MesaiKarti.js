@@ -88,6 +88,10 @@ export default function MesaiKarti() {
           [{ text: 'İptal', style: 'cancel' }, { text: 'Evet', onPress: () => konumAlVeGiris(qr_payload, true) }])
         return
       }
+      if (cvp.hata === 'cok_uzak') {
+        Alert.alert('Çok uzak', `Ofis konumundan ~${cvp.mesafe_m} m uzaktasın (sınır: ${cvp.sert_limit} m). Mesai açılamaz.`)
+        return
+      }
       if (cvp.hata === 'gecersiz_qr') { Alert.alert('QR', 'Bu QR mesai kodu değil.'); return }
       if (cvp.hata === 'modul_yok') { Alert.alert('Yetki', 'Mesai takip modülü bu hesaba tanımlı değil.'); return }
       Alert.alert('Hata', cvp.hata ?? 'Bilinmeyen hata')
