@@ -178,15 +178,15 @@ function BolgeKart({ bolge, kayit, colors, imzaliUrl, onBas }) {
         borderWidth: 1, borderColor: tamam ? colors.success + '66' : colors.border,
         flexDirection: 'row', alignItems: 'stretch',
       }}>
-      {/* Sol — ikon veya thumbnail */}
+      {/* Sol — ikon veya thumbnail (sabit kare) */}
       <View style={{
-        width: 100,
+        width: 96, height: 96,
         backgroundColor: tamam ? colors.success + '15' : colors.surfaceDark,
         alignItems: 'center', justifyContent: 'center',
         borderRightWidth: tamam ? 0 : 1, borderRightColor: colors.border,
       }}>
         {tamam && imzaliUrl ? (
-          <Image source={{ uri: imzaliUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          <Image source={{ uri: imzaliUrl }} style={{ width: 96, height: 96 }} resizeMode="cover" />
         ) : (
           <BolgeIkon id={bolge.id} renk={colors.textMuted} />
         )}
