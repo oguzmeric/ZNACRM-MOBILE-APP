@@ -8,7 +8,7 @@ import { useTheme } from '../context/ThemeContext'
 import ScreenContainer from '../components/ScreenContainer'
 import { kendiMesaiGecmisim, ekipBugunMesai } from '../services/mesaiService'
 
-const YONETIM_RE = /\b(oğuz|oguz|ali)\b/i
+const YONETIM_RE = /\b(oğuz|oguz|ali|ferdi)\b/i
 
 function sureGoster(dk) {
   if (dk == null) return '—'
