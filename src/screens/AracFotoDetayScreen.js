@@ -2,7 +2,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, ActivityIndicator, RefreshControl, ScrollView, Image, Alert, Modal, Dimensions } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
-import { Feather } from '@expo/vector-icons'
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useTheme } from '../context/ThemeContext'
 import ScreenContainer from '../components/ScreenContainer'
@@ -110,11 +110,11 @@ export default function AracFotoDetayScreen({ route, navigation }) {
           })}
         </View>
 
-        {/* 6 bölge kartı */}
+        {/* 6 bölge kartı — tek sütun, geniş */}
         {yukleniyor ? (
           <View style={{ padding: 40, alignItems: 'center' }}><ActivityIndicator color={colors.primary} /></View>
         ) : (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+          <View style={{ gap: 10 }}>
             {BOLGELER.map(b => (
               <BolgeKart
                 key={b.id}
@@ -169,49 +169,73 @@ export default function AracFotoDetayScreen({ route, navigation }) {
 }
 
 function BolgeKart({ bolge, kayit, colors, imzaliUrl, onBas }) {
-  const kart = ekranGen / 2 - 20   // 16 padding + 10 gap / 2
   const tamam = !!kayit
   return (
-    <TouchableOpacity onPress={onBas} activeOpacity={0.8}
+    <TouchableOpacity onPress={onBas} activeOpacity={0.85}
       style={{
-        width: kart, borderRadius: 14, overflow: 'hidden',
+        borderRadius: 14, overflow: 'hidden',
         backgroundColor: colors.surface,
-        borderWidth: 2, borderColor: tamam ? colors.success : colors.border,
+        borderWidth: 1, borderColor: tamam ? colors.success + '66' : colors.border,
+        flexDirection: 'row', alignItems: 'stretch',
       }}>
-      <View style={{ height: 110, backgroundColor: colors.surfaceDark, alignItems: 'center', justifyContent: 'center' }}>
+      {/* Sol — ikon veya thumbnail */}
+      <View style={{
+        width: 100,
+        backgroundColor: tamam ? colors.success + '15' : colors.surfaceDark,
+        alignItems: 'center', justifyContent: 'center',
+        borderRightWidth: tamam ? 0 : 1, borderRightColor: colors.border,
+      }}>
         {tamam && imzaliUrl ? (
           <Image source={{ uri: imzaliUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
         ) : (
-          <BolgeIkon id={bolge.id} colors={colors} />
+          <BolgeIkon id={bolge.id} renk={colors.textMuted} />
         )}
         {tamam && (
-          <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: colors.success, borderRadius: 12, padding: 4 }}>
-            <Feather name="check" size={12} color="#fff" />
+          <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: colors.success, borderRadius: 10, padding: 3 }}>
+            <Feather name="check" size={10} color="#fff" />
           </View>
         )}
       </View>
-      <View style={{ padding: 10 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: '700' }}>{bolge.ad}</Text>
-        <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 2 }}>
+
+      {/* Sağ — bilgi + eylem */}
+      <View style={{ flex: 1, padding: 14, justifyContent: 'center' }}>
+        <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '800' }}>{bolge.ad}</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
           {tamam
-            ? new Date(kayit.cekim_zamani).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) + ' · çekildi'
+            ? `Çekildi · ${new Date(kayit.cekim_zamani).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`
             : bolge.aciklama}
         </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+          <Feather name={tamam ? 'refresh-ccw' : 'camera'} size={12} color={tamam ? colors.warning : colors.primary} />
+          <Text style={{ color: tamam ? colors.warning : colors.primary, fontSize: 12, fontWeight: '600' }}>
+            {tamam ? 'Yeniden Çek' : 'Foto Çek'}
+          </Text>
+        </View>
+      </View>
+
+      {/* En sağ — chevron */}
+      <View style={{ paddingRight: 12, justifyContent: 'center' }}>
+        <Feather name="chevron-right" size={18} color={colors.textMuted} />
       </View>
     </TouchableOpacity>
   )
 }
 
-function BolgeIkon({ id, colors }) {
-  const ort = 46
-  const ikonRengi = colors.textMuted
-  const ikonAdi = {
-    on: 'chevrons-up',
-    arka: 'chevrons-down',
-    sol: 'chevrons-left',
-    sag: 'chevrons-right',
-    kokpit: 'sliders',
-    ic: 'user',
-  }[id] || 'camera'
-  return <Feather name={ikonAdi} size={ort} color={ikonRengi} strokeWidth={1.2} />
+function BolgeIkon({ id, renk }) {
+  // MaterialCommunityIcons — gerçek araç ikonları
+  const config = {
+    on:     { lib: 'mci', ad: 'car',           boy: 46 },
+    arka:   { lib: 'mci', ad: 'car-back',      boy: 46 },
+    sol:    { lib: 'mci', ad: 'car-side',      boy: 46, cevir: true },
+    sag:    { lib: 'mci', ad: 'car-side',      boy: 46 },
+    kokpit: { lib: 'mci', ad: 'steering',      boy: 46 },
+    ic:     { lib: 'mci', ad: 'car-seat',      boy: 46 },
+  }[id] ?? { lib: 'feather', ad: 'camera', boy: 46 }
+
+  const stil = config.cevir ? { transform: [{ scaleX: -1 }] } : null
+
+  if (config.lib === 'mci') {
+    return <MaterialCommunityIcons name={config.ad} size={config.boy} color={renk} style={stil} />
+  }
+  return <Feather name={config.ad} size={config.boy} color={renk} />
 }
