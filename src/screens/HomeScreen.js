@@ -15,6 +15,8 @@ import { okunmamisBildirimSayisi, bildirimleriDinle } from '../services/bildirim
 import { aktifZimmetleriGetir } from '../services/demoService'
 import { demoBildirimleriniKontrolEt } from '../lib/demoBildirim'
 import DuyuruBanner from '../components/DuyuruBanner'
+import MesaiKarti from '../components/MesaiKarti'
+import { mesaiTakipVarMi } from '../services/mesaiService'
 
 export default function HomeScreen({ navigation }) {
   const { kullanici } = useAuth()
@@ -117,6 +119,9 @@ export default function HomeScreen({ navigation }) {
 
         {/* Aktif duyurular — Oğuz'un yayınladığı bildirimler herkese düşer */}
         <DuyuruBanner kullaniciId={kullanici?.id} />
+
+        {/* Mesai kartı — modülü olan teknisyen/depo/yönetim görür */}
+        {mesaiTakipVarMi(kullanici) && <MesaiKarti />}
 
         {/* Grid */}
         <View style={styles.gridArea}>
