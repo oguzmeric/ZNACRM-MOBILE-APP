@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native'
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -29,6 +29,14 @@ export default function HomeScreen({ navigation }) {
   const [okunmamisSayisi, setOkunmamisSayisi] = useState(0)
   const [demoGecikmisSayisi, setDemoGecikmisSayisi] = useState(0)
   const [yetki, setYetki] = useState({})
+
+  // 3-sütun grid — kesin px hesap
+  const tileGenislik = useMemo(() => {
+    const ekran = Dimensions.get('window').width
+    const yatayPad = 16 * 2   // scrollContent.padding
+    const gap = 10 * 2        // 2 boşluk 3 tile arasında
+    return Math.floor((ekran - yatayPad - gap) / 3)
+  }, [])
 
   const sayilariYukle = useCallback(async () => {
     if (!kullanici?.id) return
@@ -127,7 +135,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.gridArea}>
           <View style={styles.grid}>
             {gorunur('gorevler') && (
-              <Tile
+              <Tile width={tileGenislik}
                 title="Görevlerim"
                 hint="Bana atananlar"
                 icon={<Feather name="check-square" size={20} color="#60a5fa" />}
@@ -136,7 +144,7 @@ export default function HomeScreen({ navigation }) {
               />
             )}
             {gorunur('servisler') && (
-              <Tile
+              <Tile width={tileGenislik}
                 title="Servislerim"
                 hint="Atanan talepler"
                 icon={<Feather name="tool" size={20} color="#f59e0b" />}
@@ -145,7 +153,7 @@ export default function HomeScreen({ navigation }) {
               />
             )}
             {gorunur('tara') && (
-              <Tile
+              <Tile width={tileGenislik}
                 title="Tara"
                 hint="S/N · Barkod · QR"
                 icon={<MaterialCommunityIcons name="barcode-scan" size={22} color="#ef4444" />}
@@ -153,7 +161,7 @@ export default function HomeScreen({ navigation }) {
               />
             )}
             {gorunur('stok') && (
-              <Tile
+              <Tile width={tileGenislik}
                 title="Stok"
                 hint="Tüm stok + cihazlar"
                 icon={<Feather name="package" size={20} color="#22c55e" />}
@@ -161,7 +169,7 @@ export default function HomeScreen({ navigation }) {
               />
             )}
             {gorunur('arac_takip') && (
-              <Tile
+              <Tile width={tileGenislik}
                 title="Mobiltek"
                 hint="Araç takip · kamera"
                 icon={<Feather name="truck" size={20} color="#60a5fa" />}
@@ -169,7 +177,7 @@ export default function HomeScreen({ navigation }) {
               />
             )}
             {gorunur('teklif') && (
-              <Tile
+              <Tile width={tileGenislik}
                 title="Teklif"
                 hint="Hazırla & gönder"
                 icon={<Feather name="file-text" size={20} color="#a855f7" />}
@@ -177,7 +185,7 @@ export default function HomeScreen({ navigation }) {
               />
             )}
             {gorunur('musteriler') && (
-              <Tile
+              <Tile width={tileGenislik}
                 title="Müşteriler"
                 hint="Arama / detay"
                 icon={<Feather name="users" size={20} color="#06b6d4" />}
@@ -185,7 +193,7 @@ export default function HomeScreen({ navigation }) {
               />
             )}
             {gorunur('gorusmeler') && (
-              <Tile
+              <Tile width={tileGenislik}
                 title="Görüşmelerim"
                 hint="Yeni & geçmiş"
                 icon={<Feather name="message-circle" size={20} color="#fbbf24" />}
@@ -193,7 +201,7 @@ export default function HomeScreen({ navigation }) {
               />
             )}
             {gorunur('demolar') && (
-              <Tile
+              <Tile width={tileGenislik}
                 title="Demo Takip"
                 hint="Müşteride/depoda"
                 icon={<Feather name="package" size={20} color="#a855f7" />}
@@ -201,13 +209,13 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => navigation.navigate('Demolar')}
               />
             )}
-            <Tile
+            <Tile width={tileGenislik}
               title="Notlarım"
               hint="Keşif & fikirler"
               icon={<Feather name="edit-3" size={20} color="#f59e0b" />}
               onPress={() => navigation.navigate('Notlarim')}
             />
-            <Tile
+            <Tile width={tileGenislik}
               title="Takvim"
               hint="Toplantı + Meet"
               icon={<Feather name="calendar" size={20} color="#1a73e8" />}
@@ -248,11 +256,11 @@ export default function HomeScreen({ navigation }) {
   )
 }
 
-function Tile({ title, hint, onPress, icon, badge }) {
+function Tile({ title, hint, onPress, icon, badge, width }) {
   const { colors } = useTheme()
   return (
     <TouchableOpacity
-      style={[styles.tile, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[styles.tile, width ? { width } : null, { backgroundColor: colors.surface, borderColor: colors.border }]}
       onPress={onPress}
       activeOpacity={0.8}
     >
@@ -321,7 +329,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   tile: {
-    width: '31.8%',
     backgroundColor: 'rgba(30, 41, 59, 0.7)',
     padding: 12,
     borderRadius: 12,
