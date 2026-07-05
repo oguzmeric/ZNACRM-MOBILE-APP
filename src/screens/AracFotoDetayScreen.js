@@ -20,6 +20,8 @@ export default function AracFotoDetayScreen({ route, navigation }) {
   const [tazele, setTazele] = useState(false)
   const [seciliBolge, setSeciliBolge] = useState(null)
   const [onIzleme, setOnIzleme] = useState(null)   // { bolge, kayit, url }
+  const [silmeOnay, setSilmeOnay] = useState(false)
+  const [siliniyor, setSiliniyor] = useState(false)
   const [kameraAcik, setKameraAcik] = useState(false)
   const [kaydediliyor, setKaydediliyor] = useState(false)
   const [izin, izinIste] = useCameraPermissions()
@@ -61,33 +63,31 @@ export default function AracFotoDetayScreen({ route, navigation }) {
   }
 
   const bolgeSec = (bolge) => {
-    // Zaten çekilmişse önizleme modal'ı, değilse doğrudan kamera
     const kayit = zamanKayitlari[bolge.id]
     if (kayit) {
       setOnIzleme({ bolge, kayit, url: imzaMap[kayit.foto_url] })
+      setSilmeOnay(false)
     } else {
       kamerayaGit(bolge)
     }
   }
 
   const yenidenCek = (bolge) => {
-    setOnIzleme(null)
+    setOnIzleme(null); setSilmeOnay(false)
     kamerayaGit(bolge)
   }
 
-  const kaydiSil = (bolge, kayit) => {
-    Alert.alert(
-      'Fotoğrafı sil?',
-      `${bolge.ad} bölgesi için çekilmiş foto silinecek.`,
-      [
-        { text: 'İptal', style: 'cancel' },
-        { text: 'Sil', style: 'destructive', onPress: async () => {
-          const r = await fotoKaydiSil(kayit)
-          if (r.ok) { setOnIzleme(null); yukle() }
-          else Alert.alert('Hata', r.hata ?? 'Silinemedi')
-        }},
-      ]
-    )
+  const kaydiSil = async () => {
+    if (!onIzleme?.kayit) return
+    setSiliniyor(true)
+    const r = await fotoKaydiSil(onIzleme.kayit)
+    setSiliniyor(false)
+    if (r.ok) {
+      setOnIzleme(null); setSilmeOnay(false)
+      yukle()
+    } else {
+      Alert.alert('Hata', r.hata ?? 'Silinemedi')
+    }
   }
 
   const cek = async () => {
@@ -186,14 +186,24 @@ export default function AracFotoDetayScreen({ route, navigation }) {
               )}
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                <TouchableOpacity onPress={() => kaydiSil(onIzleme.bolge, onIzleme.kayit)}
+                <TouchableOpacity
+                  onPress={silmeOnay ? kaydiSil : () => setSilmeOnay(true)}
+                  disabled={siliniyor}
                   style={{
                     flex: 1, padding: 14, borderRadius: 12,
-                    backgroundColor: colors.danger,
+                    backgroundColor: silmeOnay ? '#b91c1c' : colors.danger,
                     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    opacity: siliniyor ? 0.6 : 1,
+                    borderWidth: silmeOnay ? 2 : 0, borderColor: '#fff',
                   }}>
-                  <Feather name="trash-2" size={16} color="#fff" />
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Sil</Text>
+                  {siliniyor
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <>
+                        <Feather name={silmeOnay ? 'alert-triangle' : 'trash-2'} size={16} color="#fff" />
+                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>
+                          {silmeOnay ? 'Emin misin?' : 'Sil'}
+                        </Text>
+                      </>}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => yenidenCek(onIzleme.bolge)}
                   style={{
