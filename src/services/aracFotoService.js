@@ -143,12 +143,25 @@ export async function fotoKaydet({ aracId, zaman, bolge, dosyaUri }) {
 // Kayıt sil + dosyayı storage'dan kaldır
 export async function fotoKaydiSil(kayit) {
   if (!kayit?.id) return { ok: false, hata: 'Kayıt bulunamadı' }
+
+  // Storage dosyasını sil (hata olsa bile DB kaydını silmeye devam et)
+  let storageHata = null
   if (kayit.foto_url) {
-    await supabase.storage.from('arac-fotolari').remove([kayit.foto_url]).catch(() => {})
+    const { error } = await supabase.storage.from('arac-fotolari').remove([kayit.foto_url])
+    if (error) storageHata = error.message
   }
-  const { error } = await supabase.from('arac_foto_kayitlari').delete().eq('id', kayit.id)
-  if (error) return { ok: false, hata: error.message }
-  return { ok: true }
+
+  // DB kaydını sil ve gerçekten silinip silinmediğini teyit et (RLS 0 satır dönebilir, hata vermez)
+  const { data, error } = await supabase
+    .from('arac_foto_kayitlari')
+    .delete()
+    .eq('id', kayit.id)
+    .select('id')
+  if (error) return { ok: false, hata: 'DB: ' + error.message }
+  if (!data || data.length === 0) {
+    return { ok: false, hata: 'RLS engelledi (yetki yok). Dashboard\'da DELETE policy kontrol et.' }
+  }
+  return { ok: true, storageHata }
 }
 
 // Signed URL üret (görüntüleme için)
