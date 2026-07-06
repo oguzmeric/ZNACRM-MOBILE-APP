@@ -31,7 +31,7 @@ try {
 import { useFocusEffect } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../context/ThemeContext'
-import { araclariGetir, kameralariGetir } from '../services/mobiltekService'
+import { araclariGetir, kameralariGetir, yakinlikTara, aktifYakinliklarGetir, normalizeArac } from '../services/mobiltekService'
 
 const { height: EKRAN_YUKSEKLIK } = Dimensions.get('window')
 const HARITA_YUKSEKLIK = EKRAN_YUKSEKLIK * 0.55
@@ -58,17 +58,29 @@ export default function MobiltekScreen() {
   const [kameraYukleniyor, setKameraYukleniyor] = useState(false)
   const [webviewUrl, setWebviewUrl] = useState(null)
 
+  const [yakinliklar, setYakinliklar] = useState([])
+  const [sonGuncelleme, setSonGuncelleme] = useState(null)
+
   const yukle = useCallback(async () => {
     const r = await araclariGetir()
     if (r) {
-      setAraclar(r.veri?.vehicles || [])
+      const ham = r.veri?.vehicles || []
+      setAraclar(ham.map(normalizeArac))
       setMock(r.mock)
+      setSonGuncelleme(new Date())
     }
     setYukleniyor(false)
     setRefreshing(false)
+    // Yakınlık tara (sessiz) + aktif listeyi çek
+    yakinlikTara().catch(() => {})
+    aktifYakinliklarGetir().then(setYakinliklar).catch(() => {})
   }, [])
 
-  useEffect(() => { yukle() }, [yukle])
+  useEffect(() => {
+    yukle()
+    const t = setInterval(yukle, 30_000)
+    return () => clearInterval(t)
+  }, [yukle])
   useFocusEffect(useCallback(() => { yukle() }, [yukle]))
 
   // İlk yüklemede araç varsa haritayı ortala
@@ -209,6 +221,34 @@ export default function MobiltekScreen() {
           keyExtractor={a => String(a.id)}
           renderItem={renderArac}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 30 }}
+          ListHeaderComponent={yakinliklar.length > 0 && (
+            <View style={{
+              marginBottom: 12, padding: 12, borderRadius: 10,
+              backgroundColor: yakinliklar.some(y => y.alarm_verildi) ? 'rgba(220,38,38,0.10)' : 'rgba(245,158,11,0.08)',
+              borderLeftWidth: 4,
+              borderLeftColor: yakinliklar.some(y => y.alarm_verildi) ? '#dc2626' : '#f59e0b',
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <Text style={{ fontSize: 16 }}>🕵️</Text>
+                <Text style={{ fontWeight: '700', color: colors.textPrimary, fontSize: 13 }}>
+                  {yakinliklar.filter(y => y.alarm_verildi).length > 0
+                    ? `${yakinliklar.filter(y => y.alarm_verildi).length} aktif alarm`
+                    : `${yakinliklar.length} yakınlık izleniyor`}
+                </Text>
+              </View>
+              {yakinliklar.map(y => {
+                const dk = Math.max(0, Math.round((Date.now() - new Date(y.ilk_zaman).getTime()) / 60000))
+                return (
+                  <View key={y.id} style={{ paddingVertical: 4 }}>
+                    <Text style={{ fontSize: 12, color: colors.textPrimary }}>
+                      {y.alarm_verildi ? '🚨 ' : ''}<Text style={{ fontWeight: '600' }}>{y.arac1_plaka}</Text> + <Text style={{ fontWeight: '600' }}>{y.arac2_plaka}</Text> · {dk} dk · {y.son_mesafe_m}m
+                    </Text>
+                    {!!y.son_adres && <Text style={{ fontSize: 11, color: colors.textMuted }}>{y.son_adres}</Text>}
+                  </View>
+                )
+              })}
+            </View>
+          )}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); yukle() }} tintColor={colors.textPrimary} />}
           ListEmptyComponent={!yukleniyor && (
             <View style={{ alignItems: 'center', padding: 40 }}>
