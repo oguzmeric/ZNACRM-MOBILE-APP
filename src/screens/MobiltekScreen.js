@@ -49,6 +49,7 @@ export default function MobiltekScreen() {
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()
   const mapRef = useRef(null)
+  const webviewRef = useRef(null)
   const [araclar, setAraclar] = useState([])
   const [mock, setMock] = useState(false)
   const [yukleniyor, setYukleniyor] = useState(true)
@@ -110,6 +111,12 @@ export default function MobiltekScreen() {
         longitude: Number(a.lng),
         latitudeDelta: 0.02, longitudeDelta: 0.02,
       }, 600)
+    } else if (!haritaKullanilabilir && a.lat && a.lng && webviewRef.current) {
+      // Leaflet WebView fallback — injectJavaScript ile pan
+      webviewRef.current.injectJavaScript(`
+        if (window.map) { window.map.flyTo([${Number(a.lat)}, ${Number(a.lng)}], 15, { duration: 0.8 }); }
+        true;
+      `)
     }
     setKameraYukleniyor(true)
     const r = await kameralariGetir(a.id)
@@ -188,6 +195,7 @@ export default function MobiltekScreen() {
         ) : (
           // Fallback: react-native-maps native modülü yoksa WebView + Leaflet HTML
           <WebView
+            ref={webviewRef}
             originWhitelist={['*']}
             style={{ flex: 1, backgroundColor: '#dfe6ee' }}
             source={{ html: `
@@ -208,6 +216,7 @@ export default function MobiltekScreen() {
                   hiz:Number(a.gpsSpeed||0), kontak:!!a.ignition,
                 })))};
                 const map = L.map('map').setView([39.0, 35.0], 6);
+                window.map = map;  // injectJavaScript'ten erişim için global expose
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
                 if (araclar.length) {
                   const bounds = [];
