@@ -186,13 +186,46 @@ export default function MobiltekScreen() {
             })}
           </MapView>
         ) : (
-          <View style={{ flex: 1, backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center', padding: 30 }}>
-            <Feather name="map" size={44} color="#64748b" />
-            <Text style={{ color: '#e2e8f0', fontSize: 15, fontWeight: '700', marginTop: 12 }}>Harita bekleniyor</Text>
-            <Text style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
-              Harita modülü bir sonraki uygulama güncellemesinde aktifleşecek.{'\n'}Aşağıdan araç listesini kullanabilirsin.
-            </Text>
-          </View>
+          // Fallback: react-native-maps native modülü yoksa WebView + Leaflet HTML
+          <WebView
+            originWhitelist={['*']}
+            style={{ flex: 1, backgroundColor: '#dfe6ee' }}
+            source={{ html: `
+              <!DOCTYPE html><html><head>
+              <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+              <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+              <style>body,html,#map{margin:0;padding:0;height:100%;font-family:system-ui,sans-serif}
+                .arac-pin{width:30px;height:30px;background:#10b981;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(16,185,129,0.5);border:2px solid #fff}
+                .arac-pin.kapali{background:#64748b;box-shadow:0 3px 8px rgba(0,0,0,0.3)}
+                .arac-pin span{transform:rotate(45deg);color:#fff;font-size:14px}</style>
+              </head><body>
+              <div id="map"></div>
+              <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+              <script>
+                const araclar = ${JSON.stringify((araclar||[]).filter(a=>a.lat&&a.lng).map(a=>({
+                  id:a.id, plaka:a.plateNo||('#'+a.id),
+                  lat:Number(a.lat), lng:Number(a.lng),
+                  hiz:Number(a.gpsSpeed||0), kontak:!!a.ignition,
+                })))};
+                const map = L.map('map').setView([39.0, 35.0], 6);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map);
+                if (araclar.length) {
+                  const bounds = [];
+                  araclar.forEach(a => {
+                    const html = '<div class="arac-pin ' + (a.kontak?'':'kapali') + '"><span>🚚</span></div>';
+                    const ikon = L.divIcon({html, iconSize:[30,30], iconAnchor:[15,30], className:''});
+                    L.marker([a.lat,a.lng],{icon:ikon}).addTo(map).bindPopup('<b>'+a.plaka+'</b><br>'+a.hiz+' km/s · '+(a.kontak?'kontak açık':'kontak kapalı'));
+                    bounds.push([a.lat,a.lng]);
+                  });
+                  if (bounds.length===1) map.setView(bounds[0], 13);
+                  else map.fitBounds(bounds, { padding:[40,40], maxZoom:12 });
+                }
+              </script>
+              </body></html>
+            ` }}
+            javaScriptEnabled
+            domStorageEnabled
+          />
         )}
 
         {/* Üst bar — geri + mock rozeti + yenile */}
