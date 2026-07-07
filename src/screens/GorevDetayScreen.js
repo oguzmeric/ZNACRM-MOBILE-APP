@@ -38,7 +38,7 @@ import {
 } from '../utils/format'
 
 const DURUM_SECENEKLERI = [
-  { id: 'bekliyor', label: 'Bekliyor' },
+  { id: 'bekliyor', label: 'Açık' },
   { id: 'devam_ediyor', label: 'Devam Ediyor' },
   { id: 'tamamlandi', label: 'Tamamlandı' },
   { id: 'iptal', label: 'İptal' },
