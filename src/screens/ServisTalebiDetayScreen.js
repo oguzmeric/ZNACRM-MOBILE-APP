@@ -45,6 +45,7 @@ import {
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
 import ServisFormuOnizleModal from '../components/ServisFormuOnizleModal'
 import BelgePaylasModal from '../components/BelgePaylasModal'
+import { eksikCihazKayitlariGetir } from '../services/cihazKayitService'
 import ServisFormBilgileriCard from '../components/ServisFormBilgileriCard'
 import { arsivListele, arsivSignedUrl } from '../services/servisFormuArsivService'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -287,6 +288,26 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         Alert.alert(
           'Eksik Teslim Alma',
           `Aşağıdaki malzemeler için seri numarası okutulmadı / teslim alınmadı:\n\n${ozet}${ekstra}\n\n"Teslim Al" ekranından S/N okutmadan servis kapatılamaz.`,
+          [{ text: 'Tamam' }]
+        )
+        return
+      }
+
+      // (1.5) S/N takipli cihazlar için teknik bilgi (IP + alt-lokasyon) dolduruldu mu?
+      const eksikCihazlar = await eksikCihazKayitlariGetir(id)
+      if (eksikCihazlar.length > 0) {
+        const ozet = eksikCihazlar.slice(0, 3).map((c) => {
+          const ad = c.stokKalemleri?.stokUrunler?.ad || 'Ürün'
+          const sn = c.stokKalemleri?.seriNo ? ` S/N: ${c.stokKalemleri.seriNo}` : ''
+          const eksikAlanlar = []
+          if (!c.ipAdresi) eksikAlanlar.push('IP')
+          if (!c.altLokasyon) eksikAlanlar.push('alt-lokasyon')
+          return `• ${ad}${sn} — eksik: ${eksikAlanlar.join(', ')}`
+        }).join('\n')
+        const ekstra = eksikCihazlar.length > 3 ? `\n…ve ${eksikCihazlar.length - 3} tane daha` : ''
+        Alert.alert(
+          'Cihaz Bilgisi Eksik',
+          `Aşağıdaki cihazlar için teknik bilgi (IP / alt-lokasyon) doldurulmadı:\n\n${ozet}${ekstra}\n\nCihaz Detay ekranından "Teknik Bilgiler" butonuyla doldurabilirsin.`,
           [{ text: 'Tamam' }]
         )
         return

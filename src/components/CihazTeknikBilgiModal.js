@@ -102,8 +102,15 @@ export default function CihazTeknikBilgiModal({ visible, onClose, kalem, onSave,
   }
 
   const kapat = () => {
-    if (zorunlu) {
-      Alert.alert('Gerekli', 'Teknik bilgileri doldurman gerekiyor. İptal edilemez.')
+    if (zorunlu && (!ipAdresi.trim() || !altLokasyon.trim())) {
+      Alert.alert(
+        'Bilgiler eksik',
+        'IP ve alt-lokasyon zorunlu. Şimdi atlayıp sonra Cihaz Detay ekranından doldurmak ister misin?',
+        [
+          { text: 'Vazgeç', style: 'cancel' },
+          { text: 'Sonra Doldururum', style: 'destructive', onPress: () => onClose?.() },
+        ]
+      )
       return
     }
     onClose?.()
@@ -124,11 +131,9 @@ export default function CihazTeknikBilgiModal({ visible, onClose, kalem, onSave,
                 {kalem?.seriNo ? ` · S/N: ${kalem.seriNo}` : ''}
               </Text>
             </View>
-            {!zorunlu && (
-              <TouchableOpacity onPress={kapat}>
-                <Feather name="x" size={24} color="#94a3b8" />
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity onPress={kapat}>
+              <Feather name="x" size={24} color="#94a3b8" />
+            </TouchableOpacity>
           </View>
 
           <ScrollView

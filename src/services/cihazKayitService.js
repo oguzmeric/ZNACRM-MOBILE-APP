@@ -97,6 +97,19 @@ export const aktifKaydiSok = async (stokKalemiId, payload) => {
   return toCamel(data)
 }
 
+// Bir servis talebi için EKSİK cihaz kayıtları (IP veya alt-lokasyon boş, aktif)
+// Servis kapatmadan önce kontrolde kullanılır.
+export const eksikCihazKayitlariGetir = async (servisTalepId) => {
+  const { data, error } = await supabase
+    .from('cihaz_kayitlari')
+    .select(`id, stok_kalemi_id, ip_adresi, alt_lokasyon, stok_kalemleri:stok_kalemi_id (id, seri_no, urun_id, stok_urunler:urun_id (id, ad, model))`)
+    .eq('servis_talep_id', servisTalepId)
+    .eq('durum', 'aktif')
+    .or('ip_adresi.is.null,alt_lokasyon.is.null')
+  if (error) { console.warn('eksikCihazKayitlariGetir:', error.message); return [] }
+  return arrayToCamel(data || [])
+}
+
 // Bir S/N'in tarihçesi (hepsi)
 export const tarihceGetir = async (stokKalemiId) => {
   const { data, error } = await supabase
