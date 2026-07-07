@@ -205,9 +205,19 @@ export default function MobiltekScreen() {
                   coordinate={{ latitude: Number(a.lat), longitude: Number(a.lng) }}
                   title={a.plateNo}
                   description={`${Number(a.gpsSpeed || 0)} km/s · ${kontak ? 'aktif' : 'kapalı'}`}
-                  pinColor={kontak ? '#10b981' : '#94a3b8'}
                   onPress={() => aracSec(a)}
-                />
+                  anchor={{ x: 0.5, y: 0.5 }}
+                >
+                  <View style={{
+                    width: 38, height: 38, borderRadius: 19,
+                    backgroundColor: kontak ? '#10b981' : '#64748b',
+                    alignItems: 'center', justifyContent: 'center',
+                    borderWidth: 2, borderColor: '#fff',
+                    shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+                  }}>
+                    <MaterialCommunityIcons name="car-side" size={20} color="#fff" />
+                  </View>
+                </Marker>
               )
             })}
             {kameralar.map((k, i) => {
