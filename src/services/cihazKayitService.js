@@ -97,17 +97,33 @@ export const aktifKaydiSok = async (stokKalemiId, payload) => {
   return toCamel(data)
 }
 
-// Bir servis talebi için EKSİK cihaz kayıtları (IP veya alt-lokasyon boş, aktif)
-// Servis kapatmadan önce kontrolde kullanılır.
+// Bir servis talebi için EKSİK cihaz bilgisi olan S/N takipli ürünler.
+// Bir kalem "kullanıldı" durumundaysa VE seri numarası varsa VE IP/alt-lokasyon
+// dolu değilse eksik sayılır. stok_kalemleri üzerinden doğrudan kontrol edilir
+// (cihaz_kayitlari snapshot INSERT başarısız olsa bile bu güvenilir çalışır).
 export const eksikCihazKayitlariGetir = async (servisTalepId) => {
-  const { data, error } = await supabase
-    .from('cihaz_kayitlari')
-    .select(`id, stok_kalemi_id, ip_adresi, alt_lokasyon, stok_kalemleri:stok_kalemi_id (id, seri_no, urun_id, stok_urunler:urun_id (id, ad, model))`)
+  // 1) Bu servise kullanıldı olarak yazılmış kalemleri al
+  const { data: kullanimlar, error: e1 } = await supabase
+    .from('servis_malzeme_kullanimlari')
+    .select('kalem_id')
     .eq('servis_talep_id', servisTalepId)
-    .eq('durum', 'aktif')
-    .or('ip_adresi.is.null,alt_lokasyon.is.null')
-  if (error) { console.warn('eksikCihazKayitlariGetir:', error.message); return [] }
-  return arrayToCamel(data || [])
+    .eq('durum', 'kullanildi')
+    .not('kalem_id', 'is', null)
+  if (e1) { console.warn('eksikCihazKayitlariGetir.kullanim:', e1.message); return [] }
+
+  const kalemIds = [...new Set((kullanimlar || []).map((k) => k.kalem_id))]
+  if (kalemIds.length === 0) return []
+
+  // 2) Kalemleri fetch et; seri numarası olan + IP veya alt-lokasyonu boş olanlar eksik
+  const { data: kalemler, error: e2 } = await supabase
+    .from('stok_kalemleri')
+    .select('id, seri_no, ip_adresi, alt_lokasyon, urun_id, stok_urunler:urun_id (id, ad, model)')
+    .in('id', kalemIds)
+    .not('seri_no', 'is', null)
+  if (e2) { console.warn('eksikCihazKayitlariGetir.kalem:', e2.message); return [] }
+
+  const eksikler = (kalemler || []).filter((k) => !k.ip_adresi || !k.alt_lokasyon)
+  return arrayToCamel(eksikler)
 }
 
 // Bir S/N'in tarihçesi (hepsi)

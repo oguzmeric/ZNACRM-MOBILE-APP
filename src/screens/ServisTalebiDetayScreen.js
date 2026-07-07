@@ -297,8 +297,8 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
       const eksikCihazlar = await eksikCihazKayitlariGetir(id)
       if (eksikCihazlar.length > 0) {
         const ozet = eksikCihazlar.slice(0, 3).map((c) => {
-          const ad = c.stokKalemleri?.stokUrunler?.ad || 'Ürün'
-          const sn = c.stokKalemleri?.seriNo ? ` S/N: ${c.stokKalemleri.seriNo}` : ''
+          const ad = c.stokUrunler?.ad || 'Ürün'
+          const sn = c.seriNo ? ` S/N: ${c.seriNo}` : ''
           const eksikAlanlar = []
           if (!c.ipAdresi) eksikAlanlar.push('IP')
           if (!c.altLokasyon) eksikAlanlar.push('alt-lokasyon')
