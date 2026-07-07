@@ -28,7 +28,7 @@ try {
 } catch (e) {
   console.warn('[mobiltek] harita init hata:', e?.message)
 }
-import { useFocusEffect } from '@react-navigation/native'
+import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../context/ThemeContext'
 import { araclariGetir, kameralariGetir, yakinlikTara, aktifYakinliklarGetir, normalizeArac } from '../services/mobiltekService'
@@ -46,6 +46,7 @@ const kucukSaat = (iso) => {
 const TR_MERKEZ = { latitude: 39.0, longitude: 35.0, latitudeDelta: 10, longitudeDelta: 10 }
 
 export default function MobiltekScreen() {
+  const navigation = useNavigation()
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()
   const mapRef = useRef(null)
@@ -148,6 +149,19 @@ export default function MobiltekScreen() {
             {Number(a.gpsSpeed || 0)} km/s · {kucukSaat(a.gpsTime)}
           </Text>
         </View>
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation?.()
+            navigation.navigate('CanliKamera', { aracId: a.id, aracPlaka: a.plateNo || a.label })
+          }}
+          style={{
+            width: 38, height: 38, borderRadius: 10,
+            backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center',
+            marginRight: 6,
+          }}
+        >
+          <Feather name="video" size={16} color="#fff" />
+        </TouchableOpacity>
         <Feather name="chevron-right" size={18} color={colors.textMuted} />
       </TouchableOpacity>
     )

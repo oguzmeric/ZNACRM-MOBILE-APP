@@ -92,7 +92,8 @@
           "project": "crm-mobile",
           "organization": "oguzmeric"
         }
-      ]
+      ],
+      "expo-video"
     ],
     "extra": {
       "eas": {

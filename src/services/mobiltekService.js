@@ -43,6 +43,41 @@ export const normalizeArac = (v) => {
 
 export const araclariGetir     = () => cagir('vehicles')
 export const kameralariGetir   = (aracId) => cagir(`cameras/${aracId}`)
+
+// v2 canlı kamera — streamingUrls (rtmp, flv, hls) döner
+export const canliKameraBaslat = (aracId, kanal = 1) => cagir(`cameras-live/${aracId}`, { channel: kanal })
+export const canliKameraDurdur = (aracId, kanal = 1) => cagir(`cameras-live-stop/${aracId}`, { channel: kanal })
+
+// Mobiltek HTTP stream'ini Supabase HTTPS proxy path'ine çevir
+export const proxyleStreamUrl = (url) => {
+  if (!url) return url
+  const m = url.match(/^http:\/\/84\.51\.5\.140:8881\/(.+)$/)
+  if (!m) return url
+  const base = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://hcrbwxeuscfibgmchdtt.supabase.co'
+  return `${base}/functions/v1/mobiltek-stream/${m[1]}`
+}
+
+// İzleme log helper'ları (kamera_izleme_log tablosu)
+export const izlemeLogBaslat = async ({ aracId, aracPlaka, kanal, kullaniciId }) => {
+  const { data, error } = await supabase.from('kamera_izleme_log').insert({
+    kullanici_id: kullaniciId,
+    arac_id: String(aracId),
+    arac_plaka: aracPlaka ?? null,
+    kanal,
+  }).select('id').single()
+  if (error) { console.warn('izlemeLogBaslat:', error.message); return null }
+  return data.id
+}
+
+export const izlemeLogBitir = async (logId) => {
+  if (!logId) return
+  const bitis = new Date().toISOString()
+  const { data: mevcut } = await supabase.from('kamera_izleme_log').select('baslangic').eq('id', logId).single()
+  const sure = mevcut?.baslangic
+    ? Math.max(0, Math.round((new Date(bitis) - new Date(mevcut.baslangic)) / 1000))
+    : null
+  await supabase.from('kamera_izleme_log').update({ bitis, sure_saniye: sure }).eq('id', logId)
+}
 export const konumLoglariGetir = (aracId, start, end) => cagir(`vehicles/location-logs/${aracId}`, { start, end })
 export const motorDurumu       = (aracId) => cagir(`vehicles/engine-status/${aracId}`)
 export const geocoding         = (lat, lng) => cagir('geocoding', { lat, lng })
