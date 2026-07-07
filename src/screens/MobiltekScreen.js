@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, RefreshControl, ActivityIndicator, Dimensions, Platform, NativeModules, UIManager } from 'react-native'
 import { WebView } from 'react-native-webview'
-import { Feather } from '@expo/vector-icons'
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
 
 // react-native-maps native modül gerektirir — binary'de yoksa render'da 'AIRMap'
 // view config not found hatası verir. Sadece require başarılı olmak yetmez,
@@ -143,7 +143,7 @@ export default function MobiltekScreen() {
         activeOpacity={0.7}
       >
         <View style={[styles.aracIkon, { backgroundColor: kontak ? 'rgba(16,185,129,0.15)' : 'rgba(148,163,184,0.15)' }]}>
-          <Feather name="truck" size={20} color={kontak ? '#10b981' : '#94a3b8'} />
+          <MaterialCommunityIcons name="car-side" size={22} color={kontak ? '#10b981' : '#94a3b8'} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -240,7 +240,7 @@ export default function MobiltekScreen() {
                 if (araclar.length) {
                   const bounds = [];
                   araclar.forEach(a => {
-                    const html = '<div class="arac-pin ' + (a.kontak?'':'kapali') + '"><span>🚚</span></div>';
+                    const html = '<div class="arac-pin ' + (a.kontak?'':'kapali') + '"><span>🚗</span></div>';
                     const ikon = L.divIcon({html, iconSize:[30,30], iconAnchor:[15,30], className:''});
                     L.marker([a.lat,a.lng],{icon:ikon}).addTo(map).bindPopup('<b>'+a.plaka+'</b><br>'+a.hiz+' km/s · '+(a.kontak?'kontak açık':'kontak kapalı'));
                     bounds.push([a.lat,a.lng]);
@@ -260,7 +260,7 @@ export default function MobiltekScreen() {
         <View style={[styles.ustBar, { paddingTop: insets.top + 8 }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <View style={styles.ustBaslikKart}>
-              <Feather name="truck" size={14} color="#3b82f6" />
+              <MaterialCommunityIcons name="car-multiple" size={16} color="#3b82f6" />
               <Text style={styles.ustBaslik}>{araclar.length} araç</Text>
               {mock && <View style={styles.mockRozet}><Text style={styles.mockText}>MOCK</Text></View>}
             </View>
@@ -313,7 +313,7 @@ export default function MobiltekScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); yukle() }} tintColor={colors.textPrimary} />}
           ListEmptyComponent={!yukleniyor && (
             <View style={{ alignItems: 'center', padding: 40 }}>
-              <Feather name="truck" size={40} color={colors.textMuted} />
+              <MaterialCommunityIcons name="car-side" size={44} color={colors.textMuted} />
               <Text style={{ color: colors.textMuted, marginTop: 12 }}>Araç yok</Text>
             </View>
           )}
