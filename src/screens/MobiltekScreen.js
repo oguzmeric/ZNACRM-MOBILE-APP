@@ -13,20 +13,25 @@ let MapView = null
 let Marker = null
 let PROVIDER_DEFAULT = null
 let haritaKullanilabilir = false
-try {
-  const cfg =
-    (UIManager.getViewManagerConfig && UIManager.getViewManagerConfig('AIRMap')) ||
-    UIManager.AIRMap ||
-    null
-  if (cfg) {
-    const maps = require('react-native-maps')
-    MapView = maps.default
-    Marker = maps.Marker
-    PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT
-    haritaKullanilabilir = !!MapView
+// Android'de Google Maps API key olmadan MapView native crash yapıyor
+// (Sentry: "IllegalStateException: API key not found")
+// Bu nedenle Android'de MapView'ı devre dışı bırak — Leaflet WebView fallback kullanılır
+if (Platform.OS !== 'android') {
+  try {
+    const cfg =
+      (UIManager.getViewManagerConfig && UIManager.getViewManagerConfig('AIRMap')) ||
+      UIManager.AIRMap ||
+      null
+    if (cfg) {
+      const maps = require('react-native-maps')
+      MapView = maps.default
+      Marker = maps.Marker
+      PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT
+      haritaKullanilabilir = !!MapView
+    }
+  } catch (e) {
+    console.warn('[mobiltek] harita init hata:', e?.message)
   }
-} catch (e) {
-  console.warn('[mobiltek] harita init hata:', e?.message)
 }
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
