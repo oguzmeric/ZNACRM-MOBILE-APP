@@ -131,7 +131,11 @@ export default function MobiltekScreen() {
   }
 
   const renderArac = ({ item: a }) => {
-    const kontak = a.ignition === '1' || a.engineStatus === 'on'
+    // Mobiltek 'ignition' bazen yanlış rapor ediyor (aracın çalışırken bile false döndürebiliyor)
+    // Birden fazla sinyale bakıyoruz: ignition, engineStatus veya hız > 0
+    const kontak = a.ignition === '1' || a.ignition === true || a.ignition === 1
+      || a.engineStatus === 'on'
+      || Number(a.gpsSpeed || 0) > 0
     const aktif = seciliArac?.id === a.id
     return (
       <TouchableOpacity
@@ -190,7 +194,11 @@ export default function MobiltekScreen() {
           >
             {araclar.map(a => {
               if (!a.lat || !a.lng) return null
-              const kontak = a.ignition === '1' || a.engineStatus === 'on'
+              // Mobiltek 'ignition' bazen yanlış rapor ediyor (aracın çalışırken bile false döndürebiliyor)
+    // Birden fazla sinyale bakıyoruz: ignition, engineStatus veya hız > 0
+    const kontak = a.ignition === '1' || a.ignition === true || a.ignition === 1
+      || a.engineStatus === 'on'
+      || Number(a.gpsSpeed || 0) > 0
               return (
                 <Marker
                   key={a.id}
