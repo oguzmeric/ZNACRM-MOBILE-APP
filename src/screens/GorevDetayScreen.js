@@ -20,6 +20,7 @@ import { useHeaderHeight } from '@react-navigation/elements'
 import { useAuth } from '../context/AuthContext'
 import {
   gorevGetir,
+  gorevGuncelle,
   gorevDurumGuncelle,
   gorevNotEkle,
   gorevSil,
@@ -44,6 +45,13 @@ const DURUM_SECENEKLERI = [
   { id: 'iptal', label: 'İptal' },
 ]
 
+const DEVAM_SEBEPLERI = [
+  { id: 'hava_muhalefeti',   isim: 'Hava Muhalefeti',   ikon: '🌧️' },
+  { id: 'program_yogunlugu', isim: 'Program Yoğunluğu', ikon: '📅' },
+  { id: 'tamir_ariza',       isim: 'Tamir / Arıza',     ikon: '🔧' },
+  { id: 'uretici_tedarik',   isim: 'Üretici / Tedarik', ikon: '📦' },
+]
+
 export default function GorevDetayScreen({ route, navigation }) {
   const { id } = route.params
   const { kullanici } = useAuth()
@@ -60,6 +68,7 @@ export default function GorevDetayScreen({ route, navigation }) {
   const [duzenlenenNotIdx, setDuzenlenenNotIdx] = useState(null)
   const [duzenlenenNotMetin, setDuzenlenenNotMetin] = useState('')
   const [notGuncelleniyor, setNotGuncelleniyor] = useState(false)
+  const [devamSebepModal, setDevamSebepModal] = useState(false)
 
   const yukle = async () => {
     setLoading(true)
@@ -130,10 +139,25 @@ export default function GorevDetayScreen({ route, navigation }) {
     }
 
     setUpdating(true)
-    const guncel = await gorevDurumGuncelle(id, yeniDurum)
+    // Devam ediyor değilse mevcut sebep temizlenir; devam ediyor'a geçince sonra modal açılır
+    const guncelleme = { durum: yeniDurum }
+    if (yeniDurum !== 'devam_ediyor') guncelleme.devamSebep = null
+    const guncel = await gorevGuncelle(id, guncelleme)
     setUpdating(false)
+    if (guncel) {
+      setGorev(guncel)
+      if (yeniDurum === 'devam_ediyor') setDevamSebepModal(true)
+    } else {
+      Alert.alert('Hata', 'Durum güncellenemedi.')
+    }
+  }
+
+  const devamSebepSec = async (sebepId) => {
+    setUpdating(true)
+    const guncel = await gorevGuncelle(id, { devamSebep: sebepId })
+    setUpdating(false)
+    setDevamSebepModal(false)
     if (guncel) setGorev(guncel)
-    else Alert.alert('Hata', 'Durum güncellenemedi.')
   }
 
   const galeridenSec = async () => {
@@ -376,6 +400,86 @@ export default function GorevDetayScreen({ route, navigation }) {
           )
         })}
       </View>
+
+      {/* Devam sebebi göstergesi + değiştir butonu (sadece devam_ediyor durumunda) */}
+      {gorev.durum === 'devam_ediyor' && (
+        <View style={styles.devamSebepBar}>
+          {gorev.devamSebep ? (
+            <View style={styles.devamSebepSol}>
+              <Text style={styles.devamSebepIkon}>
+                {DEVAM_SEBEPLERI.find((s) => s.id === gorev.devamSebep)?.ikon || '❓'}
+              </Text>
+              <Text style={styles.devamSebepText}>
+                Sebep: {DEVAM_SEBEPLERI.find((s) => s.id === gorev.devamSebep)?.isim || gorev.devamSebep}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.devamSebepBos}>Devam sebebi belirtilmemiş</Text>
+          )}
+          <TouchableOpacity
+            style={styles.devamSebepBtn}
+            onPress={() => setDevamSebepModal(true)}
+          >
+            <Text style={styles.devamSebepBtnText}>
+              {gorev.devamSebep ? 'Değiştir' : 'Sebep Seç'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Devam sebep seçim modalı */}
+      <Modal
+        visible={devamSebepModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setDevamSebepModal(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setDevamSebepModal(false)}
+          style={styles.modalArkaPlan}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalKart} onPress={(e) => e.stopPropagation?.()}>
+            <Text style={styles.modalBaslik}>Devam Ediyor — Sebep</Text>
+            <Text style={styles.modalAltBaslik}>
+              Seçim zorunlu değil, atlamak için "Belirtme" butonuna basabilirsin.
+            </Text>
+            <View style={styles.sebepGrid}>
+              {DEVAM_SEBEPLERI.map((s) => {
+                const secili = gorev.devamSebep === s.id
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={[styles.sebepBtn, secili && styles.sebepBtnAktif]}
+                    onPress={() => devamSebepSec(s.id)}
+                    disabled={updating}
+                  >
+                    <Text style={styles.sebepIkon}>{s.ikon}</Text>
+                    <Text style={[styles.sebepIsim, secili && styles.sebepIsimAktif]}>{s.isim}</Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+            <View style={styles.modalButonSira}>
+              {gorev.devamSebep && (
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnKaldir]}
+                  onPress={() => devamSebepSec(null)}
+                  disabled={updating}
+                >
+                  <Text style={styles.modalBtnKaldirText}>Sebebi Kaldır</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnAtla]}
+                onPress={() => setDevamSebepModal(false)}
+              >
+                <Text style={styles.modalBtnAtlaText}>Belirtme</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Notlar timeline */}
       <Text style={[styles.sectionLabel, { marginTop: 20 }]}>
@@ -629,6 +733,99 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e293b',
   },
   durumBtnText: { color: '#cbd5e1', fontWeight: '600' },
+
+  devamSebepBar: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#1e293b',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderLeftWidth: 3,
+    borderLeftColor: '#f59e0b',
+  },
+  devamSebepSol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  devamSebepIkon: { fontSize: 22 },
+  devamSebepText: { color: '#fff', fontWeight: '600', fontSize: 13, flexShrink: 1 },
+  devamSebepBos: { color: '#94a3b8', fontStyle: 'italic', fontSize: 12, flex: 1 },
+  devamSebepBtn: {
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'transparent',
+  },
+  devamSebepBtnText: { color: '#60a5fa', fontWeight: '600', fontSize: 12 },
+
+  modalArkaPlan: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalKart: {
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    padding: 20,
+    width: '100%',
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  modalBaslik: { color: '#fff', fontSize: 17, fontWeight: '700', marginBottom: 4 },
+  modalAltBaslik: { color: '#94a3b8', fontSize: 12, marginBottom: 16, lineHeight: 18 },
+  sebepGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  sebepBtn: {
+    flexBasis: '48%',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+  },
+  sebepBtnAktif: {
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+    backgroundColor: 'rgba(59,130,246,0.15)',
+  },
+  sebepIkon: { fontSize: 26, marginBottom: 6 },
+  sebepIsim: { color: '#cbd5e1', fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  sebepIsimAktif: { color: '#fff' },
+  modalButonSira: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'flex-end',
+  },
+  modalBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  modalBtnAtla: {
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
+  },
+  modalBtnAtlaText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+  modalBtnKaldir: {
+    backgroundColor: 'transparent',
+    borderColor: '#334155',
+  },
+  modalBtnKaldirText: { color: '#94a3b8', fontWeight: '600', fontSize: 13 },
 
   silBtn: {
     marginTop: 28,
