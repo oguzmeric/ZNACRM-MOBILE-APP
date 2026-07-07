@@ -153,6 +153,9 @@ export default function MobiltekScreen() {
           <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 2 }}>
             {Number(a.gpsSpeed || 0)} km/s · {kucukSaat(a.gpsTime)}
           </Text>
+          <Text style={{ fontSize: 11, fontWeight: '600', color: kontak ? '#10b981' : '#94a3b8', marginTop: 3 }}>
+            {kontak ? 'Kontak açık' : 'Kontak kapalı'}
+          </Text>
         </View>
         <TouchableOpacity
           onPress={(e) => {
