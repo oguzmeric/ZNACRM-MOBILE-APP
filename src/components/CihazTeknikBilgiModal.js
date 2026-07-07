@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { stokKalemGuncelle } from '../services/stokKalemiService'
+import { cihazKayitUpsert } from '../services/cihazKayitService'
 
 // Cihaz teknik bilgileri formu — IP, MAC, kullanıcı, şifre, NVR, kanal, alt-lokasyon
 //
@@ -70,6 +71,26 @@ export default function CihazTeknikBilgiModal({ visible, onClose, kalem, onSave,
       kanalNo: kanalNo ? parseInt(kanalNo, 10) : null,
       altLokasyon: altLokasyon.trim() || null,
     })
+
+    // Tarihçe snapshot'ı — aktif kayıt varsa güncelle, yoksa oluştur.
+    // Fail-open: snapshot başarısız olsa bile teknisyenin akışı bozulmasın.
+    try {
+      await cihazKayitUpsert({
+        stokKalemiId: kalem.id,
+        musteriId: guncel?.musteriId ?? kalem.musteriId,
+        kuranKullaniciId: guncel?.teknisyenId ?? kalem.teknisyenId,
+        ipAdresi: ipAdresi.trim() || null,
+        macAdresi: macAdresi.trim() || null,
+        kullaniciAdi: cihazKullanici.trim() || null,
+        sifre: cihazSifre.trim() || null,
+        nvrBilgisi: nvrBilgisi.trim() || null,
+        kanalNo: kanalNo ? parseInt(kanalNo, 10) : null,
+        altLokasyon: altLokasyon.trim() || null,
+      })
+    } catch (e) {
+      console.warn('cihazKayitUpsert (fail-open):', e?.message ?? e)
+    }
+
     setKaydediliyor(false)
 
     if (!guncel) {

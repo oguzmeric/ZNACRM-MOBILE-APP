@@ -1,5 +1,6 @@
 import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
+import { cihazKayitBaslat, aktifKaydiSok } from './cihazKayitService'
 
 export const DURUMLAR = [
   { id: 'depoda', isim: 'Depoda', renk: '#3b82f6', ikon: '📦' },
@@ -367,6 +368,20 @@ export const cihazTak = async ({
       boylam,
       notMetni: not,
     })
+
+    // Cihaz tarihçesi snapshot'ı — modal SAVE ile teknik bilgiler eklenecek.
+    // Fail-open: snapshot başarısız olsa bile takma işlemi bozulmasın.
+    try {
+      await cihazKayitBaslat({
+        stokKalemiId: kalemId,
+        musteriId,
+        servisTalepId,
+        kuranKullaniciId: kullaniciId,
+        kurulumNotu: not,
+      })
+    } catch (e) {
+      console.warn('cihazKayitBaslat (fail-open):', e?.message ?? e)
+    }
   }
   return guncel
 }
@@ -406,6 +421,19 @@ export const cihazSok = async ({
       boylam,
       notMetni: not,
     })
+
+    // Aktif snapshot'ı 'sokuldu'/'ariza' olarak kapat.
+    // Fail-open: eski kayıtları olmayan cihazlar için de sökme akışı çalışsın.
+    try {
+      await aktifKaydiSok(kalemId, {
+        sokumKullaniciId: kullaniciId,
+        sokumServisTalepId: servisTalepId,
+        sokumNotu: not,
+        arizali: yeniDurum === 'arizada' || yeniDurum === 'arizali_depoda' || yeniDurum === 'tamirde',
+      })
+    } catch (e) {
+      console.warn('aktifKaydiSok (fail-open):', e?.message ?? e)
+    }
   }
   return guncel
 }
