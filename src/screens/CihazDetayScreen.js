@@ -34,6 +34,7 @@ import {
 import { musterileriGetir, musteriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { kullanicilariGetir } from '../services/kullaniciService'
+import { tarihceGetir } from '../services/cihazKayitService'
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
 import { trIcerir } from '../utils/trSearch'
 import { useTheme } from '../context/ThemeContext'
@@ -45,6 +46,7 @@ export default function CihazDetayScreen({ route, navigation }) {
   const { colors } = useTheme()
   const [kalem, setKalem] = useState(null)
   const [hareketler, setHareketler] = useState([])
+  const [tarihce, setTarihce] = useState([])
   const [musteri, setMusteri] = useState(null)
   const [lokasyon, setLokasyon] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -59,8 +61,12 @@ export default function CihazDetayScreen({ route, navigation }) {
     const k = await stokKalemGetir(id)
     setKalem(k)
     if (k) {
-      const h = await kalemHareketleriniGetir(id)
+      const [h, t] = await Promise.all([
+        kalemHareketleriniGetir(id),
+        tarihceGetir(id),
+      ])
       setHareketler(h ?? [])
+      setTarihce(t ?? [])
       if (k.musteriId) {
         const [m, lokasyonlar] = await Promise.all([
           musteriGetir(k.musteriId),
@@ -451,6 +457,51 @@ export default function CihazDetayScreen({ route, navigation }) {
                 </View>
               )
             })()}
+          </>
+        )}
+
+        {/* Kurulum tarihçesi — cihaz_kayitlari snapshot'ları */}
+        {tarihce.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, { marginTop: 24, color: colors.textMuted }]}>
+              🔌 Kurulum Tarihçesi ({tarihce.length})
+            </Text>
+            {tarihce.map((tk) => {
+              const musteriAd = tk.musteriler?.firma
+                || `${tk.musteriler?.ad ?? ''} ${tk.musteriler?.soyad ?? ''}`.trim()
+                || '—'
+              const aktif = tk.durum === 'aktif'
+              const arizali = tk.durum === 'ariza'
+              const durumRenk = aktif ? '#10b981' : arizali ? '#f59e0b' : '#94a3b8'
+              const durumEt = aktif ? 'AKTİF' : arizali ? 'ARIZA' : 'SÖKÜLDÜ'
+              return (
+                <View key={tk.id} style={[styles.tarihceCard, { backgroundColor: colors.surface, borderLeftColor: durumRenk }]}>
+                  <View style={styles.tarihceHead}>
+                    <Text style={[styles.tarihceMusteri, { color: colors.textPrimary }]}>{musteriAd}</Text>
+                    <View style={[styles.tarihceRozet, { backgroundColor: durumRenk }]}>
+                      <Text style={styles.tarihceRozetText}>{durumEt}</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.tarihceMeta, { color: colors.textFaded }]}>
+                    Kuruldu: {tarihSaatFormat(tk.kurulumTarihi)}
+                    {tk.sokumTarihi ? ` · Söküldü: ${tarihSaatFormat(tk.sokumTarihi)}` : ''}
+                  </Text>
+                  {(tk.ipAdresi || tk.macAdresi || tk.kullaniciAdi || tk.sifre) && (
+                    <View style={styles.tarihceTeknik}>
+                      {tk.ipAdresi && <Text style={[styles.tarihceTeknikSatir, { color: colors.textSecondary }]}>🌐 IP: {tk.ipAdresi}</Text>}
+                      {tk.macAdresi && <Text style={[styles.tarihceTeknikSatir, { color: colors.textSecondary }]}>🔗 MAC: {tk.macAdresi}</Text>}
+                      {tk.kullaniciAdi && <Text style={[styles.tarihceTeknikSatir, { color: colors.textSecondary }]}>👤 Kullanıcı: {tk.kullaniciAdi}</Text>}
+                      {tk.sifre && <Text style={[styles.tarihceTeknikSatir, { color: colors.textSecondary }]}>🔐 Şifre: {tk.sifre}</Text>}
+                      {tk.nvrBilgisi && <Text style={[styles.tarihceTeknikSatir, { color: colors.textSecondary }]}>📹 NVR: {tk.nvrBilgisi}{tk.kanalNo ? ` · Kanal ${tk.kanalNo}` : ''}</Text>}
+                      {tk.altLokasyon && <Text style={[styles.tarihceTeknikSatir, { color: colors.textSecondary }]}>📍 Yer: {tk.altLokasyon}</Text>}
+                    </View>
+                  )}
+                  {!!tk.sokumNotu && (
+                    <Text style={[styles.tarihceNot, { color: colors.textMuted }]}>📝 Sökme notu: {tk.sokumNotu}</Text>
+                  )}
+                </View>
+              )
+            })}
           </>
         )}
 
@@ -1259,6 +1310,39 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 8,
   },
+
+  tarihceCard: {
+    backgroundColor: '#1e293b',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10b981',
+  },
+  tarihceHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  tarihceMusteri: { color: '#fff', fontSize: 14, fontWeight: '700', flex: 1 },
+  tarihceRozet: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  tarihceRozetText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  tarihceMeta: { color: '#64748b', fontSize: 11, marginBottom: 8 },
+  tarihceTeknik: {
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+    paddingTop: 8,
+    gap: 3,
+  },
+  tarihceTeknikSatir: { color: '#cbd5e1', fontSize: 12 },
+  tarihceNot: { color: '#94a3b8', fontSize: 12, marginTop: 6, fontStyle: 'italic' },
+
   hareketTip: { color: '#fff', fontSize: 14, fontWeight: '700' },
   hareketAciklama: { color: '#cbd5e1', fontSize: 13, marginTop: 4 },
   hareketNot: { color: '#94a3b8', fontSize: 12, marginTop: 4, fontStyle: 'italic' },
