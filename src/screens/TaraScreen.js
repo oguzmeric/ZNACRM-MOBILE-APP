@@ -14,7 +14,6 @@ import {
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as Haptics from 'expo-haptics'
-import { Audio } from 'expo-av'
 import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../context/ThemeContext'
@@ -46,43 +45,25 @@ export default function TaraScreen({ navigation }) {
   const [torch, setTorch] = useState(false)
   const [zoom, setZoom] = useState(0)
   const [sureklimod, setSureklimod] = useState(true) // sürekli tarama modu — default aktif
-  const [banner, setBanner] = useState(null) // { tip: 'ok'|'ses'|'db'|'yok', metin, sn }
-  const [sesiAc, setSesiAc] = useState(true)
+  const [banner, setBanner] = useState(null) // { tip, metin, sn }
+  const [titresim, setTitresim] = useState(true)
   const sonOkunan = useRef(null)
   const sonOkunanZaman = useRef(0)
   const debounceRef = useRef(null)
   const bannerTimerRef = useRef(null)
   const scanLineAnim = useRef(new Animated.Value(0)).current
-  const soundRef = useRef({ ok: null, uyari: null, hata: null })
 
-  // Ses dosyalarını yükle (web-hosted URL — çevrimiçi tek seferlik)
-  useEffect(() => {
-    let iptal = false
-    const yukle = async () => {
-      try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: true })
-        // Kısa ses efektleri — Google Actions freesound
-        const [ok, uyari, hata] = await Promise.all([
-          Audio.Sound.createAsync({ uri: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg' }, { volume: 1 }),
-          Audio.Sound.createAsync({ uri: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' }, { volume: 1 }),
-          Audio.Sound.createAsync({ uri: 'https://actions.google.com/sounds/v1/alarms/dosimeter_alarm.ogg' }, { volume: 1 }),
-        ])
-        if (iptal) return
-        soundRef.current = { ok: ok.sound, uyari: uyari.sound, hata: hata.sound }
-      } catch (e) { console.warn('[TaraScreen] ses yükleme:', e?.message) }
-    }
-    yukle()
-    return () => {
-      iptal = true
-      for (const k of Object.values(soundRef.current)) { try { k?.unloadAsync() } catch {} }
-    }
-  }, [])
-
-  const sesCal = async (tip) => {
-    if (!sesiAc) return
-    const s = soundRef.current[tip]
-    if (!s) return
-    try { await s.replayAsync() } catch {}
+  // Titreşim pattern'ları — hızlı ve algılanabilir
+  const TITRE_OK    = 80
+  const TITRE_UYARI = [0, 150, 80, 150]
+  const TITRE_HATA  = [0, 300, 120, 300]
+  const titrestir = (tip) => {
+    if (!titresim) return
+    try {
+      if (tip === 'ok')    Vibration.vibrate(TITRE_OK)
+      if (tip === 'uyari') Vibration.vibrate(TITRE_UYARI)
+      if (tip === 'hata')  Vibration.vibrate(TITRE_HATA)
+    } catch {}
   }
 
   const gosterBanner = (tip, metin, sn) => {
@@ -141,14 +122,14 @@ export default function TaraScreen({ navigation }) {
       if (sureklimod) {
         try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning) } catch {}
         Vibration.vibrate([0, 100, 40, 60])
-        sesCal('uyari')
+        titrestir('uyari')
         gosterBanner('db', 'Kayıtlı — atlandı', kod)
         return // scanning zaten açık
       }
       // Normal mod → CihazDetay
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) } catch {}
       Vibration.vibrate(60)
-      sesCal('ok')
+      titrestir('ok')
       navigation.navigate('CihazDetay', { id: kalem.id, taradigimKod: kod })
       return
     }
@@ -158,7 +139,7 @@ export default function TaraScreen({ navigation }) {
       // Sürekli modda: kırmızı banner "yeni SN" — hemen tekrar tarama
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error) } catch {}
       Vibration.vibrate([0, 200, 100, 200])
-      sesCal('hata')
+      titrestir('hata')
       gosterBanner('yok', 'Kayıtlı değil', kod)
       return
     }
@@ -257,8 +238,8 @@ export default function TaraScreen({ navigation }) {
             trackColor={{ true: '#10b981', false: '#64748b' }} thumbColor="#fff" />
         </View>
         <View style={styles.modItem}>
-          <Text style={styles.modText}>Ses</Text>
-          <Switch value={sesiAc} onValueChange={setSesiAc}
+          <Text style={styles.modText}>Titreşim</Text>
+          <Switch value={titresim} onValueChange={setTitresim}
             trackColor={{ true: '#3b82f6', false: '#64748b' }} thumbColor="#fff" />
         </View>
       </View>
