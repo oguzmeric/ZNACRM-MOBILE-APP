@@ -17,7 +17,8 @@ import * as Haptics from 'expo-haptics'
 import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../context/ThemeContext'
-import { kalemAra } from '../services/stokKalemiService'
+import { kalemAra, modellerOzetiniGetir, serileriTopluEkle } from '../services/stokKalemiService'
+import { Modal, FlatList } from 'react-native'
 
 const BARKOD_TIPLERI = [
   'qr',
@@ -47,6 +48,18 @@ export default function TaraScreen({ navigation }) {
   const [sureklimod, setSureklimod] = useState(true) // sürekli tarama modu — default aktif
   const [banner, setBanner] = useState(null) // { tip, metin, sn }
   const [titresim, setTitresim] = useState(true)
+  const [aktifModel, setAktifModel] = useState(null) // { stokKodu, marka, model } — sürekli mod için
+  const [modelPickerAcik, setModelPickerAcik] = useState(false)
+  const [modeller, setModeller] = useState([])
+  const [modelArama, setModelArama] = useState('')
+  const [eklenenSayisi, setEklenenSayisi] = useState(0)
+
+  // İlk açılışta modelleri yükle (sürekli mod için)
+  useEffect(() => {
+    modellerOzetiniGetir()
+      .then((l) => setModeller((l ?? []).filter((m) => m.tip === 'seri')))
+      .catch((e) => console.warn('[modeller]', e?.message))
+  }, [])
   const sonOkunan = useRef(null)
   const sonOkunanZaman = useRef(0)
   const debounceRef = useRef(null)
@@ -136,11 +149,34 @@ export default function TaraScreen({ navigation }) {
 
     // Kayıt bulunamadı
     if (sureklimod) {
-      // Sürekli modda: kırmızı banner "yeni SN" — hemen tekrar tarama
+      // Sürekli modda + aktif model varsa → doğrudan ekle
+      if (aktifModel) {
+        try {
+          const r = await serileriTopluEkle(aktifModel.stokKodu, [kod], {
+            marka: aktifModel.marka, model: aktifModel.model,
+          })
+          if (r.eklenen > 0) {
+            try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) } catch {}
+            titrestir('ok')
+            setEklenenSayisi((n) => n + r.eklenen)
+            gosterBanner('ok', `Eklendi → ${aktifModel.marka || ''} ${aktifModel.model || aktifModel.stokKodu}`, kod)
+          } else {
+            // Yarışta duplicate olmuş olabilir
+            try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning) } catch {}
+            titrestir('uyari')
+            gosterBanner('db', 'Zaten kayıtlı — atlandı', kod)
+          }
+        } catch (e) {
+          try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error) } catch {}
+          titrestir('hata')
+          gosterBanner('yok', 'Ekleme hatası', kod)
+        }
+        return
+      }
+      // Aktif model yok → sadece uyarı, kaydetme
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error) } catch {}
-      Vibration.vibrate([0, 200, 100, 200])
       titrestir('hata')
-      gosterBanner('yok', 'Kayıtlı değil', kod)
+      gosterBanner('yok', 'Kayıtlı değil — önce model seç', kod)
       return
     }
     // Normal mod → Alert
@@ -244,6 +280,24 @@ export default function TaraScreen({ navigation }) {
         </View>
       </View>
 
+      {/* Aktif model chip — sürekli modda görünür */}
+      {sureklimod && (
+        <TouchableOpacity
+          onPress={() => setModelPickerAcik(true)}
+          activeOpacity={0.85}
+          style={[styles.modelChip, { top: insets.top + 132 }]}
+        >
+          <Feather name="package" size={14} color="#fff" />
+          {aktifModel ? (
+            <Text style={styles.modelChipText} numberOfLines={1}>
+              → {aktifModel.marka || ''} {aktifModel.model || aktifModel.stokKodu} · {eklenenSayisi} eklendi (değiştir)
+            </Text>
+          ) : (
+            <Text style={styles.modelChipText}>Model seç → yeni SN'ler otomatik eklensin</Text>
+          )}
+        </TouchableOpacity>
+      )}
+
       {/* Anlık sonuç banner'ı — sürekli modda gösterilir */}
       {banner && (
         <View style={[styles.banner, { top: insets.top + 140, backgroundColor: BANNER_RENK[banner.tip] }]}>
@@ -330,6 +384,66 @@ export default function TaraScreen({ navigation }) {
           <Text style={[styles.topText, { marginTop: 12 }]}>Aranıyor…</Text>
         </View>
       )}
+
+      {/* Model seçim modalı */}
+      <Modal visible={modelPickerAcik} transparent animationType="slide" onRequestClose={() => setModelPickerAcik(false)}>
+        <View style={styles.pickerOverlay}>
+          <View style={[styles.pickerKutu, { paddingBottom: insets.bottom + 12 }]}>
+            <View style={styles.pickerHead}>
+              <Text style={styles.pickerBaslik}>Aktif Modeli Seç</Text>
+              <TouchableOpacity onPress={() => setModelPickerAcik(false)}>
+                <Feather name="x" size={22} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.pickerArama}
+              placeholder="Marka / model / stok kodu ara…"
+              placeholderTextColor="#94a3b8"
+              value={modelArama}
+              onChangeText={setModelArama}
+              autoCorrect={false}
+            />
+            <FlatList
+              data={(() => {
+                const q = modelArama.trim().toLocaleLowerCase('tr')
+                if (!q) return modeller.slice(0, 200)
+                return modeller.filter((m) => {
+                  const t = `${m.marka || ''} ${m.model || ''} ${m.stokAdi || ''} ${m.stokKodu || ''}`.toLocaleLowerCase('tr')
+                  return t.includes(q)
+                }).slice(0, 200)
+              })()}
+              keyExtractor={(m) => m.stokKodu}
+              style={{ maxHeight: 380 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.pickerSatir}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setAktifModel({ stokKodu: item.stokKodu, marka: item.marka, model: item.model })
+                    setEklenenSayisi(0)
+                    setModelPickerAcik(false)
+                    setModelArama('')
+                  }}
+                >
+                  <Text style={styles.pickerSatirBaslik} numberOfLines={1}>
+                    {item.marka ? `${item.marka} ` : ''}{item.model || item.stokAdi || item.stokKodu}
+                  </Text>
+                  <Text style={styles.pickerSatirAlt}>{item.stokKodu} · Depoda: {item.depoda ?? 0}</Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<Text style={{ color: '#94a3b8', textAlign: 'center', paddingVertical: 20 }}>Model bulunamadı.</Text>}
+            />
+            {aktifModel && (
+              <TouchableOpacity
+                style={styles.pickerTemizle}
+                onPress={() => { setAktifModel(null); setEklenenSayisi(0); setModelPickerAcik(false) }}
+              >
+                <Text style={styles.pickerTemizleT}>Aktif modeli kaldır</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -377,6 +491,24 @@ const styles = StyleSheet.create({
   bannerIkon: { color: '#fff', fontWeight: '800', fontSize: 24 },
   bannerBaslik: { color: '#fff', fontWeight: '700', fontSize: 14 },
   bannerSN: { color: '#fff', fontFamily: 'monospace', fontSize: 12, opacity: 0.9 },
+  modelChip: {
+    position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(139,92,246,0.9)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+  },
+  modelChipText: { color: '#fff', fontWeight: '600', fontSize: 13, flex: 1 },
+  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  pickerKutu: { backgroundColor: '#0f172a', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16 },
+  pickerHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  pickerBaslik: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  pickerArama: {
+    backgroundColor: '#1e293b', color: '#fff', paddingHorizontal: 12, paddingVertical: 10,
+    borderRadius: 10, fontSize: 14, marginBottom: 10,
+  },
+  pickerSatir: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
+  pickerSatirBaslik: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  pickerSatirAlt: { color: '#94a3b8', fontSize: 11, marginTop: 2 },
+  pickerTemizle: { backgroundColor: '#7f1d1d', padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 8 },
+  pickerTemizleT: { color: '#fff', fontWeight: '600' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f172a', padding: 24 },
   title: { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 12 },
   subtitle: { color: '#94a3b8', textAlign: 'center', marginBottom: 16 },
