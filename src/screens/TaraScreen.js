@@ -9,9 +9,12 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Vibration,
+  Switch,
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as Haptics from 'expo-haptics'
+import { Audio } from 'expo-av'
 import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../context/ThemeContext'
@@ -42,9 +45,51 @@ export default function TaraScreen({ navigation }) {
   const [manuelKod, setManuelKod] = useState('')
   const [torch, setTorch] = useState(false)
   const [zoom, setZoom] = useState(0)
+  const [sureklimod, setSureklimod] = useState(true) // sürekli tarama modu — default aktif
+  const [banner, setBanner] = useState(null) // { tip: 'ok'|'ses'|'db'|'yok', metin, sn }
+  const [sesiAc, setSesiAc] = useState(true)
   const sonOkunan = useRef(null)
+  const sonOkunanZaman = useRef(0)
   const debounceRef = useRef(null)
+  const bannerTimerRef = useRef(null)
   const scanLineAnim = useRef(new Animated.Value(0)).current
+  const soundRef = useRef({ ok: null, uyari: null, hata: null })
+
+  // Ses dosyalarını yükle (web-hosted URL — çevrimiçi tek seferlik)
+  useEffect(() => {
+    let iptal = false
+    const yukle = async () => {
+      try {
+        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: true })
+        // Kısa ses efektleri — Google Actions freesound
+        const [ok, uyari, hata] = await Promise.all([
+          Audio.Sound.createAsync({ uri: 'https://actions.google.com/sounds/v1/cartoon/pop.ogg' }, { volume: 1 }),
+          Audio.Sound.createAsync({ uri: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' }, { volume: 1 }),
+          Audio.Sound.createAsync({ uri: 'https://actions.google.com/sounds/v1/alarms/dosimeter_alarm.ogg' }, { volume: 1 }),
+        ])
+        if (iptal) return
+        soundRef.current = { ok: ok.sound, uyari: uyari.sound, hata: hata.sound }
+      } catch (e) { console.warn('[TaraScreen] ses yükleme:', e?.message) }
+    }
+    yukle()
+    return () => {
+      iptal = true
+      for (const k of Object.values(soundRef.current)) { try { k?.unloadAsync() } catch {} }
+    }
+  }, [])
+
+  const sesCal = async (tip) => {
+    if (!sesiAc) return
+    const s = soundRef.current[tip]
+    if (!s) return
+    try { await s.replayAsync() } catch {}
+  }
+
+  const gosterBanner = (tip, metin, sn) => {
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current)
+    setBanner({ tip, metin, sn })
+    bannerTimerRef.current = setTimeout(() => setBanner(null), 1500)
+  }
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
@@ -80,45 +125,66 @@ export default function TaraScreen({ navigation }) {
 
   const kodIsle = async (kod) => {
     if (!kod?.trim() || aranıyor) return
-    if (sonOkunan.current === kod) return
+    const now = Date.now()
+    // Aynı barkodu 1.5 sn içinde tekrar okuma (sürekli modda hız için kısa)
+    if (sonOkunan.current === kod && now - sonOkunanZaman.current < 1500) return
     sonOkunan.current = kod
-
-    // Haptic — başarılı okuma hissi
-    try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) } catch {}
+    sonOkunanZaman.current = now
 
     setAraniyor(true)
-    setScanning(false)
+    if (!sureklimod) setScanning(false)
     const kalem = await kalemAra(kod)
     setAraniyor(false)
 
     if (kalem) {
+      // Sürekli modda: DB'de kayıtlı → sarı banner + uyarı + hemen tekrar tarama
+      if (sureklimod) {
+        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning) } catch {}
+        Vibration.vibrate([0, 100, 40, 60])
+        sesCal('uyari')
+        gosterBanner('db', 'Kayıtlı — atlandı', kod)
+        return // scanning zaten açık
+      }
+      // Normal mod → CihazDetay
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) } catch {}
+      Vibration.vibrate(60)
+      sesCal('ok')
       navigation.navigate('CihazDetay', { id: kalem.id, taradigimKod: kod })
-    } else {
-      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning) } catch {}
-      Alert.alert(
-        'Bulunamadı',
-        `S/N veya barkod: ${kod}\n\nBu cihaz sistemde kayıtlı değil. Yeni cihaz olarak eklemek ister misin?`,
-        [
-          {
-            text: 'Tekrar Tara',
-            onPress: () => {
-              sonOkunan.current = null
-              setScanning(true)
-            },
-          },
-          {
-            text: 'Yeni Cihaz Ekle',
-            onPress: () => navigation.navigate('YeniCihaz', { onaySeriNo: kod }),
-          },
-        ]
-      )
+      return
     }
+
+    // Kayıt bulunamadı
+    if (sureklimod) {
+      // Sürekli modda: kırmızı banner "yeni SN" — hemen tekrar tarama
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error) } catch {}
+      Vibration.vibrate([0, 200, 100, 200])
+      sesCal('hata')
+      gosterBanner('yok', 'Kayıtlı değil', kod)
+      return
+    }
+    // Normal mod → Alert
+    try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning) } catch {}
+    Alert.alert(
+      'Bulunamadı',
+      `S/N veya barkod: ${kod}\n\nBu cihaz sistemde kayıtlı değil. Yeni cihaz olarak eklemek ister misin?`,
+      [
+        {
+          text: 'Tekrar Tara',
+          onPress: () => { sonOkunan.current = null; setScanning(true) },
+        },
+        {
+          text: 'Yeni Cihaz Ekle',
+          onPress: () => navigation.navigate('YeniCihaz', { onaySeriNo: kod }),
+        },
+      ]
+    )
   }
 
   const onBarcodeScanned = ({ data }) => {
     if (!scanning || aranıyor) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => kodIsle(data), 200)
+    // Sürekli modda daha hızlı — 100ms
+    debounceRef.current = setTimeout(() => kodIsle(data), sureklimod ? 100 : 200)
   }
 
   const zoomArttir = () => setZoom((z) => Math.min(1, z + 0.1))
@@ -170,7 +236,7 @@ export default function TaraScreen({ navigation }) {
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <View style={{ flex: 1 }}>
           <Text style={styles.topText}>
-            {aranıyor ? 'Aranıyor…' : 'Barkod / S-N etiketini çerçeveye yerleştir'}
+            {aranıyor ? 'Aranıyor…' : sureklimod ? '⚡ Sürekli mod — arka arkaya tara' : 'Barkod / S-N etiketini çerçeveye yerleştir'}
           </Text>
           <Text style={styles.topSub}>QR · EAN · Code128 · PDF417 · DataMatrix</Text>
         </View>
@@ -182,6 +248,31 @@ export default function TaraScreen({ navigation }) {
           <Feather name={torch ? 'zap' : 'zap-off'} size={20} color={torch ? '#facc15' : '#fff'} />
         </TouchableOpacity>
       </View>
+
+      {/* Modlar bar */}
+      <View style={[styles.modBar, { top: insets.top + 78 }]}>
+        <View style={styles.modItem}>
+          <Text style={styles.modText}>Sürekli</Text>
+          <Switch value={sureklimod} onValueChange={setSureklimod}
+            trackColor={{ true: '#10b981', false: '#64748b' }} thumbColor="#fff" />
+        </View>
+        <View style={styles.modItem}>
+          <Text style={styles.modText}>Ses</Text>
+          <Switch value={sesiAc} onValueChange={setSesiAc}
+            trackColor={{ true: '#3b82f6', false: '#64748b' }} thumbColor="#fff" />
+        </View>
+      </View>
+
+      {/* Anlık sonuç banner'ı — sürekli modda gösterilir */}
+      {banner && (
+        <View style={[styles.banner, { top: insets.top + 140, backgroundColor: BANNER_RENK[banner.tip] }]}>
+          <Text style={styles.bannerIkon}>{BANNER_IKON[banner.tip]}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.bannerBaslik}>{banner.metin}</Text>
+            <Text style={styles.bannerSN} numberOfLines={1}>{banner.sn}</Text>
+          </View>
+        </View>
+      )}
 
       {/* Tarama çerçevesi */}
       <View style={styles.frameWrap} pointerEvents="none">
@@ -286,8 +377,25 @@ function ManuelGiris({ kod, setKod, onSubmit }) {
   )
 }
 
+const BANNER_RENK = { ok: '#10b981', ses: '#f59e0b', db: '#f59e0b', yok: '#dc2626' }
+const BANNER_IKON = { ok: '✓', ses: '⚠', db: '⚠', yok: '✗' }
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
+  modBar: {
+    position: 'absolute', left: 12, right: 12, flexDirection: 'row', gap: 8,
+    backgroundColor: 'rgba(15,23,42,0.85)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8,
+    justifyContent: 'space-around',
+  },
+  modItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  modText: { color: '#e5e7eb', fontWeight: '600', fontSize: 13 },
+  banner: {
+    position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12,
+  },
+  bannerIkon: { color: '#fff', fontWeight: '800', fontSize: 24 },
+  bannerBaslik: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  bannerSN: { color: '#fff', fontFamily: 'monospace', fontSize: 12, opacity: 0.9 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f172a', padding: 24 },
   title: { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 12 },
   subtitle: { color: '#94a3b8', textAlign: 'center', marginBottom: 16 },
