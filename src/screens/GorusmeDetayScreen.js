@@ -359,25 +359,59 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                 </View>
               )}
 
-              {/* Aksiyonlar */}
-              <TouchableOpacity
-                style={[styles.aksiyonBtn, { backgroundColor: colors.primary }]}
-                onPress={() => navigation.navigate('YeniGörev', {
-                  baslangicGorusmeId: g.id,
-                  baslangicMusteriId: g.musteriId,
-                  baslangicLokasyonId: g.lokasyonId,
-                  baslangicBaslik: g.konu ? `Görüşme: ${g.konu}` : '',
-                  baslangicAciklama: [
-                    g.firmaAdi && `Firma: ${g.firmaAdi}`,
-                    g.tarih && `Görüşme tarihi: ${g.tarih}${g.saat ? ' ' + g.saat : ''}`,
-                    (g.takipNotu || g.notlar) && `\nNotlar:\n${g.takipNotu || g.notlar}`,
-                  ].filter(Boolean).join('\n'),
-                })}
-                activeOpacity={0.85}
-              >
-                <Feather name="check-square" size={18} color="#fff" />
-                <Text style={styles.aksiyonText}>Bu Görüşmeden Görev Oluştur</Text>
-              </TouchableOpacity>
+              {/* Aksiyonlar — bu görüşmeden 3 farklı iş oluştur */}
+              {(() => {
+                const konu = g.konu ? `Görüşme: ${g.konu}` : ''
+                const aciklama = [
+                  g.firmaAdi && `Firma: ${g.firmaAdi}`,
+                  g.tarih && `Görüşme tarihi: ${g.tarih}${g.saat ? ' ' + g.saat : ''}`,
+                  (g.takipNotu || g.notlar) && `\nNotlar:\n${g.takipNotu || g.notlar}`,
+                ].filter(Boolean).join('\n')
+                return (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.aksiyonBtn, { backgroundColor: colors.primary }]}
+                      onPress={() => navigation.navigate('YeniGörev', {
+                        baslangicGorusmeId: g.id,
+                        baslangicMusteriId: g.musteriId,
+                        baslangicLokasyonId: g.lokasyonId,
+                        baslangicBaslik: konu,
+                        baslangicAciklama: aciklama,
+                      })}
+                      activeOpacity={0.85}
+                    >
+                      <Feather name="check-square" size={18} color="#fff" />
+                      <Text style={styles.aksiyonText}>Görev Oluştur</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.aksiyonBtn, { backgroundColor: '#8b5cf6' }]}
+                      onPress={() => navigation.navigate('YeniTeklif', {
+                        baslangicMusteriId: g.musteriId,
+                        baslangicKonu: g.konu || '',
+                        baslangicAciklama: aciklama,
+                      })}
+                      activeOpacity={0.85}
+                    >
+                      <Feather name="file-text" size={18} color="#fff" />
+                      <Text style={styles.aksiyonText}>Teklif Oluştur</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.aksiyonBtn, { backgroundColor: '#f59e0b' }]}
+                      onPress={() => navigation.navigate('YeniServisTalebi', {
+                        baslangicMusteriId: g.musteriId,
+                        baslangicKonu: g.konu || '',
+                        baslangicAciklama: aciklama,
+                      })}
+                      activeOpacity={0.85}
+                    >
+                      <Feather name="tool" size={18} color="#fff" />
+                      <Text style={styles.aksiyonText}>Servis Talebi Oluştur</Text>
+                    </TouchableOpacity>
+                  </>
+                )
+              })()}
             </>
           )}
         </ScrollView>

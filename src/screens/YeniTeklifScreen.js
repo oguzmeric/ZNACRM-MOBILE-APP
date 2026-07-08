@@ -118,6 +118,16 @@ export default function YeniTeklifScreen({ route, navigation }) {
         }
       })()
     } else {
+      // Yeni teklif — başlangıç params (görüşmeden yönlendirme için)
+      const bmid = route?.params?.baslangicMusteriId
+      const bkonu = route?.params?.baslangicKonu
+      const baciklama = route?.params?.baslangicAciklama
+      if (bkonu) setKonu(bkonu)
+      if (baciklama) setAciklama(baciklama)
+      if (bmid) {
+        supabase.from('musteriler').select('*').eq('id', bmid).maybeSingle()
+          .then(({ data }) => { if (data) setMusteri(toCamel(data)) })
+      }
       // Yeni teklif — bugün + 30 gün sonra
       const bugun = new Date()
       setTarih(

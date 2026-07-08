@@ -129,8 +129,17 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       if (duzenle?.musteriId) {
         const m = liste.find((x) => String(x.id) === String(duzenle.musteriId))
         if (m) setMusteri(m)
+      } else if (!duzenle && route?.params?.baslangicMusteriId) {
+        // Başlangıç params (görüşmeden yönlendirme)
+        const m = liste.find((x) => String(x.id) === String(route.params.baslangicMusteriId))
+        if (m) setMusteri(m)
       }
     })
+    // Başlangıç konu + açıklama (görüşmeden yönlendirme)
+    if (!duzenle) {
+      if (route?.params?.baslangicKonu) setKonu(route.params.baslangicKonu)
+      if (route?.params?.baslangicAciklama) setAciklama(route.params.baslangicAciklama)
+    }
     kullanicilariGetir().then((l) => {
       const liste = l ?? []
       setKullanicilar(liste)
