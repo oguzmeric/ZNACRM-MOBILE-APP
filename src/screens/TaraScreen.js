@@ -45,7 +45,7 @@ export default function TaraScreen({ navigation }) {
   const [manuelKod, setManuelKod] = useState('')
   const [torch, setTorch] = useState(false)
   const [zoom, setZoom] = useState(0)
-  const [sureklimod, setSureklimod] = useState(true) // sürekli tarama modu — default aktif
+  const [sureklimod, setSureklimod] = useState(false) // varsayılan: normal (tek tarama → CihazDetay). Sürekli modu SN toplu eklemek için aç.
   const [banner, setBanner] = useState(null) // { tip, metin, sn }
   const [titresim, setTitresim] = useState(true)
   const [aktifModel, setAktifModel] = useState(null) // { stokKodu, marka, model } — sürekli mod için
