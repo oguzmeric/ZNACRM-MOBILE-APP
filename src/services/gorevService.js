@@ -9,18 +9,21 @@ export const gorevleriGetir = async () => {
 }
 
 export const banaAtananGorevler = async (kullaniciId) => {
+  // Birincil atanan VEYA ekip üyesi olan görevler
   const data = await tumSayfalariCek('gorevler', (q) =>
-    q.eq('atanan_id', kullaniciId).order('olusturma_tarih', { ascending: false })
+    q.or(`atanan_id.eq.${kullaniciId},ekip.cs.{${kullaniciId}}`)
+     .order('olusturma_tarih', { ascending: false })
   )
   return arrayToCamel(data)
 }
 
 // Bana atanan, aktif (tamamlanmamış/iptal edilmemiş) görev sayısı
 export const banaAtananAktifGorevSayisi = async (kullaniciId) => {
+  // Birincil atanan VEYA ekip üyesi
   const { count } = await supabase
     .from('gorevler')
     .select('*', { count: 'exact', head: true })
-    .eq('atanan_id', kullaniciId)
+    .or(`atanan_id.eq.${kullaniciId},ekip.cs.{${kullaniciId}}`)
     .not('durum', 'in', '(tamamlandi,iptal)')
   return count ?? 0
 }

@@ -51,6 +51,9 @@ export default function YeniGorevScreen({ navigation, route }) {
   const [atanan, setAtanan] = useState(null)
   const [kullanicilar, setKullanicilar] = useState([])
   const [kullaniciPickerOpen, setKullaniciPickerOpen] = useState(false)
+  // Ekip = ek atananlar (birincil hariç)
+  const [ekip, setEkip] = useState(() => Array.isArray(duzenle?.ekip) ? duzenle.ekip.map(Number) : [])
+  const [ekipPickerOpen, setEkipPickerOpen] = useState(false)
 
   const [musteri, setMusteri] = useState(null)
   const [musteriler, setMusteriler] = useState([])
@@ -137,12 +140,16 @@ export default function YeniGorevScreen({ navigation, route }) {
     // Legacy YYYY-MM-DD (mobile'ın eski bitis_tarihi date kolonu için)
     const bitisTarihiLegacy = bitisTarih ? bitisTarih.slice(0, 10) : null
 
+    // Ekip = birincil hariç unique id'ler
+    const ekipIds = Array.from(new Set((ekip || []).map(Number).filter(x => x && String(x) !== String(atanan.id))))
+
     const payload = {
       baslik: baslik.trim(),
       aciklama: aciklama.trim() || null,
       oncelik,
       atananId: atanan.id,
       atananAd: atanan.ad,
+      ekip: ekipIds,                  // yeni: çoklu atama
       bitisTarih,                    // yeni timestamptz (web ile uyumlu)
       bitisTarihi: bitisTarihiLegacy, // legacy date kolonu (geriye uyum)
       baslamaTarih: baslamaTarih || null,
@@ -190,19 +197,40 @@ export default function YeniGorevScreen({ navigation, route }) {
       }).catch((e) => console.warn('[bildirim] yeni görev:', e?.message))
     }
     // SMS — atanan kişinin cep telefonuna kurumsal bildirim (kendine de gönderiyoruz istenirse)
+    const trAsciify = (s) => (s || '')
+      .replace(/İ/g, 'I').replace(/ı/g, 'i')
+      .replace(/Ğ/g, 'G').replace(/ğ/g, 'g')
+      .replace(/Ş/g, 'S').replace(/ş/g, 's')
+      .replace(/Ç/g, 'C').replace(/ç/g, 'c')
+      .replace(/Ö/g, 'O').replace(/ö/g, 'o')
+      .replace(/Ü/g, 'U').replace(/ü/g, 'u')
+    const baslikSMS = trAsciify(baslik.trim()).slice(0, 60)
+    const tarihStr = bitisTarih ? new Date(bitisTarih).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : ''
+    const oncStr = oncelik && oncelik !== 'normal' ? ` [${trAsciify(oncelikAd).toUpperCase()}]` : ''
     if (atanan?.cepTelefon) {
-      const trAsciify = (s) => (s || '')
-        .replace(/İ/g, 'I').replace(/ı/g, 'i')
-        .replace(/Ğ/g, 'G').replace(/ğ/g, 'g')
-        .replace(/Ş/g, 'S').replace(/ş/g, 's')
-        .replace(/Ç/g, 'C').replace(/ç/g, 'c')
-        .replace(/Ö/g, 'O').replace(/ö/g, 'o')
-        .replace(/Ü/g, 'U').replace(/ü/g, 'u')
-      const baslikSMS = trAsciify(baslik.trim()).slice(0, 60)
-      const tarihStr = bitisTarih ? new Date(bitisTarih).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : ''
-      const oncStr = oncelik && oncelik !== 'normal' ? ` [${trAsciify(oncelikAd).toUpperCase()}]` : ''
       const mesajSMS = `ZNA CRM: Size yeni gorev atandi${oncStr}.\n"${baslikSMS}"\nSon tarih: ${tarihStr}\ntalep.znateknoloji.com`
       smsGonder(atanan.cepTelefon, mesajSMS).catch((e) => console.warn('[sms] yeni görev:', e?.message))
+    }
+
+    // Ekip üyelerine bildirim + SMS
+    for (const uid of ekipIds) {
+      const uye = kullanicilar.find((x) => String(x.id) === String(uid))
+      if (!uye) continue
+      // Bildirim (kendine gönderme)
+      if (String(uye.id) !== String(kullanici?.id)) {
+        bildirimEkleDb({
+          aliciId: uye.id,
+          gonderenId: kullanici?.id,
+          baslik: 'Görev Ekibine Eklendiniz',
+          mesaj: `"${baslik.trim()}" görevine ekip üyesi olarak eklendiniz. Öncelik: ${oncelikAd}`,
+          tip: 'gorev',
+          link: `/gorevler/${yeni.id}`,
+        }).catch((e) => console.warn('[bildirim] ekip:', e?.message))
+      }
+      if (uye.cepTelefon) {
+        const mesajSMS = `ZNA CRM: Ekip gorevi${oncStr}.\n"${baslikSMS}"\nSon tarih: ${tarihStr}\ntalep.znateknoloji.com`
+        smsGonder(uye.cepTelefon, mesajSMS).catch((e) => console.warn('[sms] ekip:', e?.message))
+      }
     }
 
     // Servis talebi de istendiyse oluştur ve oraya yönlendir
@@ -259,7 +287,7 @@ export default function YeniGorevScreen({ navigation, route }) {
           onChangeText={setAciklama}
         />
 
-        <Text style={[styles.label, { color: colors.textMuted }]}>Atanacak Kullanıcı *</Text>
+        <Text style={[styles.label, { color: colors.textMuted }]}>Atanacak Kullanıcı (birincil) *</Text>
         <TouchableOpacity
           style={[styles.input, { backgroundColor: colors.surface }]}
           onPress={() => setKullaniciPickerOpen(true)}
@@ -269,6 +297,31 @@ export default function YeniGorevScreen({ navigation, route }) {
             {atanan ? atanan.ad : 'Kullanıcı seç...'}
           </Text>
         </TouchableOpacity>
+
+        <Text style={[styles.label, { color: colors.textMuted }]}>Ekip (ek kişiler, opsiyonel)</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+          {ekip.map((uid) => {
+            const uye = kullanicilar.find((x) => String(x.id) === String(uid))
+            if (!uye) return null
+            return (
+              <View key={uid} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.primary }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{uye.ad}</Text>
+                <TouchableOpacity onPress={() => setEkip((prev) => prev.filter((x) => String(x) !== String(uid)))}>
+                  <Text style={{ color: '#fff', fontSize: 16, lineHeight: 16 }}>×</Text>
+                </TouchableOpacity>
+              </View>
+            )
+          })}
+          <TouchableOpacity
+            onPress={() => setEkipPickerOpen(true)}
+            style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong }}
+          >
+            <Text style={{ color: colors.textPrimary, fontSize: 12, fontWeight: '600' }}>+ Ekle</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={{ color: colors.textFaded, fontSize: 11, marginBottom: 8 }}>
+          Ekip üyeleri de bildirim ve SMS alır. Skor birincil atanana yazılır.
+        </Text>
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Bağlı Müşteri (opsiyonel)</Text>
         <View style={styles.musteriRow}>
@@ -401,6 +454,45 @@ export default function YeniGorevScreen({ navigation, route }) {
                   onPress={() => {
                     setAtanan(item)
                     setKullaniciPickerOpen(false)
+                  }}
+                >
+                  <Text style={{ color: colors.textPrimary, fontSize: 16 }}>{item.ad}</Text>
+                  {!!item.rol && (
+                    <Text style={{ color: colors.textFaded, fontSize: 12 }}>{item.rol}</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Ekip seçici — birden fazla eklenebilir */}
+      <Modal visible={ekipPickerOpen} animationType="slide" transparent>
+        <View style={styles.modalBg}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Ekip Üyesi Ekle</Text>
+              <TouchableOpacity onPress={() => setEkipPickerOpen(false)}>
+                <Text style={{ color: colors.textMuted, fontSize: 16 }}>Kapat</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={kullanicilar
+                .filter((k) => String(k.id) !== String(atanan?.id))
+                .filter((k) => !ekip.some((x) => String(x) === String(k.id)))}
+              keyExtractor={(k) => String(k.id)}
+              ListEmptyComponent={
+                <Text style={{ color: colors.textFaded, textAlign: 'center', paddingVertical: 20 }}>
+                  Eklenebilecek kullanıcı yok.
+                </Text>
+              }
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.pickerItem, { borderBottomColor: colors.surface }]}
+                  onPress={() => {
+                    setEkip((prev) => [...prev, Number(item.id)])
+                    setEkipPickerOpen(false)
                   }}
                 >
                   <Text style={{ color: colors.textPrimary, fontSize: 16 }}>{item.ad}</Text>
