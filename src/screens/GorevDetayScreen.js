@@ -29,6 +29,7 @@ import {
   gorevNotSil,
 } from '../services/gorevService'
 import { gorevFotosuYukle, gorevFotosuSil } from '../services/gorevFotoService'
+import TarihSec from '../components/TarihSec'
 import { useTheme } from '../context/ThemeContext'
 import {
   tarihSaatFormat,
@@ -69,6 +70,17 @@ export default function GorevDetayScreen({ route, navigation }) {
   const [duzenlenenNotMetin, setDuzenlenenNotMetin] = useState('')
   const [notGuncelleniyor, setNotGuncelleniyor] = useState(false)
   const [devamSebepModal, setDevamSebepModal] = useState(false)
+  // Sebep seçilirse yeni bitiş tarihi ZORUNLU (ek süre) — iki adım: seç → tarih → Kaydet
+  const [secilenSebep, setSecilenSebep] = useState(null)
+  const [devamYeniTarih, setDevamYeniTarih] = useState('')
+
+  useEffect(() => {
+    if (devamSebepModal) {
+      setSecilenSebep(gorev?.devamSebep || null)
+      setDevamYeniTarih('')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devamSebepModal])
 
   const yukle = async () => {
     setLoading(true)
@@ -158,6 +170,26 @@ export default function GorevDetayScreen({ route, navigation }) {
     setUpdating(false)
     setDevamSebepModal(false)
     if (guncel) setGorev(guncel)
+  }
+
+  // Sebep + zorunlu yeni bitiş tarihi birlikte kaydedilir
+  const devamSebepVeTarihKaydet = async () => {
+    if (!devamYeniTarih) {
+      Alert.alert('Tarih Gerekli', 'Sebep seçtiğinde yeni bitiş tarihi zorunludur.')
+      return
+    }
+    setUpdating(true)
+    const guncel = await gorevGuncelle(id, {
+      devamSebep: secilenSebep,
+      bitisTarihi: devamYeniTarih,
+    })
+    setUpdating(false)
+    if (!guncel) {
+      Alert.alert('Hata', 'Kaydedilemedi, tekrar deneyin.')
+      return
+    }
+    setGorev(guncel)
+    setDevamSebepModal(false)
   }
 
   const galeridenSec = async () => {
@@ -442,16 +474,16 @@ export default function GorevDetayScreen({ route, navigation }) {
           <TouchableOpacity activeOpacity={1} style={styles.modalKart} onPress={(e) => e.stopPropagation?.()}>
             <Text style={styles.modalBaslik}>Devam Ediyor — Sebep</Text>
             <Text style={styles.modalAltBaslik}>
-              Seçim zorunlu değil, atlamak için "Belirtme" butonuna basabilirsin.
+              Sebep seçersen yeni bitiş tarihi zorunludur (ek süre). Atlamak için "Belirtme".
             </Text>
             <View style={styles.sebepGrid}>
               {DEVAM_SEBEPLERI.map((s) => {
-                const secili = gorev.devamSebep === s.id
+                const secili = secilenSebep === s.id
                 return (
                   <TouchableOpacity
                     key={s.id}
                     style={[styles.sebepBtn, secili && styles.sebepBtnAktif]}
-                    onPress={() => devamSebepSec(s.id)}
+                    onPress={() => setSecilenSebep(s.id)}
                     disabled={updating}
                   >
                     <Text style={styles.sebepIkon}>{s.ikon}</Text>
@@ -460,6 +492,27 @@ export default function GorevDetayScreen({ route, navigation }) {
                 )
               })}
             </View>
+            {/* Sebep seçildiyse yeni bitiş tarihi ZORUNLU */}
+            {secilenSebep && (
+              <View style={{
+                marginTop: 14, padding: 12, borderRadius: 10,
+                backgroundColor: 'rgba(245,158,11,0.12)',
+                borderWidth: 1, borderColor: 'rgba(245,158,11,0.45)',
+              }}>
+                {!!gorev.bitisTarihi && (
+                  <Text style={{ color: '#b45309', fontSize: 12, marginBottom: 6 }}>
+                    Mevcut bitiş: {String(gorev.bitisTarihi).slice(0, 10).split('-').reverse().join('.')}
+                  </Text>
+                )}
+                <TarihSec
+                  value={devamYeniTarih}
+                  onChange={setDevamYeniTarih}
+                  label="Yeni bitiş tarihi (zorunlu)"
+                  placeholder="Tarih seçin"
+                  gosterTemizle={false}
+                />
+              </View>
+            )}
             <View style={styles.modalButonSira}>
               {gorev.devamSebep && (
                 <TouchableOpacity
@@ -476,6 +529,19 @@ export default function GorevDetayScreen({ route, navigation }) {
               >
                 <Text style={styles.modalBtnAtlaText}>Belirtme</Text>
               </TouchableOpacity>
+              {secilenSebep && (
+                <TouchableOpacity
+                  style={[styles.modalBtn, {
+                    backgroundColor: devamYeniTarih ? '#2563eb' : 'rgba(37,99,235,0.4)',
+                  }]}
+                  onPress={devamSebepVeTarihKaydet}
+                  disabled={updating || !devamYeniTarih}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                    {updating ? 'Kaydediliyor…' : 'Kaydet'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
