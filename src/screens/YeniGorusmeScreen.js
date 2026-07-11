@@ -25,7 +25,7 @@ import SecimPicker from '../components/SecimPicker'
 
 // Web ile aynı listeler
 const VARSAYILAN_KONULAR = [
-  'CCTV', 'NVR-ANALİZ', 'Network', 'Teklif', 'Demo',
+  'CCTV', 'NVR-ANALİZ', 'Network', 'Teklif', 'Keşif', 'Demo',
   'Fuar', 'Access Kontrol', 'Mobiltek', 'Donanım', 'Yazılım', 'Diğer',
 ]
 
