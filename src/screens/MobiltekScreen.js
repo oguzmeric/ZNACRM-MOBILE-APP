@@ -1,38 +1,13 @@
 // Mobiltek araç takip — harita üstte, altta araç listesi (bottom sheet gibi).
-// react-native-maps ile (Android: Google, iOS: Apple). Marker rengi motor durumuna göre.
+// Leaflet WebView ile (hem iOS hem Android). react-native-maps kaldırıldı:
+// - Android'de Google Maps API key eksikliği IllegalStateException veriyordu (Sentry)
+// - Google Maps ücretli servise dönüştü, Leaflet OpenStreetMap ücretsiz ve yeterli.
+// Marker rengi motor durumuna göre (Leaflet HTML üzerinden inject).
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, RefreshControl, ActivityIndicator, Dimensions, Platform, NativeModules, UIManager } from 'react-native'
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, RefreshControl, ActivityIndicator, Dimensions, Platform } from 'react-native'
 import { WebView } from 'react-native-webview'
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
-
-// react-native-maps native modül gerektirir — binary'de yoksa render'da 'AIRMap'
-// view config not found hatası verir. Sadece require başarılı olmak yetmez,
-// native view'ın da register olması lazım. UIManager kontrolü ile bakalım.
-let MapView = null
-let Marker = null
-let PROVIDER_DEFAULT = null
-let haritaKullanilabilir = false
-// Android'de Google Maps API key olmadan MapView native crash yapıyor
-// (Sentry: "IllegalStateException: API key not found")
-// Bu nedenle Android'de MapView'ı devre dışı bırak — Leaflet WebView fallback kullanılır
-if (Platform.OS !== 'android') {
-  try {
-    const cfg =
-      (UIManager.getViewManagerConfig && UIManager.getViewManagerConfig('AIRMap')) ||
-      UIManager.AIRMap ||
-      null
-    if (cfg) {
-      const maps = require('react-native-maps')
-      MapView = maps.default
-      Marker = maps.Marker
-      PROVIDER_DEFAULT = maps.PROVIDER_DEFAULT
-      haritaKullanilabilir = !!MapView
-    }
-  } catch (e) {
-    console.warn('[mobiltek] harita init hata:', e?.message)
-  }
-}
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../context/ThemeContext'
@@ -47,14 +22,10 @@ const kucukSaat = (iso) => {
   catch { return String(iso) }
 }
 
-// Türkiye merkez varsayılan
-const TR_MERKEZ = { latitude: 39.0, longitude: 35.0, latitudeDelta: 10, longitudeDelta: 10 }
-
 export default function MobiltekScreen() {
   const navigation = useNavigation()
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()
-  const mapRef = useRef(null)
   const webviewRef = useRef(null)
   const [araclar, setAraclar] = useState([])
   const [mock, setMock] = useState(false)
@@ -90,35 +61,11 @@ export default function MobiltekScreen() {
   }, [yukle])
   useFocusEffect(useCallback(() => { yukle() }, [yukle]))
 
-  // İlk yüklemede araç varsa haritayı ortala
-  useEffect(() => {
-    if (!haritaKullanilabilir) return
-    if (araclar.length && mapRef.current) {
-      const konumlar = araclar.filter(a => a.lat && a.lng).map(a => ({
-        latitude: Number(a.lat), longitude: Number(a.lng),
-      }))
-      if (konumlar.length > 0) {
-        setTimeout(() => {
-          mapRef.current?.fitToCoordinates(konumlar, {
-            edgePadding: { top: 80, right: 80, bottom: 80, left: 80 },
-            animated: true,
-          })
-        }, 400)
-      }
-    }
-  }, [araclar.length])
-
   const aracSec = async (a) => {
     setSeciliArac(a)
     setKameralar([])
-    if (haritaKullanilabilir && a.lat && a.lng && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: Number(a.lat),
-        longitude: Number(a.lng),
-        latitudeDelta: 0.02, longitudeDelta: 0.02,
-      }, 600)
-    } else if (!haritaKullanilabilir && a.lat && a.lng && webviewRef.current) {
-      // Leaflet WebView fallback — injectJavaScript ile pan
+    if (a.lat && a.lng && webviewRef.current) {
+      // Leaflet WebView — injectJavaScript ile pan
       webviewRef.current.injectJavaScript(`
         if (window.map) { window.map.flyTo([${Number(a.lat)}, ${Number(a.lng)}], 15, { duration: 0.8 }); }
         true;
@@ -181,59 +128,8 @@ export default function MobiltekScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.surfaceDark }}>
-      {/* HARİTA — native modül yoksa placeholder */}
+      {/* HARİTA — Leaflet WebView (hem iOS hem Android, ücretsiz OpenStreetMap) */}
       <View style={{ height: HARITA_YUKSEKLIK, backgroundColor: '#dfe6ee' }}>
-        {haritaKullanilabilir ? (
-          <MapView
-            ref={mapRef}
-            provider={PROVIDER_DEFAULT}
-            style={{ flex: 1 }}
-            initialRegion={TR_MERKEZ}
-            showsUserLocation
-            showsMyLocationButton={false}
-          >
-            {araclar.map(a => {
-              if (!a.lat || !a.lng) return null
-              // Mobiltek 'ignition' bazen yanlış rapor ediyor (aracın çalışırken bile false döndürebiliyor)
-    // Birden fazla sinyale bakıyoruz: ignition, engineStatus veya hız > 0
-    const kontak = a.ignition === '1' || a.ignition === true || a.ignition === 1
-      || a.engineStatus === 'on'
-      || Number(a.gpsSpeed || 0) > 0
-              return (
-                <Marker
-                  key={a.id}
-                  coordinate={{ latitude: Number(a.lat), longitude: Number(a.lng) }}
-                  title={a.plateNo}
-                  description={`${Number(a.gpsSpeed || 0)} km/s · ${kontak ? 'aktif' : 'kapalı'}`}
-                  onPress={() => aracSec(a)}
-                  anchor={{ x: 0.5, y: 0.5 }}
-                >
-                  <View style={{
-                    width: 38, height: 38, borderRadius: 19,
-                    backgroundColor: kontak ? '#10b981' : '#64748b',
-                    alignItems: 'center', justifyContent: 'center',
-                    borderWidth: 2, borderColor: '#fff',
-                    shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-                  }}>
-                    <MaterialCommunityIcons name="car-side" size={20} color="#fff" />
-                  </View>
-                </Marker>
-              )
-            })}
-            {kameralar.map((k, i) => {
-              if (!k.lat || !k.lng) return null
-              return (
-                <Marker
-                  key={`k-${i}`}
-                  coordinate={{ latitude: Number(k.lat), longitude: Number(k.lng) }}
-                  title={`Kamera ${i + 1}`}
-                  pinColor="#3b82f6"
-                />
-              )
-            })}
-          </MapView>
-        ) : (
-          // Fallback: react-native-maps native modülü yoksa WebView + Leaflet HTML
           <WebView
             ref={webviewRef}
             originWhitelist={['*']}
@@ -275,7 +171,6 @@ export default function MobiltekScreen() {
             javaScriptEnabled
             domStorageEnabled
           />
-        )}
 
         {/* Üst bar — geri + mock rozeti + yenile */}
         <View style={[styles.ustBar, { paddingTop: insets.top + 8 }]}>
