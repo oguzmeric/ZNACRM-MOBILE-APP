@@ -1,28 +1,43 @@
 // Yeni Keşif (mobile) — sahada hızlı keşif açma formu.
 // Detaylı alanlar (yetkili, harita, türler, malzeme, foto) KesifDetay'da.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
 } from 'react-native'
 import { useHeaderHeight } from '@react-navigation/elements'
+import { Feather } from '@expo/vector-icons'
 import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { kesifEkle, KESIF_ONCELIKLERI } from '../services/kesifService'
+import { musterileriGetir } from '../services/musteriService'
 
 export default function YeniKesifScreen({ navigation }) {
   const { colors } = useTheme()
   const { kullanici } = useAuth()
   const headerHeight = useHeaderHeight()
 
-  const [firmaAdi, setFirmaAdi] = useState('')
+  // Müşteri DB listesinden seçilir (yazdıkça süzülen arama)
+  const [musteriler, setMusteriler] = useState([])
+  const [musteriArama, setMusteriArama] = useState('')
+  const [seciliMusteri, setSeciliMusteri] = useState(null) // { id, ad }
   const [kesifBasligi, setKesifBasligi] = useState('')
   const [lokasyon, setLokasyon] = useState('')
   const [oncelik, setOncelik] = useState('normal')
   const [genelNot, setGenelNot] = useState('')
   const [kaydediliyor, setKaydediliyor] = useState(false)
+
+  useEffect(() => {
+    musterileriGetir().then(setMusteriler).catch(() => {})
+  }, [])
+
+  const musteriAdiYap = (m) => m.firma || `${m.ad || ''} ${m.soyad || ''}`.trim() || '—'
+  const aramaQ = musteriArama.trim().toLocaleLowerCase('tr')
+  const musteriOnerileri = aramaQ.length >= 2
+    ? musteriler.filter(m => musteriAdiYap(m).toLocaleLowerCase('tr').includes(aramaQ)).slice(0, 8)
+    : []
 
   const inputStil = {
     height: 46, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1,
@@ -32,10 +47,11 @@ export default function YeniKesifScreen({ navigation }) {
   const labelStil = { color: colors.textMuted, fontSize: 12, fontWeight: '600', marginBottom: 6, marginTop: 14 }
 
   const kaydet = async () => {
-    if (!firmaAdi.trim()) { Alert.alert('Eksik Bilgi', 'Firma adı zorunlu.'); return }
+    if (!seciliMusteri) { Alert.alert('Eksik Bilgi', 'Müşteri seçin.'); return }
     setKaydediliyor(true)
     const yeni = await kesifEkle({
-      firmaAdi: firmaAdi.trim(),
+      musteriId: Number(seciliMusteri.id),
+      firmaAdi: seciliMusteri.ad,
       kesifBasligi: kesifBasligi.trim(),
       lokasyon: lokasyon.trim(),
       oncelik,
@@ -59,9 +75,63 @@ export default function YeniKesifScreen({ navigation }) {
         keyboardVerticalOffset={headerHeight}
       >
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 160 }} keyboardShouldPersistTaps="handled">
-          <Text style={labelStil}>Firma Adı *</Text>
-          <TextInput value={firmaAdi} onChangeText={setFirmaAdi} placeholder="Firma / saha adı"
-            placeholderTextColor={colors.textMuted} style={inputStil} />
+          <Text style={labelStil}>Müşteri *</Text>
+          {seciliMusteri ? (
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', gap: 10,
+              height: 46, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1,
+              borderColor: colors.primary, backgroundColor: colors.surface,
+            }}>
+              <Feather name="briefcase" size={16} color={colors.primary} />
+              <Text style={{ flex: 1, color: colors.textPrimary, fontWeight: '600', fontSize: 15 }} numberOfLines={1}>
+                {seciliMusteri.ad}
+              </Text>
+              <TouchableOpacity onPress={() => { setSeciliMusteri(null); setMusteriArama('') }} hitSlop={8}>
+                <Feather name="x" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <TextInput
+                value={musteriArama}
+                onChangeText={setMusteriArama}
+                placeholder="Müşteri ara… (en az 2 harf)"
+                placeholderTextColor={colors.textMuted}
+                style={inputStil}
+              />
+              {musteriOnerileri.length > 0 && (
+                <View style={{
+                  marginTop: 4, borderRadius: 10, borderWidth: 1,
+                  borderColor: colors.border, backgroundColor: colors.surface, overflow: 'hidden',
+                }}>
+                  {musteriOnerileri.map((m, i) => (
+                    <TouchableOpacity
+                      key={m.id}
+                      onPress={() => {
+                        setSeciliMusteri({ id: m.id, ad: musteriAdiYap(m) })
+                        setMusteriArama('')
+                      }}
+                      activeOpacity={0.7}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 12,
+                        borderBottomWidth: i < musteriOnerileri.length - 1 ? 1 : 0,
+                        borderBottomColor: colors.border,
+                      }}
+                    >
+                      <Text style={{ color: colors.textPrimary, fontSize: 14 }} numberOfLines={1}>
+                        {musteriAdiYap(m)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {aramaQ.length >= 2 && musteriOnerileri.length === 0 && (
+                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 6 }}>
+                  Eşleşen müşteri bulunamadı.
+                </Text>
+              )}
+            </>
+          )}
 
           <Text style={labelStil}>Keşif Başlığı</Text>
           <TextInput value={kesifBasligi} onChangeText={setKesifBasligi} placeholder="örn. Fabrika çevre kamera keşfi"
