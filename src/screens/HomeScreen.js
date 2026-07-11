@@ -185,6 +185,14 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => navigation.navigate('AracKayit')}
               />
             )}
+            {gorunur('kesif') && (
+              <Tile width={tileGenislik}
+                title="Keşif"
+                hint="Saha keşif kaydı"
+                icon={<Feather name="compass" size={22} color="#14b8a6" />}
+                onPress={() => navigation.navigate('Kesifler')}
+              />
+            )}
             {gorunur('teklif') && (
               <Tile width={tileGenislik}
                 title="Teklif"

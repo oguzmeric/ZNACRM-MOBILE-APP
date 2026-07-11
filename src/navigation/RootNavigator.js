@@ -49,6 +49,9 @@ import CanliKameraScreen from '../screens/CanliKameraScreen'
 import MesaiGecmisiScreen from '../screens/MesaiGecmisiScreen'
 import AracKayitScreen from '../screens/AracKayitScreen'
 import AracFotoDetayScreen from '../screens/AracFotoDetayScreen'
+import KesiflerScreen from '../screens/KesiflerScreen'
+import YeniKesifScreen from '../screens/YeniKesifScreen'
+import KesifDetayScreen from '../screens/KesifDetayScreen'
 import ModelDetayScreen from '../screens/ModelDetayScreen'
 import SeriTaraScreen from '../screens/SeriTaraScreen'
 import BulkDetayScreen from '../screens/BulkDetayScreen'
@@ -221,6 +224,9 @@ export default function RootNavigator() {
             <Stack.Screen name="MesaiGecmisi" component={MesaiGecmisiScreen} options={{ title: 'Mesai Geçmişi', headerShown: true }} />
             <Stack.Screen name="AracKayit" component={AracKayitScreen} options={{ title: 'Araç Foto Kayıt', headerShown: true }} />
             <Stack.Screen name="AracFotoDetay" component={AracFotoDetayScreen} options={{ title: 'Foto Kayıt', headerShown: true }} />
+            <Stack.Screen name="Kesifler" component={KesiflerScreen} options={{ title: 'Keşifler', headerShown: true }} />
+            <Stack.Screen name="YeniKesif" component={YeniKesifScreen} options={{ title: 'Yeni Keşif', headerShown: true }} />
+            <Stack.Screen name="KesifDetay" component={KesifDetayScreen} options={{ title: 'Keşif Detayı', headerShown: true }} />
             <Stack.Screen name="ModelDetay" component={ModelDetayScreen} options={{ title: 'Model Detayı' }} />
             <Stack.Screen name="SeriTara" component={SeriTaraScreen} options={{ title: 'Seri Tara' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
