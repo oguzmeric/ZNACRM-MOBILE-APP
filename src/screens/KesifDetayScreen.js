@@ -12,6 +12,8 @@ import { useHeaderHeight } from '@react-navigation/elements'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import ScreenContainer from '../components/ScreenContainer'
+import SecimPicker from '../components/SecimPicker'
+import CokluSecimPicker from '../components/CokluSecimPicker'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { confirmSil } from '../lib/confirm'
@@ -94,13 +96,6 @@ export default function KesifDetayScreen({ route, navigation }) {
     setKaydediliyor(false)
     if (!g) Alert.alert('Hata', 'Kaydedilemedi, tekrar deneyin.')
     else Alert.alert('✓', 'Keşif kaydedildi.')
-  }
-
-  const turToggle = (turId) => {
-    setKesif(k => {
-      const mevcut = k.turler || []
-      return { ...k, turler: mevcut.includes(turId) ? mevcut.filter(t => t !== turId) : [...mevcut, turId] }
-    })
   }
 
   const kalemKaydet = async () => {
@@ -254,30 +249,24 @@ export default function KesifDetayScreen({ route, navigation }) {
             </View>
           )}
 
-          {/* Keşif türleri */}
+          {/* Keşif türleri — çoklu seçim dropdown */}
           <Text style={bolumBaslik}>Keşif Türleri</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
-            {KESIF_TURLERI.map(t => {
-              const aktif = (kesif.turler || []).includes(t.id)
-              return (
-                <TouchableOpacity key={t.id} onPress={() => turToggle(t.id)} style={chip(aktif)}>
-                  <Text style={chipText(aktif)}>{t.ad}</Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
+          <CokluSecimPicker
+            degerler={kesif.turler || []}
+            onChange={(arr) => setKesif(k => ({ ...k, turler: arr }))}
+            secenekler={KESIF_TURLERI.map(t => ({ id: t.id, isim: t.ad }))}
+            placeholder="Keşif türü seç…"
+          />
 
           {/* Malzeme listesi */}
           <Text style={bolumBaslik}>🧰 Malzeme Listesi ({kalemler.length})</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 8 }}>
-            {KESIF_KATEGORILERI.map(kat => {
-              const aktif = kKategori === kat.id
-              return (
-                <TouchableOpacity key={kat.id} onPress={() => setKKategori(kat.id)} style={chip(aktif)}>
-                  <Text style={chipText(aktif)}>{kat.ikon} {kat.ad}</Text>
-                </TouchableOpacity>
-              )
-            })}
+          <View style={{ marginBottom: 8 }}>
+            <SecimPicker
+              deger={kKategori}
+              onSec={setKKategori}
+              secenekler={KESIF_KATEGORILERI.map(kat => ({ id: kat.id, isim: `${kat.ikon} ${kat.ad}` }))}
+              placeholder="Kategori seç…"
+            />
           </View>
           <TextInput value={kUrunAdi} onChangeText={setKUrunAdi} placeholder="Ürün adı — örn. 4MP IP Dome kamera"
             placeholderTextColor={colors.textMuted} style={inputStil} />
