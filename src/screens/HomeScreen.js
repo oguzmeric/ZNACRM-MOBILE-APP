@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native'
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions,
+  LayoutAnimation, Platform, UIManager,
+} from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
+
+// Android'de LayoutAnimation için gerekli
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
+}
+
+const BOLUM_STATE_KEY = 'home_bolum_acik_v1'
 import { useFocusEffect } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
@@ -29,6 +40,23 @@ export default function HomeScreen({ navigation }) {
   const [okunmamisSayisi, setOkunmamisSayisi] = useState(0)
   const [demoGecikmisSayisi, setDemoGecikmisSayisi] = useState(0)
   const [yetki, setYetki] = useState({})
+  // Akordiyon bölümler — son durum hatırlanır (varsayılan: SAHA açık)
+  const [acikBolumler, setAcikBolumler] = useState({ SAHA: true, DEPO: false, GENEL: false })
+
+  useEffect(() => {
+    AsyncStorage.getItem(BOLUM_STATE_KEY)
+      .then(v => { if (v) setAcikBolumler(JSON.parse(v)) })
+      .catch(() => {})
+  }, [])
+
+  const bolumToggle = (baslik) => {
+    LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'))
+    setAcikBolumler(prev => {
+      const yeni = { ...prev, [baslik]: !prev[baslik] }
+      AsyncStorage.setItem(BOLUM_STATE_KEY, JSON.stringify(yeni)).catch(() => {})
+      return yeni
+    })
+  }
 
   // 2-sütun büyük kart (Bugün) + 3-sütun mini kart (bölümler) — kesin px hesap
   const tileGenislik = useMemo(() => {
@@ -189,22 +217,52 @@ export default function HomeScreen({ navigation }) {
               ].filter(Boolean),
             },
           ]
-          return bolumler.filter(b => b.items.length > 0).map(b => (
-            <View key={b.baslik} style={{ marginBottom: 14 }}>
-              <Text style={[styles.bolumBaslik, { color: colors.textMuted }]}>{b.baslik}</Text>
-              <View style={styles.grid}>
-                {b.items.map(item => (
-                  <MiniTile key={item.t}
-                    width={miniGenislik}
-                    title={item.t}
-                    icon={item.i}
-                    badge={item.badge}
-                    onPress={() => navigation.navigate(item.nav)}
-                  />
-                ))}
+          return bolumler.filter(b => b.items.length > 0).map(b => {
+            const acik = !!acikBolumler[b.baslik]
+            const rozetToplam = b.items.reduce((t, i) => t + (i.badge || 0), 0)
+            return (
+              <View key={b.baslik} style={{ marginBottom: 10 }}>
+                {/* Bölüm başlığı — dokununca animasyonla açılır/kapanır */}
+                <TouchableOpacity
+                  onPress={() => bolumToggle(b.baslik)}
+                  activeOpacity={0.7}
+                  style={[styles.bolumHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                >
+                  <Text style={[styles.bolumBaslik, { color: colors.textPrimary, marginBottom: 0, marginTop: 0 }]}>
+                    {b.baslik}
+                  </Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 11, marginLeft: 8 }}>
+                    {b.items.length} modül
+                  </Text>
+                  {!acik && rozetToplam > 0 && (
+                    <View style={{
+                      marginLeft: 8, minWidth: 18, height: 18, borderRadius: 9,
+                      paddingHorizontal: 5, backgroundColor: '#ef4444',
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>{rozetToplam}</Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }} />
+                  <Feather name={acik ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                {acik && (
+                  <View style={[styles.grid, { marginTop: 8 }]}>
+                    {b.items.map(item => (
+                      <MiniTile key={item.t}
+                        width={miniGenislik}
+                        title={item.t}
+                        icon={item.i}
+                        badge={item.badge}
+                        onPress={() => navigation.navigate(item.nav)}
+                      />
+                    ))}
+                  </View>
+                )}
               </View>
-            </View>
-          ))
+            )
+          })
         })()}
 
         {/* Destek kestirme kartı */}
@@ -332,6 +390,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginBottom: 8,
     marginTop: 6,
+  },
+  bolumHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   miniTile: {
     paddingVertical: 12,
