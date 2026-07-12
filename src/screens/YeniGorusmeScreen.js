@@ -17,6 +17,10 @@ import ScreenContainer from '../components/ScreenContainer'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { gorusmeEkle } from '../services/gorusmeService'
+import { kullanicilariGetir } from '../services/kullaniciService'
+import { bildirimEkleDb } from '../services/bildirimService'
+import { parseMentions } from '../lib/mention'
+import MentionInput from '../components/MentionInput'
 import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { trIcerir } from '../utils/trSearch'
@@ -54,6 +58,13 @@ export default function YeniGorusmeScreen({ navigation, route }) {
   const [manuelKonuAcik, setManuelKonuAcik] = useState(false)
   const [irtibatSekli, setIrtibatSekli] = useState('Telefon')
   const [notlar, setNotlar] = useState('')
+  // @mention için personel listesi
+  const [personeller, setPersoneller] = useState([])
+  useEffect(() => {
+    kullanicilariGetir()
+      .then(l => setPersoneller((l || []).filter(k => k.tip !== 'musteri')))
+      .catch(() => {})
+  }, [])
   const [durum, setDurum] = useState('acik')
   const [kaydediliyor, setKaydediliyor] = useState(false)
 
@@ -128,6 +139,18 @@ export default function YeniGorusmeScreen({ navigation, route }) {
     if (!sonuc) {
       Alert.alert('Kaydedilemedi', 'Görüşme eklenemedi. Tekrar deneyin.')
       return
+    }
+    // @mention edilenlere push bildirimi (kendini etiketleyen hariç)
+    const mentionIdler = parseMentions(notlar, personeller).filter(mid => mid !== kullanici?.id)
+    for (const mid of mentionIdler) {
+      bildirimEkleDb({
+        aliciId: mid,
+        gonderenId: kullanici?.id,
+        tip: 'bilgi',
+        baslik: `💬 ${kullanici?.ad || 'Bir arkadaşın'} bir görüşme notunda seni etiketledi`,
+        mesaj: `"${notlar.slice(0, 90)}" — ${firmaAdi.trim()}`,
+        link: sonuc.id ? `/gorusmeler/${sonuc.id}` : '/gorusmeler',
+      }).catch(() => {})
     }
     navigation.goBack()
   }
@@ -261,16 +284,14 @@ export default function YeniGorusmeScreen({ navigation, route }) {
             })}
           </View>
 
-          {/* Notlar */}
+          {/* Notlar — @ ile personel etiketlenebilir */}
           <Text style={[styles.label, { color: colors.textMuted }]}>Notlar / Takip</Text>
-          <TextInput
+          <MentionInput
             value={notlar}
             onChangeText={setNotlar}
-            placeholder="Görüşme detayları, takip edilecek konular…"
-            placeholderTextColor={colors.textMuted}
-            multiline
-            numberOfLines={5}
-            textAlignVertical="top"
+            kullanicilar={personeller}
+            placeholder="Görüşme detayları… @ ile arkadaşını etiketle"
+            inputProps={{ numberOfLines: 5, textAlignVertical: 'top' }}
             style={[styles.input, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 110 }]}
           />
 

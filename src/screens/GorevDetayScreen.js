@@ -29,6 +29,10 @@ import {
   gorevNotSil,
 } from '../services/gorevService'
 import { gorevFotosuYukle, gorevFotosuSil } from '../services/gorevFotoService'
+import { kullanicilariGetir } from '../services/kullaniciService'
+import { bildirimEkleDb } from '../services/bildirimService'
+import { parseMentions } from '../lib/mention'
+import MentionInput, { MentionText } from '../components/MentionInput'
 import TarihSec from '../components/TarihSec'
 import { useTheme } from '../context/ThemeContext'
 import {
@@ -70,6 +74,13 @@ export default function GorevDetayScreen({ route, navigation }) {
   const [duzenlenenNotMetin, setDuzenlenenNotMetin] = useState('')
   const [notGuncelleniyor, setNotGuncelleniyor] = useState(false)
   const [devamSebepModal, setDevamSebepModal] = useState(false)
+  // @mention için personel listesi
+  const [personeller, setPersoneller] = useState([])
+  useEffect(() => {
+    kullanicilariGetir()
+      .then(l => setPersoneller((l || []).filter(k => k.tip !== 'musteri')))
+      .catch(() => {})
+  }, [])
   // Sebep seçilirse yeni bitiş tarihi ZORUNLU (ek süre) — iki adım: seç → tarih → Kaydet
   const [secilenSebep, setSecilenSebep] = useState(null)
   const [devamYeniTarih, setDevamYeniTarih] = useState('')
@@ -257,6 +268,18 @@ export default function GorevDetayScreen({ route, navigation }) {
     const guncel = await gorevNotEkle(id, metin, kullanici?.ad, fotoUrls)
     setNotKaydediliyor(false)
     if (guncel) {
+      // @mention edilenlere push bildirimi (kendini etiketleyen hariç)
+      const mentionIdler = parseMentions(metin, personeller).filter(mid => mid !== kullanici?.id)
+      for (const mid of mentionIdler) {
+        bildirimEkleDb({
+          aliciId: mid,
+          gonderenId: kullanici?.id,
+          tip: 'bilgi',
+          baslik: `💬 ${kullanici?.ad || 'Bir arkadaşın'} bir notta seni etiketledi`,
+          mesaj: `"${metin.slice(0, 90)}" — ${guncel.baslik || 'Görev'}`,
+          link: `/gorevler/${id}`,
+        }).catch(() => {})
+      }
       setGorev(guncel)
       setYeniNot('')
       setSecilenFotolar([])
@@ -553,13 +576,12 @@ export default function GorevDetayScreen({ route, navigation }) {
       </Text>
 
       <View style={styles.notInputRow}>
-        <TextInput
+        <MentionInput
           style={[styles.notInput, { backgroundColor: colors.surface, color: colors.textPrimary }]}
-          placeholder="Ne yaptın? Kısa not ekle..."
-          placeholderTextColor={colors.textFaded}
+          placeholder="Ne yaptın? @ ile arkadaşını etiketle..."
           value={yeniNot}
           onChangeText={setYeniNot}
-          multiline
+          kullanicilar={personeller}
         />
         <TouchableOpacity
           style={[
@@ -653,7 +675,7 @@ export default function GorevDetayScreen({ route, navigation }) {
                   </>
                 ) : (
                   <>
-                    {!!n.metin && <Text style={[styles.notMetin, { color: colors.textPrimary }]}>{n.metin}</Text>}
+                    {!!n.metin && <MentionText metin={n.metin} kullanicilar={personeller} stil={[styles.notMetin, { color: colors.textPrimary }]} />}
                     {(n.fotoUrls ?? []).length > 0 && (
                       <View style={styles.notFotoGrid}>
                         {n.fotoUrls.map((url) => (
