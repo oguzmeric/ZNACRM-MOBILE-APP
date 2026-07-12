@@ -30,12 +30,18 @@ export default function HomeScreen({ navigation }) {
   const [demoGecikmisSayisi, setDemoGecikmisSayisi] = useState(0)
   const [yetki, setYetki] = useState({})
 
-  // 2-sütun kompakt grid — kesin px hesap
+  // 2-sütun büyük kart (Bugün) + 3-sütun mini kart (bölümler) — kesin px hesap
   const tileGenislik = useMemo(() => {
     const ekran = Dimensions.get('window').width
     const yatayPad = 16 * 2
     const gap = 10
     return Math.floor((ekran - yatayPad - gap) / 2)
+  }, [])
+  const miniGenislik = useMemo(() => {
+    const ekran = Dimensions.get('window').width
+    const yatayPad = 16 * 2
+    const gap = 10
+    return Math.floor((ekran - yatayPad - gap * 2) / 3)
   }, [])
 
   const sayilariYukle = useCallback(async () => {
@@ -126,114 +132,80 @@ export default function HomeScreen({ navigation }) {
         {/* Mesai kartı — modülü olan teknisyen/depo/yönetim görür */}
         {mesaiTakipVarMi(kullanici) && <MesaiKarti />}
 
-        {/* Grid */}
-        <View style={styles.gridArea}>
-          <View style={styles.grid}>
-            {gorunur('gorevler') && (
-              <Tile width={tileGenislik}
-                title="Görevlerim"
-                hint="Bana atananlar"
-                icon={<Feather name="check-square" size={22} color="#60a5fa" />}
-                badge={gorevSayisi}
-                onPress={() => navigation.navigate('Görevler')}
-              />
-            )}
-            {gorunur('servisler') && (
-              <Tile width={tileGenislik}
-                title="Servislerim"
-                hint="Atanan talepler"
-                icon={<Feather name="tool" size={22} color="#f59e0b" />}
-                badge={servisSayisi}
-                onPress={() => navigation.navigate('Servisler')}
-              />
-            )}
-            {gorunur('tara') && (
-              <Tile width={tileGenislik}
-                title="Tara"
-                hint="S/N · Barkod · QR"
-                icon={<MaterialCommunityIcons name="barcode-scan" size={22} color="#ef4444" />}
-                onPress={() => navigation.navigate('Tara')}
-              />
-            )}
-            {gorunur('stok') && (
-              <Tile width={tileGenislik}
-                title="Stok"
-                hint="Tüm stok + cihazlar"
-                icon={<Feather name="package" size={22} color="#22c55e" />}
-                onPress={() => navigation.navigate('Stok')}
-              />
-            )}
-            {gorunur('arac_takip') && (
-              <Tile width={tileGenislik}
-                title="Mobiltek"
-                hint="Araç takip · kamera"
-                icon={<Feather name="truck" size={22} color="#60a5fa" />}
-                onPress={() => navigation.navigate('Mobiltek')}
-              />
-            )}
-            {aracFotoModulVarMi(kullanici) && (
-              <Tile width={tileGenislik}
-                title="Araç Foto"
-                hint="Sabah / akşam kayıt"
-                icon={<Feather name="camera" size={22} color="#ec4899" />}
-                onPress={() => navigation.navigate('AracKayit')}
-              />
-            )}
-            {gorunur('kesif') && (
-              <Tile width={tileGenislik}
-                title="Keşif"
-                hint="Saha keşif kaydı"
-                icon={<Feather name="compass" size={22} color="#14b8a6" />}
-                onPress={() => navigation.navigate('Kesifler')}
-              />
-            )}
-            {gorunur('teklif') && (
-              <Tile width={tileGenislik}
-                title="Teklif"
-                hint="Hazırla & gönder"
-                icon={<Feather name="file-text" size={22} color="#a855f7" />}
-                onPress={() => navigation.navigate('Teklif')}
-              />
-            )}
-            {gorunur('musteriler') && (
-              <Tile width={tileGenislik}
-                title="Müşteriler"
-                hint="Arama / detay"
-                icon={<Feather name="users" size={22} color="#06b6d4" />}
-                onPress={() => navigation.navigate('Müşteriler')}
-              />
-            )}
-            {gorunur('gorusmeler') && (
-              <Tile width={tileGenislik}
-                title="Görüşmelerim"
-                hint="Yeni & geçmiş"
-                icon={<Feather name="message-circle" size={22} color="#fbbf24" />}
-                onPress={() => navigation.navigate('Gorusmeler')}
-              />
-            )}
-            {gorunur('demolar') && (
-              <Tile width={tileGenislik}
-                title="Demo Takip"
-                hint="Müşteride/depoda"
-                icon={<Feather name="package" size={22} color="#a855f7" />}
-                badge={demoGecikmisSayisi}
-                onPress={() => navigation.navigate('Demolar')}
-              />
-            )}
-            <Tile width={tileGenislik}
-              title="Notlarım"
-              hint="Keşif & fikirler"
-              icon={<Feather name="edit-3" size={22} color="#f59e0b" />}
-              onPress={() => navigation.navigate('Notlarim')}
-            />
-            <Tile width={tileGenislik}
-              title="Takvim"
-              hint="Toplantı + Meet"
-              icon={<Feather name="calendar" size={22} color="#1a73e8" />}
-              onPress={() => navigation.navigate('Takvim')}
-            />
+        {/* ── BUGÜN — günlük işler, rozetli büyük kartlar ── */}
+        {(gorunur('gorevler') || gorunur('servisler')) && (
+          <View style={styles.gridArea}>
+            <Text style={[styles.bolumBaslik, { color: colors.textMuted }]}>BUGÜN</Text>
+            <View style={styles.grid}>
+              {gorunur('gorevler') && (
+                <Tile width={tileGenislik}
+                  title="Görevlerim"
+                  hint="Bana atananlar"
+                  icon={<Feather name="check-square" size={22} color="#60a5fa" />}
+                  badge={gorevSayisi}
+                  onPress={() => navigation.navigate('Görevler')}
+                />
+              )}
+              {gorunur('servisler') && (
+                <Tile width={tileGenislik}
+                  title="Servislerim"
+                  hint="Atanan talepler"
+                  icon={<Feather name="tool" size={22} color="#f59e0b" />}
+                  badge={servisSayisi}
+                  onPress={() => navigation.navigate('Servisler')}
+                />
+              )}
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* ── Bölümler — 3'lü kompakt grid ── */}
+        {(() => {
+          const bolumler = [
+            {
+              baslik: 'SAHA',
+              items: [
+                gorunur('kesif') && { t: 'Keşif', i: <Feather name="compass" size={20} color="#14b8a6" />, nav: 'Kesifler' },
+                gorunur('gorusmeler') && { t: 'Görüşmeler', i: <Feather name="message-circle" size={20} color="#fbbf24" />, nav: 'Gorusmeler' },
+                gorunur('teklif') && { t: 'Teklif', i: <Feather name="file-text" size={20} color="#a855f7" />, nav: 'Teklif' },
+                aracFotoModulVarMi(kullanici) && { t: 'Araç Foto', i: <Feather name="camera" size={20} color="#ec4899" />, nav: 'AracKayit' },
+                gorunur('tara') && { t: 'Tara', i: <MaterialCommunityIcons name="barcode-scan" size={20} color="#ef4444" />, nav: 'Tara' },
+              ].filter(Boolean),
+            },
+            {
+              baslik: 'DEPO',
+              items: [
+                gorunur('stok') && { t: 'Stok', i: <Feather name="package" size={20} color="#22c55e" />, nav: 'Stok' },
+                gorunur('demolar') && { t: 'Demo Takip', i: <Feather name="box" size={20} color="#a855f7" />, nav: 'Demolar', badge: demoGecikmisSayisi },
+              ].filter(Boolean),
+            },
+            {
+              baslik: 'GENEL',
+              items: [
+                gorunur('musteriler') && { t: 'Müşteriler', i: <Feather name="users" size={20} color="#06b6d4" />, nav: 'Müşteriler' },
+                { t: 'Takvim', i: <Feather name="calendar" size={20} color="#1a73e8" />, nav: 'Takvim' },
+                { t: 'Notlarım', i: <Feather name="edit-3" size={20} color="#f59e0b" />, nav: 'Notlarim' },
+                gorunur('arac_takip') && { t: 'Mobiltek', i: <Feather name="truck" size={20} color="#60a5fa" />, nav: 'Mobiltek' },
+              ].filter(Boolean),
+            },
+          ]
+          return bolumler.filter(b => b.items.length > 0).map(b => (
+            <View key={b.baslik} style={{ marginBottom: 14 }}>
+              <Text style={[styles.bolumBaslik, { color: colors.textMuted }]}>{b.baslik}</Text>
+              <View style={styles.grid}>
+                {b.items.map(item => (
+                  <MiniTile key={item.t}
+                    width={miniGenislik}
+                    title={item.t}
+                    icon={item.i}
+                    badge={item.badge}
+                    onPress={() => navigation.navigate(item.nav)}
+                  />
+                ))}
+              </View>
+            </View>
+          ))
+        })()}
 
         {/* Destek kestirme kartı */}
         {gorunur('destek') && (
@@ -264,6 +236,26 @@ export default function HomeScreen({ navigation }) {
         }}
       />
     </ScreenContainer>
+  )
+}
+
+// Kompakt bölüm kartı — ikon + tek satır isim (alt açıklama yok, %40 yer kazancı)
+function MiniTile({ title, onPress, icon, badge, width }) {
+  const { colors } = useTheme()
+  return (
+    <TouchableOpacity
+      style={[styles.miniTile, width ? { width } : null, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      {!!icon && <View style={{ marginBottom: 6 }}>{icon}</View>}
+      <Text style={[styles.miniTitle, { color: colors.textPrimary }]} numberOfLines={1}>{title}</Text>
+      {badge > 0 && (
+        <View style={[styles.badge, { minWidth: 20, height: 20, borderRadius: 10, top: 6, right: 6 }]}>
+          <Text style={[styles.badgeText, { fontSize: 10 }]}>{badge > 99 ? '99+' : badge}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
   )
 }
 
@@ -331,8 +323,31 @@ const styles = StyleSheet.create({
   },
 
   gridArea: {
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  bolumBaslik: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginBottom: 8,
+    marginTop: 6,
+  },
+  miniTile: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    minHeight: 74,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    position: 'relative',
+  },
+  miniTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    textAlign: 'center',
   },
   grid: {
     flexDirection: 'row',
