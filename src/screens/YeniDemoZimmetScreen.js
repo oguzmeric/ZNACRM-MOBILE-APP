@@ -10,6 +10,7 @@ import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { trIcerir } from '../utils/trSearch'
 import TarihSec from '../components/TarihSec'
+import SecimPicker from '../components/SecimPicker'
 
 const SURELER = [7, 14, 30]
 
@@ -100,17 +101,16 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
           {lokasyonlar.length > 0 && (
             <>
               <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>LOKASYON</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                <TouchableOpacity onPress={() => setLokasyonId(null)}
-                  style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: !lokasyonId ? colors.primary : colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ color: !lokasyonId ? '#fff' : colors.textSecondary, fontSize: 12 }}>Yok</Text>
-                </TouchableOpacity>
-                {lokasyonlar.map(l => (
-                  <TouchableOpacity key={l.id} onPress={() => setLokasyonId(l.id)}
-                    style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: lokasyonId === l.id ? colors.primary : colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                    <Text style={{ color: lokasyonId === l.id ? '#fff' : colors.textSecondary, fontSize: 12 }}>{l.ad}</Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={{ marginTop: 4 }}>
+                <SecimPicker
+                  deger={lokasyonId ?? 0}
+                  onSec={(v) => setLokasyonId(v === 0 ? null : v)}
+                  secenekler={[
+                    { id: 0, isim: '— Lokasyon yok —' },
+                    ...lokasyonlar.map(l => ({ id: l.id, isim: l.ad })),
+                  ]}
+                  placeholder={`Lokasyon seç (${lokasyonlar.length})`}
+                />
               </View>
             </>
           )}
