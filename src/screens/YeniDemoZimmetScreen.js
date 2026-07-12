@@ -73,6 +73,10 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
       Alert.alert('Hata', `Zimmet açılamadı: ${sonuc?._hata || 'bilinmeyen'}`)
       return
     }
+    Alert.alert(
+      'Teslim Tutanağı Hazır',
+      `Zimmet açıldı.\nTutanak No: ${sonuc.tutanakNo || '—'}\n\nCihaz sayfasından tutanağı müşteriye gönderebilir, imzalatıp fotoğrafını yükleyebilirsin.`,
+    )
     navigation.replace('DemoCihazDetay', { id: cihazId })
   }
 

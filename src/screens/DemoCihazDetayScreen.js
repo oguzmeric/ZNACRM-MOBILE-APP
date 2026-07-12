@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Modal, TextInput, Alert,
+  ActivityIndicator, Modal, TextInput, Alert, Linking,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
+import * as ImagePicker from 'expo-image-picker'
 import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import {
   demoCihazGetir, demoZimmetGecmisi, demoZimmetIadeAl, demoZimmetUzat,
-  demoBakimaAl, demoCihazSil,
+  demoBakimaAl, demoCihazSil, imzaliTutanakYukle, imzaliTutanakUrl,
+  ALMADI_SEBEPLERI,
 } from '../services/demoService'
 import TarihSec from '../components/TarihSec'
+import SecimPicker from '../components/SecimPicker'
+import BelgePaylasModal from '../components/BelgePaylasModal'
 
 const fmtTarih = (t) => t ? new Date(t).toLocaleDateString('tr-TR') : '—'
 
@@ -31,6 +35,8 @@ export default function DemoCihazDetayScreen({ route, navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [iadeModal, setIadeModal] = useState(false)
   const [uzatModal, setUzatModal] = useState(false)
+  const [paylasModal, setPaylasModal] = useState(false)
+  const [tutanakYukleniyor, setTutanakYukleniyor] = useState(false)
 
   const yukle = useCallback(async () => {
     const [c, g] = await Promise.all([demoCihazGetir(id), demoZimmetGecmisi(id)])
@@ -48,6 +54,44 @@ export default function DemoCihazDetayScreen({ route, navigation }) {
   const isAdmin = kullanici?.rol === 'admin'
 
   const bakimToggle = async () => { await demoBakimaAl(cihaz.id, !cihaz.bakimda); yukle() }
+
+  // ── İmzalı tutanak foto çek/yükle ──
+  const tutanakFotoYukle = async (uri) => {
+    setTutanakYukleniyor(true)
+    const sonuc = await imzaliTutanakYukle(aktif.id, uri)
+    setTutanakYukleniyor(false)
+    if (sonuc.ok) { Alert.alert('Tamam', 'İmzalı tutanak yüklendi.'); yukle() }
+    else Alert.alert('Hata', sonuc.hata || 'Yükleme başarısız.')
+  }
+
+  const tutanakFotoSec = () => {
+    if (!aktif) return
+    Alert.alert('İmzalı Tutanak', 'İmzalı tutanağın fotoğrafını nasıl ekleyelim?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: '📷 Kamera', onPress: async () => {
+          const izin = await ImagePicker.requestCameraPermissionsAsync()
+          if (!izin.granted) { Alert.alert('İzin Gerekli', 'Kameraya erişim izni verin.'); return }
+          const s = await ImagePicker.launchCameraAsync({ quality: 0.7 })
+          if (!s.canceled && s.assets?.[0]?.uri) await tutanakFotoYukle(s.assets[0].uri)
+        },
+      },
+      {
+        text: '🖼 Galeri', onPress: async () => {
+          const s = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7,
+          })
+          if (!s.canceled && s.assets?.[0]?.uri) await tutanakFotoYukle(s.assets[0].uri)
+        },
+      },
+    ])
+  }
+
+  const imzaliGoster = async (yol) => {
+    const url = await imzaliTutanakUrl(yol)
+    if (url) Linking.openURL(url)
+    else Alert.alert('Hata', 'Dosya açılamadı.')
+  }
 
   const sil = () => {
     if (aktif) {
@@ -112,6 +156,57 @@ export default function DemoCihazDetayScreen({ route, navigation }) {
             <Bilgi label="Beklenen İade" value={fmtTarih(aktif.beklenenIadeTarihi)} colors={colors} />
             <Bilgi label="Veren" value={aktif.verenKullaniciAd || '—'} colors={colors} />
             {!!aktif.durumNotu && <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 6 }}>{aktif.durumNotu}</Text>}
+
+            {/* ── Teslim tutanağı ── */}
+            <View style={{
+              marginTop: 12, padding: 10, borderRadius: 8, borderWidth: 1,
+              borderColor: aktif.imzaliTutanakUrl ? '#22c55e' : '#f59e0b',
+              backgroundColor: (aktif.imzaliTutanakUrl ? '#22c55e' : '#f59e0b') + '11',
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <Feather
+                  name={aktif.imzaliTutanakUrl ? 'file-text' : 'alert-triangle'}
+                  size={14}
+                  color={aktif.imzaliTutanakUrl ? '#22c55e' : '#f59e0b'}
+                />
+                <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 12 }}>
+                  Tutanak {aktif.tutanakNo || ''}
+                </Text>
+                <Text style={{
+                  color: aktif.imzaliTutanakUrl ? '#22c55e' : '#f59e0b',
+                  fontSize: 11, fontWeight: '700',
+                }}>
+                  {aktif.imzaliTutanakUrl ? '· İmzalı yüklendi ✓' : '· İmza bekleniyor'}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                <TouchableOpacity
+                  onPress={tutanakFotoSec}
+                  disabled={tutanakYukleniyor}
+                  style={[styles.btn, { backgroundColor: aktif.imzaliTutanakUrl ? colors.surface : colors.primary, borderWidth: aktif.imzaliTutanakUrl ? 1 : 0, borderColor: colors.border, opacity: tutanakYukleniyor ? 0.6 : 1 }]}>
+                  {tutanakYukleniyor
+                    ? <ActivityIndicator size="small" color={aktif.imzaliTutanakUrl ? colors.textPrimary : '#fff'} />
+                    : <Feather name="camera" size={15} color={aktif.imzaliTutanakUrl ? colors.textPrimary : '#fff'} />}
+                  <Text style={[styles.btnText, { color: aktif.imzaliTutanakUrl ? colors.textPrimary : '#fff' }]}>
+                    {aktif.imzaliTutanakUrl ? 'Yeniden Çek' : 'İmzalıyı Çek/Yükle'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setPaylasModal(true)}
+                  style={[styles.btn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+                  <Feather name="send" size={15} color={colors.textPrimary} />
+                  <Text style={[styles.btnText, { color: colors.textPrimary }]}>Gönder</Text>
+                </TouchableOpacity>
+                {!!aktif.imzaliTutanakUrl && (
+                  <TouchableOpacity
+                    onPress={() => imzaliGoster(aktif.imzaliTutanakUrl)}
+                    style={[styles.btn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]}>
+                    <Feather name="eye" size={15} color={colors.textPrimary} />
+                    <Text style={[styles.btnText, { color: colors.textPrimary }]}>Gör</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
 
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
               <TouchableOpacity onPress={() => setIadeModal(true)} style={[styles.btn, { backgroundColor: colors.primary }]}>
@@ -178,13 +273,28 @@ export default function DemoCihazDetayScreen({ route, navigation }) {
       <IadeAlModal
         acik={iadeModal}
         onKapat={() => setIadeModal(false)}
-        onKaydet={async ({ tarih, karar, not }) => {
+        onKaydet={async ({ tarih, karar, not, almadiSebebi }) => {
           if (!aktif) return
-          await demoZimmetIadeAl(aktif.id, { gercekIadeTarihi: tarih, musteriKarari: karar || null, durumNotu: not || null })
+          await demoZimmetIadeAl(aktif.id, {
+            gercekIadeTarihi: tarih, musteriKarari: karar || null,
+            durumNotu: not || null, almadiSebebi,
+          })
           setIadeModal(false); yukle()
         }}
         colors={colors}
       />
+
+      {aktif && (
+        <BelgePaylasModal
+          visible={paylasModal}
+          onClose={() => { setPaylasModal(false); yukle() }}
+          belgeTipi="demo_tutanak"
+          belgeId={aktif.id}
+          prefillGsm={aktif.musteri?.telefon || ''}
+          prefillEmail={aktif.musteri?.email || ''}
+          baslikMetni={`${aktif.tutanakNo || 'Tutanak'} — ${cihaz.ad}`}
+        />
+      )}
 
       <SureyiUzatModal
         acik={uzatModal}
@@ -214,8 +324,9 @@ function IadeAlModal({ acik, onKapat, onKaydet, colors }) {
   const bugun = new Date().toISOString().slice(0, 10)
   const [tarih, setTarih] = useState(bugun)
   const [karar, setKarar] = useState('')
+  const [almadiSebebi, setAlmadiSebebi] = useState('')
   const [not, setNot] = useState('')
-  useEffect(() => { if (acik) { setTarih(bugun); setKarar(''); setNot('') } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [acik])
+  useEffect(() => { if (acik) { setTarih(bugun); setKarar(''); setAlmadiSebebi(''); setNot('') } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [acik])
   if (!acik) return null
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onKapat}>
@@ -239,6 +350,17 @@ function IadeAlModal({ acik, onKapat, onKaydet, colors }) {
               </TouchableOpacity>
             ))}
           </View>
+          {karar === 'almadi' && (
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700', marginBottom: 4 }}>ALMAMA SEBEBİ</Text>
+              <SecimPicker
+                deger={almadiSebebi}
+                onSec={setAlmadiSebebi}
+                secenekler={ALMADI_SEBEPLERI}
+                placeholder="Sebep seçin…"
+              />
+            </View>
+          )}
           <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700' }}>NOTLAR</Text>
           <TextInput value={not} onChangeText={setNot} multiline numberOfLines={3}
             style={{ borderWidth: 1, borderColor: colors.border, padding: 10, borderRadius: 8, color: colors.textPrimary, marginTop: 4, marginBottom: 12, minHeight: 70 }} />
@@ -246,7 +368,7 @@ function IadeAlModal({ acik, onKapat, onKaydet, colors }) {
             <TouchableOpacity onPress={onKapat} style={{ flex: 1, padding: 12, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
               <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>Vazgeç</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => onKaydet({ tarih, karar, not })} style={{ flex: 1, padding: 12, alignItems: 'center', borderRadius: 8, backgroundColor: colors.primary }}>
+            <TouchableOpacity onPress={() => onKaydet({ tarih, karar, not, almadiSebebi: almadiSebebi || null })} style={{ flex: 1, padding: 12, alignItems: 'center', borderRadius: 8, backgroundColor: colors.primary }}>
               <Text style={{ color: '#fff', fontWeight: '700' }}>İade Et</Text>
             </TouchableOpacity>
           </View>

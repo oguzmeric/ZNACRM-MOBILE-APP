@@ -1,5 +1,16 @@
+import * as FileSystem from 'expo-file-system/legacy'
 import { supabase } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
+
+const TUTANAK_BUCKET = 'demo-tutanak'
+
+export const ALMADI_SEBEPLERI = [
+  { id: 'fiyat',           isim: 'Fiyat yüksek buldu' },
+  { id: 'ihtiyac_yok',     isim: 'İhtiyacı kalmadı' },
+  { id: 'rakip_secti',     isim: 'Rakip ürünü seçti' },
+  { id: 'teknik_yetersiz', isim: 'Teknik olarak yetersiz buldu' },
+  { id: 'diger',           isim: 'Diğer' },
+]
 
 export const demoCihazlariGetir = async () => {
   const { data, error } = await supabase
@@ -43,7 +54,7 @@ export const demoCihazSil = async (id) => {
 export const demoZimmetGecmisi = async (cihazId) => {
   const { data, error } = await supabase
     .from('demo_zimmet_kayitlari')
-    .select('*, musteri:musteri_id (id, firma, ad, soyad), lokasyon:lokasyon_id (id, ad)')
+    .select('*, musteri:musteri_id (id, firma, ad, soyad, telefon, email), lokasyon:lokasyon_id (id, ad)')
     .eq('cihaz_id', cihazId)
     .order('veris_tarihi', { ascending: false })
   if (error) { console.error('demoZimmetGecmisi hata:', error.message); return [] }
@@ -72,11 +83,12 @@ export const demoZimmetAc = async (payload) => {
   return toCamel(data)
 }
 
-export const demoZimmetIadeAl = async (zimmetId, { gercekIadeTarihi, musteriKarari, durumNotu }) => {
+export const demoZimmetIadeAl = async (zimmetId, { gercekIadeTarihi, musteriKarari, durumNotu, almadiSebebi }) => {
   const { data, error } = await supabase.from('demo_zimmet_kayitlari').update(toSnake({
     gercekIadeTarihi: gercekIadeTarihi || new Date().toISOString().slice(0, 10),
     musteriKarari: musteriKarari || null,
     durumNotu: durumNotu || null,
+    almadiSebebi: musteriKarari === 'almadi' ? (almadiSebebi || null) : null,
   })).eq('id', zimmetId).select().single()
   if (error) { console.error('demoZimmetIadeAl hata:', error.message); return null }
   return toCamel(data)
@@ -96,6 +108,45 @@ export const demoZimmetUzat = async (zimmetId, yeniBeklenenTarih, neden) => {
   return toCamel(data)
 }
 
-export const zimmetUyariFlag = async (zimmetId, alanlar) => {
-  await supabase.from('demo_zimmet_kayitlari').update(toSnake(alanlar)).eq('id', zimmetId)
+// ---------- İmzalı teslim tutanağı (mig 142) ----------
+function base64ToArrayBuffer(base64) {
+  const binaryString = atob(base64)
+  const len = binaryString.length
+  const bytes = new Uint8Array(len)
+  for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i)
+  return bytes.buffer
+}
+
+export async function imzaliTutanakYukle(zimmetId, dosyaUri) {
+  const yol = `zimmet-${zimmetId}/${Date.now()}.jpg`
+  let veri
+  try {
+    const base64 = await FileSystem.readAsStringAsync(dosyaUri, { encoding: 'base64' })
+    veri = base64ToArrayBuffer(base64)
+    if (!veri || veri.byteLength === 0) throw new Error('Boş dosya')
+  } catch (e) {
+    return { ok: false, hata: 'Dosya okunamadı: ' + e.message }
+  }
+  const { error: upErr } = await supabase.storage.from(TUTANAK_BUCKET).upload(yol, veri, {
+    contentType: 'image/jpeg',
+    upsert: false,
+  })
+  if (upErr) return { ok: false, hata: 'Yükleme hatası: ' + upErr.message }
+  const { data, error } = await supabase
+    .from('demo_zimmet_kayitlari')
+    .update({ imzali_tutanak_url: yol })
+    .eq('id', zimmetId)
+    .select()
+    .single()
+  if (error) {
+    await supabase.storage.from(TUTANAK_BUCKET).remove([yol]).catch(() => {})
+    return { ok: false, hata: error.message }
+  }
+  return { ok: true, zimmet: toCamel(data) }
+}
+
+export async function imzaliTutanakUrl(yol, saniye = 3600) {
+  if (!yol) return null
+  const { data } = await supabase.storage.from(TUTANAK_BUCKET).createSignedUrl(yol, saniye)
+  return data?.signedUrl ?? null
 }

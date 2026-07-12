@@ -13,7 +13,6 @@ import { banaAtananAktifTalepSayisi } from '../services/servisService'
 import { kullaniciMenuYetkileri } from '../services/menuYetkiService'
 import { okunmamisBildirimSayisi, bildirimleriDinle } from '../services/bildirimService'
 import { aktifZimmetleriGetir } from '../services/demoService'
-import { demoBildirimleriniKontrolEt } from '../lib/demoBildirim'
 import DuyuruBanner from '../components/DuyuruBanner'
 import MesaiKarti from '../components/MesaiKarti'
 import { mesaiTakipVarMi } from '../services/mesaiService'
@@ -52,11 +51,6 @@ export default function HomeScreen({ navigation }) {
     setOkunmamisSayisi(b)
     setDemoGecikmisSayisi((dz || []).filter(z => z.beklenenIadeTarihi && new Date(z.beklenenIadeTarihi) < new Date()).length)
   }, [kullanici])
-
-  // Demo bildirim kontrolü — oturum başına 1 kez
-  useEffect(() => {
-    if (kullanici?.id) demoBildirimleriniKontrolEt(kullanici).catch(() => {})
-  }, [kullanici?.id])
 
   // Realtime — yeni bildirim gelince badge anlık artsın
   useEffect(() => {
