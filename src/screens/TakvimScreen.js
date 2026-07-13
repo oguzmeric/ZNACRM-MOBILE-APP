@@ -18,6 +18,7 @@ import { useTheme } from '../context/ThemeContext'
 import {
   takvimBaglantilariniGetir, hariciEtkinlikleriGetir, takvimSyncTetikle,
 } from '../services/takvimService'
+import { gorevleriGetir } from '../services/gorevService'
 
 const AYLAR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
@@ -77,11 +78,28 @@ export default function TakvimScreen({ navigation }) {
     const son = ayGrid[41].date
     const baslangicISO = new Date(ilk.getFullYear(), ilk.getMonth(), ilk.getDate(), 0, 0, 0).toISOString()
     const bitisISO = new Date(son.getFullYear(), son.getMonth(), son.getDate(), 23, 59, 59).toISOString()
-    const [evs, bag] = await Promise.all([
+    const [evs, bag, gorevler] = await Promise.all([
       hariciEtkinlikleriGetir(kullanici.id, baslangicISO, bitisISO),
       takvimBaglantilariniGetir(kullanici.id),
+      gorevleriGetir().catch(() => []),
     ])
-    setEtkinlikler(evs)
+    // KENDİ görevlerin takvime düşer (atanan veya ekipte olduğun) —
+    // son tarihli görevler tüm-gün öğesi olarak gösterilir
+    const kid = String(kullanici.id)
+    const gorevEvs = (gorevler || [])
+      .filter((g) => g.sonTarih && (
+        String(g.atananId ?? '') === kid ||
+        String(g.atanan ?? '') === kid ||
+        (Array.isArray(g.ekip) && g.ekip.map(String).includes(kid))
+      ))
+      .map((g) => ({
+        id: `gorev-${g.id}`,
+        _gorevId: g.id,
+        baslik: `${g.durum === 'tamamlandi' ? '✅' : '📋'} ${g.baslik || 'Görev'}`,
+        baslangic: `${String(g.sonTarih).slice(0, 10)}T08:00:00`,
+        tum_gun: true,
+      }))
+    setEtkinlikler([...(evs || []), ...gorevEvs])
     setBaglantilar(bag)
     setYukleniyor(false)
   }, [kullanici?.id, yil, ay])
@@ -145,6 +163,10 @@ export default function TakvimScreen({ navigation }) {
   }
 
   const etkinligeTikla = (ev) => {
+    if (ev._gorevId) {
+      navigation.navigate('GörevDetay', { id: ev._gorevId })
+      return
+    }
     setSecilenEtkinlik(ev)
   }
 
