@@ -193,6 +193,7 @@ export default function GorevDetayScreen({ route, navigation }) {
     const guncel = await gorevGuncelle(id, {
       devamSebep: secilenSebep,
       bitisTarihi: devamYeniTarih,
+      sonTarih: devamYeniTarih, // panel/listeler gecikmeyi son_tarih'ten okur
     })
     setUpdating(false)
     if (!guncel) {
