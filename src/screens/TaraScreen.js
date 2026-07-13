@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../context/ThemeContext'
 import { kalemAra, modellerOzetiniGetir, serileriTopluEkle } from '../services/stokKalemiService'
 import { cihazGetirSeriNo } from '../services/musteriCihazService'
+import { musteriGetir } from '../services/musteriService'
 import { Modal, FlatList } from 'react-native'
 
 const BARKOD_TIPLERI = [
@@ -54,6 +55,7 @@ export default function TaraScreen({ navigation }) {
   const [modeller, setModeller] = useState([])
   const [modelArama, setModelArama] = useState('')
   const [eklenenSayisi, setEklenenSayisi] = useState(0)
+  const [musteriCihazSonuc, setMusteriCihazSonuc] = useState(null) // { cihaz, firma } — belirgin kart
 
   // İlk açılışta modelleri yükle (sürekli mod için)
   useEffect(() => {
@@ -184,16 +186,13 @@ export default function TaraScreen({ navigation }) {
     const musteriCihazi = await cihazGetirSeriNo(kod).catch(() => null)
     if (musteriCihazi) {
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) } catch {}
-      const arizali = musteriCihazi.durum === 'arizali'
-      Alert.alert(
-        arizali ? '⚠️ Müşteri Cihazı — ARIZALI' : 'Müşteri Cihazı',
-        `${musteriCihazi.cihazAdi || [musteriCihazi.marka, musteriCihazi.model].filter(Boolean).join(' ') || 'Cihaz'}\nS/N: ${kod}` +
-          (arizali && musteriCihazi.arizaNedeni ? `\nArıza: ${musteriCihazi.arizaNedeni}` : ''),
-        [
-          { text: 'Tekrar Tara', onPress: () => { sonOkunan.current = null; setScanning(true) } },
-          { text: 'Cihaz Kartını Aç', onPress: () => navigation.navigate('ArizaliCihaz', { sn: kod }) },
-        ]
-      )
+      // Müşteri adını da göster — belirgin kart için
+      let firma = ''
+      if (musteriCihazi.musteriId) {
+        const m = await musteriGetir(musteriCihazi.musteriId).catch(() => null)
+        firma = m?.firma || m?.musteriAdi || ''
+      }
+      setMusteriCihazSonuc({ cihaz: musteriCihazi, firma })
       return
     }
 
@@ -466,6 +465,71 @@ export default function TaraScreen({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Müşteri Cihazı sonuç kartı — belirgin, duruma göre renkli */}
+      <Modal
+        visible={!!musteriCihazSonuc}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMusteriCihazSonuc(null)}
+      >
+        {musteriCihazSonuc && (() => {
+          const c = musteriCihazSonuc.cihaz
+          const arizali = c.durum === 'arizali'
+          const ana = arizali ? '#dc2626' : '#2563eb'
+          const kapatVeTara = () => {
+            setMusteriCihazSonuc(null)
+            sonOkunan.current = null
+            setScanning(true)
+          }
+          return (
+            <View style={mcStyles.mcOverlay}>
+              <View style={[mcStyles.mcKart, { borderColor: ana }]}>
+                {/* Üst renkli şerit + rozet */}
+                <View style={[mcStyles.mcSerit, { backgroundColor: ana }]} />
+                <View style={mcStyles.mcRozetSatir}>
+                  <View style={[mcStyles.mcRozet, { backgroundColor: ana }]}>
+                    <Feather name={arizali ? 'alert-triangle' : 'monitor'} size={14} color="#fff" />
+                    <Text style={mcStyles.mcRozetT}>
+                      {arizali ? 'MÜŞTERİ CİHAZI — ARIZALI' : 'MÜŞTERİ CİHAZI'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={mcStyles.mcAd} numberOfLines={2}>
+                  {c.cihazAdi || [c.marka, c.model].filter(Boolean).join(' ') || 'Cihaz'}
+                </Text>
+                {!!musteriCihazSonuc.firma && (
+                  <Text style={mcStyles.mcFirma} numberOfLines={1}>🏢 {musteriCihazSonuc.firma}</Text>
+                )}
+                <Text style={mcStyles.mcSN}>S/N: {c.seriNo}</Text>
+                {!!c.lokasyon && <Text style={mcStyles.mcMeta}>📍 {c.lokasyon}</Text>}
+                {arizali && !!c.arizaNedeni && (
+                  <View style={mcStyles.mcArizaKutu}>
+                    <Text style={mcStyles.mcArizaT}>⚠️ {c.arizaNedeni}</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[mcStyles.mcAnaBtn, { backgroundColor: ana }]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    const sn = c.seriNo
+                    setMusteriCihazSonuc(null)
+                    navigation.navigate('ArizaliCihaz', { sn })
+                  }}
+                >
+                  <Feather name="external-link" size={17} color="#fff" />
+                  <Text style={mcStyles.mcAnaBtnT}>Cihaz Kartını Aç</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={mcStyles.mcIkincilBtn} activeOpacity={0.7} onPress={kapatVeTara}>
+                  <Text style={mcStyles.mcIkincilBtnT}>Tekrar Tara</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )
+        })()}
+      </Modal>
     </View>
   )
 }
@@ -496,6 +560,47 @@ function ManuelGiris({ kod, setKod, onSubmit }) {
 
 const BANNER_RENK = { ok: '#10b981', ses: '#f59e0b', db: '#f59e0b', yok: '#dc2626' }
 const BANNER_IKON = { ok: '✓', ses: '⚠', db: '⚠', yok: '✗' }
+
+// Müşteri Cihazı sonuç kartı stilleri
+const mcStyles = {
+  mcOverlay: {
+    flex: 1, justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+  mcKart: {
+    backgroundColor: '#0f172a',
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    borderWidth: 1.5, borderBottomWidth: 0,
+    paddingHorizontal: 20, paddingBottom: 34, paddingTop: 0,
+    overflow: 'hidden',
+  },
+  mcSerit: { height: 5, marginHorizontal: -20, marginBottom: 14 },
+  mcRozetSatir: { flexDirection: 'row', marginBottom: 10 },
+  mcRozet: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
+  },
+  mcRozetT: { color: '#fff', fontWeight: '900', fontSize: 12, letterSpacing: 0.6 },
+  mcAd: { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 4 },
+  mcFirma: { color: '#93c5fd', fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  mcSN: { color: '#cbd5e1', fontSize: 14, fontFamily: 'monospace', marginBottom: 2 },
+  mcMeta: { color: '#94a3b8', fontSize: 13, marginTop: 2 },
+  mcArizaKutu: {
+    backgroundColor: 'rgba(220,38,38,0.15)', borderColor: 'rgba(220,38,38,0.5)',
+    borderWidth: 1, borderRadius: 10, padding: 10, marginTop: 10,
+  },
+  mcArizaT: { color: '#fca5a5', fontSize: 13, fontWeight: '600' },
+  mcAnaBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: 12, paddingVertical: 15, marginTop: 16,
+  },
+  mcAnaBtnT: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  mcIkincilBtn: {
+    alignItems: 'center', paddingVertical: 13, marginTop: 8,
+    borderRadius: 12, backgroundColor: '#1e293b',
+  },
+  mcIkincilBtnT: { color: '#cbd5e1', fontWeight: '700', fontSize: 14 },
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
