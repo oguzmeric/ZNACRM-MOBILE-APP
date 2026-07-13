@@ -54,6 +54,7 @@ import YeniKesifScreen from '../screens/YeniKesifScreen'
 import KesifDetayScreen from '../screens/KesifDetayScreen'
 import ModelDetayScreen from '../screens/ModelDetayScreen'
 import SeriTaraScreen from '../screens/SeriTaraScreen'
+import ArizaliCihazScreen from '../screens/ArizaliCihazScreen'
 import BulkDetayScreen from '../screens/BulkDetayScreen'
 import TekliflerScreen from '../screens/TekliflerScreen'
 import TeklifDetayScreen from '../screens/TeklifDetayScreen'
@@ -229,6 +230,7 @@ export default function RootNavigator() {
             <Stack.Screen name="KesifDetay" component={KesifDetayScreen} options={{ title: 'Keşif Detayı', headerShown: true }} />
             <Stack.Screen name="ModelDetay" component={ModelDetayScreen} options={{ title: 'Model Detayı' }} />
             <Stack.Screen name="SeriTara" component={SeriTaraScreen} options={{ title: 'Seri Tara' }} />
+            <Stack.Screen name="ArizaliCihaz" component={ArizaliCihazScreen} options={{ title: 'Arızalı Ürün Girişi' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
             <Stack.Screen name="Teklif" component={TekliflerScreen} options={{ title: 'Teklifler' }} />
             <Stack.Screen name="TeklifDetay" component={TeklifDetayScreen} options={{ title: 'Teklif Detayı' }} />
