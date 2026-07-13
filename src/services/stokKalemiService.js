@@ -18,7 +18,8 @@ export const durumBul = (id) => DURUMLAR.find((d) => d.id === id)
 // S/N'li cihazlar (stok_kalemleri) + sarf malzemeler (stok_urunler'da S/N karşılığı olmayanlar)
 export const tumKalemleriGetir = async () => {
   const [kalemlerRaw, urunlerRaw] = await Promise.all([
-    tumSayfalariCek('stok_kalemleri', (q) => q.order('guncelleme_tarih', { ascending: false })),
+    tumSayfalariCek('stok_kalemleri', (q) =>
+      q.or('silindi.is.null,silindi.eq.false').order('guncelleme_tarih', { ascending: false })),
     tumSayfalariCek('stok_urunler'),
   ])
 
@@ -154,6 +155,7 @@ export const modelKalemleriniGetir = async (stokKodu) => {
     .from('stok_kalemleri')
     .select('*')
     .eq('stok_kodu', stokKodu)
+    .or('silindi.is.null,silindi.eq.false')
     .order('guncelleme_tarih', { ascending: false })
   return arrayToCamel(data)
 }
@@ -161,7 +163,7 @@ export const modelKalemleriniGetir = async (stokKodu) => {
 // Belirli duruma göre kalemler
 export const kalemleriDurumaGoreGetir = async (durum) => {
   const data = await tumSayfalariCek('stok_kalemleri', (q) =>
-    q.eq('durum', durum).order('guncelleme_tarih', { ascending: false })
+    q.eq('durum', durum).or('silindi.is.null,silindi.eq.false').order('guncelleme_tarih', { ascending: false })
   )
   return arrayToCamel(data)
 }
@@ -172,6 +174,7 @@ export const musteriCihazlariniGetir = async (musteriId) => {
     .from('stok_kalemleri')
     .select('*')
     .eq('musteri_id', musteriId)
+    .or('silindi.is.null,silindi.eq.false')
     .order('takilma_tarihi', { ascending: false, nullsFirst: false })
   return arrayToCamel(data)
 }
@@ -182,6 +185,7 @@ export const lokasyonCihazlariniGetir = async (musteriLokasyonId) => {
     .from('stok_kalemleri')
     .select('*')
     .eq('musteri_lokasyon_id', musteriLokasyonId)
+    .or('silindi.is.null,silindi.eq.false')
     .order('takilma_tarihi', { ascending: false, nullsFirst: false })
   return arrayToCamel(data)
 }
@@ -189,7 +193,8 @@ export const lokasyonCihazlariniGetir = async (musteriLokasyonId) => {
 // Teknisyenin üzerindeki ürünler (zimmetli)
 export const teknisyenStoktariniGetir = async (teknisyenId) => {
   const data = await tumSayfalariCek('stok_kalemleri', (q) =>
-    q.eq('teknisyen_id', teknisyenId).eq('durum', 'teknisyende').order('guncelleme_tarih', { ascending: false })
+    q.eq('teknisyen_id', teknisyenId).eq('durum', 'teknisyende')
+      .or('silindi.is.null,silindi.eq.false').order('guncelleme_tarih', { ascending: false })
   )
   return arrayToCamel(data)
 }
@@ -202,6 +207,8 @@ export const kalemAra = async (kod) => {
     .from('stok_kalemleri')
     .select('*')
     .or(`seri_no.eq.${k},barkod.eq.${k}`)
+    // Soft-delete edilen SN'ler taramada "hayalet Depoda" kaydı gösteriyordu
+    .or('silindi.is.null,silindi.eq.false')
     .limit(1)
     .maybeSingle()
   return data ? toCamel(data) : null
@@ -216,6 +223,7 @@ export const kalemMetinAra = async (q) => {
       .from('stok_kalemleri')
       .select('*')
       .or(`seri_no.ilike.${term},barkod.ilike.${term},marka.ilike.${term},model.ilike.${term},stok_kodu.ilike.${term}`)
+      .or('silindi.is.null,silindi.eq.false')
       .order('guncelleme_tarih', { ascending: false })
       .limit(100),
     supabase
