@@ -198,7 +198,7 @@ export default function HomeScreen({ navigation }) {
                 gorunur('teklif') && { t: 'Teklif', i: <Feather name="file-text" size={20} color="#a855f7" />, nav: 'Teklif' },
                 aracFotoModulVarMi(kullanici) && { t: 'Araç Foto', i: <Feather name="camera" size={20} color="#ec4899" />, nav: 'AracKayit' },
                 gorunur('tara') && { t: 'Tara', i: <MaterialCommunityIcons name="barcode-scan" size={20} color="#ef4444" />, nav: 'Tara' },
-                { t: 'Arızalı Giriş', i: <MaterialCommunityIcons name="alert-decagram-outline" size={20} color="#dc2626" />, nav: 'ArizaliCihaz' },
+                { t: 'Cihaz SN', i: <MaterialCommunityIcons name="alert-decagram-outline" size={20} color="#dc2626" />, nav: 'ArizaliCihaz' },
               ].filter(Boolean),
             },
             {

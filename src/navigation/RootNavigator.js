@@ -230,7 +230,7 @@ export default function RootNavigator() {
             <Stack.Screen name="KesifDetay" component={KesifDetayScreen} options={{ title: 'Keşif Detayı', headerShown: true }} />
             <Stack.Screen name="ModelDetay" component={ModelDetayScreen} options={{ title: 'Model Detayı' }} />
             <Stack.Screen name="SeriTara" component={SeriTaraScreen} options={{ title: 'Seri Tara' }} />
-            <Stack.Screen name="ArizaliCihaz" component={ArizaliCihazScreen} options={{ title: 'Arızalı Ürün Girişi' }} />
+            <Stack.Screen name="ArizaliCihaz" component={ArizaliCihazScreen} options={{ title: 'Müşteri Cihazı (SN)' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
             <Stack.Screen name="Teklif" component={TekliflerScreen} options={{ title: 'Teklifler' }} />
             <Stack.Screen name="TeklifDetay" component={TeklifDetayScreen} options={{ title: 'Teklif Detayı' }} />

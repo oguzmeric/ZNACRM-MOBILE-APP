@@ -20,6 +20,9 @@ export default function ArizaliCihazScreen({ navigation }) {
   const { colors } = useTheme()
   const { kullanici } = useAuth()
 
+  // 'ariza'   → arızalı ürün girişi (arıza nedeni zorunlu)
+  // 'guncelle'→ cihaz kaydı / bilgi güncelleme (arıza işlenmez)
+  const [islem, setIslem] = useState('ariza')
   const [seriNo, setSeriNo] = useState('')
   const [taramaAcik, setTaramaAcik] = useState(false)
   const [sorgulaniyor, setSorgulaniyor] = useState(false)
@@ -95,30 +98,36 @@ export default function ArizaliCihazScreen({ navigation }) {
   const kaydet = async () => {
     if (!seriNo.trim()) { Alert.alert('Eksik', 'Seri numarası girin veya taratın.'); return }
     if (!musteriId) { Alert.alert('Eksik', 'Müşteri seçin.'); return }
-    if (!form.arizaNedeni.trim()) { Alert.alert('Eksik', 'Arıza nedenini yazın.'); return }
+    if (islem === 'ariza' && !form.arizaNedeni.trim()) { Alert.alert('Eksik', 'Arıza nedenini yazın.'); return }
 
     setKaydediliyor(true)
     try {
       if (mevcutCihaz) {
-        // Kayıtlı cihaz: bilgileri güncelle + arıza işle
-        await cihazGuncelle(mevcutCihaz.id, {
+        // Kayıtlı cihaz: bilgileri güncelle (+ arıza modundaysa arızayı işle)
+        const g1 = await cihazGuncelle(mevcutCihaz.id, {
           lokasyon: form.lokasyon, cihazAdi: form.cihazAdi,
           marka: form.marka, model: form.model,
           ipAdresi: form.ipAdresi, macAdresi: form.macAdresi,
           kullaniciAdi: form.kullaniciAdi, sifre: form.sifre, notlar: form.notlar,
-        }, kullanici, 'Sahada arızalı giriş sırasında güncellendi')
-        const g = await cihazArizaBildir(mevcutCihaz.id, form.arizaNedeni.trim(), kullanici)
-        if (!g) { Alert.alert('Hata', 'Arıza kaydedilemedi.'); return }
+        }, kullanici, islem === 'ariza' ? 'Sahada arızalı giriş sırasında güncellendi' : 'Sahada SN okutularak bilgiler güncellendi')
+        if (!g1) { Alert.alert('Hata', 'Güncellenemedi.'); return }
+        if (islem === 'ariza') {
+          const g2 = await cihazArizaBildir(mevcutCihaz.id, form.arizaNedeni.trim(), kullanici)
+          if (!g2) { Alert.alert('Hata', 'Arıza kaydedilemedi.'); return }
+        }
       } else {
+        const arizaMi = islem === 'ariza'
         const r = await cihazEkle({
           musteriId, seriNo: seriNo.trim(), ...form,
-          arizaNedeni: form.arizaNedeni.trim(),
-          durum: 'arizali', arizaTarihi: new Date().toISOString(),
+          arizaNedeni: arizaMi ? form.arizaNedeni.trim() : '',
+          durum: arizaMi ? 'arizali' : 'aktif',
+          arizaTarihi: arizaMi ? new Date().toISOString() : undefined,
         }, kullanici)
         if (r.hata) { Alert.alert('Hata', r.hata); return }
       }
-      Alert.alert('✓ Kaydedildi', 'Arızalı ürün girişi yapıldı.', [
-        { text: 'Yeni Giriş', onPress: sifirla },
+      Alert.alert('✓ Kaydedildi',
+        islem === 'ariza' ? 'Arızalı ürün girişi yapıldı.' : 'Cihaz bilgileri kaydedildi.', [
+        { text: 'Yeni İşlem', onPress: sifirla },
         { text: 'Kapat', onPress: () => navigation.goBack() },
       ])
     } finally {
@@ -157,6 +166,32 @@ export default function ArizaliCihazScreen({ navigation }) {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
 
+        {/* İşlem modu */}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {[
+            { id: 'ariza', etiket: '⚠️ Arızalı Giriş', renk: '#dc2626' },
+            { id: 'guncelle', etiket: '💾 Kayıt & Güncelle', renk: '#2563eb' },
+          ].map((m) => {
+            const aktif = islem === m.id
+            return (
+              <TouchableOpacity
+                key={m.id}
+                onPress={() => setIslem(m.id)}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: aktif ? m.renk : colors.surface,
+                  borderWidth: 1, borderColor: aktif ? m.renk : colors.border,
+                }}
+              >
+                <Text style={{ color: aktif ? '#fff' : colors.textSecondary, fontWeight: '800', fontSize: 13 }}>
+                  {m.etiket}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
         {/* SN */}
         {etiket('Seri Numarası', true)}
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -186,7 +221,7 @@ export default function ArizaliCihazScreen({ navigation }) {
             <Feather name="info" size={14} color="#3b82f6" />
             <Text style={{ color: colors.textPrimary, fontSize: 12, flex: 1 }}>
               Bu SN kayıtlı: <Text style={{ fontWeight: '700' }}>{mevcutCihaz.cihazAdi || [mevcutCihaz.marka, mevcutCihaz.model].filter(Boolean).join(' ') || 'Cihaz'}</Text>
-              {' — '}bilgiler yüklendi, arıza mevcut kayda işlenecek.
+              {' — '}bilgiler yüklendi, {islem === 'ariza' ? 'arıza mevcut kayda işlenecek' : 'değişiklikler mevcut kayda kaydedilecek'}.
             </Text>
           </View>
         )}
@@ -261,16 +296,20 @@ export default function ArizaliCihazScreen({ navigation }) {
         {etiket('Şifre')}
         {input(form.sifre, (v) => setForm({ ...form, sifre: v }), 'Cihaz şifresi')}
 
-        {/* Arıza */}
-        {etiket('Arıza Nedeni', true)}
-        <TextInput
-          value={form.arizaNedeni}
-          onChangeText={(v) => setForm({ ...form, arizaNedeni: v })}
-          placeholder="Görüntü yok, disk arızası, güç sorunu…"
-          placeholderTextColor={colors.textMuted}
-          multiline
-          style={[styles.input, { height: 80, textAlignVertical: 'top', borderColor: '#dc2626', backgroundColor: colors.surface, color: colors.textPrimary }]}
-        />
+        {/* Arıza — yalnız arızalı giriş modunda */}
+        {islem === 'ariza' && (
+          <>
+            {etiket('Arıza Nedeni', true)}
+            <TextInput
+              value={form.arizaNedeni}
+              onChangeText={(v) => setForm({ ...form, arizaNedeni: v })}
+              placeholder="Görüntü yok, disk arızası, güç sorunu…"
+              placeholderTextColor={colors.textMuted}
+              multiline
+              style={[styles.input, { height: 80, textAlignVertical: 'top', borderColor: '#dc2626', backgroundColor: colors.surface, color: colors.textPrimary }]}
+            />
+          </>
+        )}
 
         {etiket('Not')}
         <TextInput
@@ -285,12 +324,16 @@ export default function ArizaliCihazScreen({ navigation }) {
         <TouchableOpacity
           onPress={kaydet}
           disabled={kaydediliyor}
-          style={[styles.kaydetBtn, { opacity: kaydediliyor ? 0.6 : 1 }]}
+          style={[styles.kaydetBtn, { opacity: kaydediliyor ? 0.6 : 1, backgroundColor: islem === 'ariza' ? '#dc2626' : '#2563eb' }]}
           activeOpacity={0.8}
         >
           {kaydediliyor
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.kaydetT}>⚠️ Arızalı Ürün Girişini Kaydet</Text>}
+            : <Text style={styles.kaydetT}>
+                {islem === 'ariza'
+                  ? '⚠️ Arızalı Ürün Girişini Kaydet'
+                  : (mevcutCihaz ? '💾 Cihaz Bilgilerini Güncelle' : '💾 Cihazı Kaydet')}
+              </Text>}
         </TouchableOpacity>
       </ScrollView>
 
