@@ -17,6 +17,7 @@ import { useRefresh } from '../hooks/useRefresh'
 import { musteriKisileriniGetir } from '../services/musteriKisiService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { musteriCihazlariniGetir, durumBul as cihazDurumBul } from '../services/stokKalemiService'
+import { musteriCihazlariGetir as envanterCihazlariGetir, CIHAZ_DURUMLARI } from '../services/musteriCihazService'
 import { tarihFormat } from '../utils/format'
 import { useTheme } from '../context/ThemeContext'
 
@@ -27,19 +28,22 @@ export default function MusteriDetayScreen({ route, navigation }) {
   const [kisiler, setKisiler] = useState([])
   const [lokasyonlar, setLokasyonlar] = useState([])
   const [cihazlar, setCihazlar] = useState([])
+  const [envanter, setEnvanter] = useState([]) // müşteri cihaz envanteri (musteri_cihazlari)
   const [loading, setLoading] = useState(true)
 
   const yukle = useCallback(async () => {
-    const [m, k, l, c] = await Promise.all([
+    const [m, k, l, c, e] = await Promise.all([
       musteriGetir(id),
       musteriKisileriniGetir(id),
       musteriLokasyonlariniGetir(id),
       musteriCihazlariniGetir(id),
+      envanterCihazlariGetir(id),
     ])
     setMusteri(m)
     setKisiler(k ?? [])
     setLokasyonlar(l ?? [])
     setCihazlar(c ?? [])
+    setEnvanter(e ?? [])
     setLoading(false)
   }, [id])
 
@@ -330,6 +334,65 @@ export default function MusteriDetayScreen({ route, navigation }) {
             })
           })()}
         </>
+      )}
+
+      {/* Müşteri Cihaz Envanteri — müşterinin sahadaki TÜM donanımı
+          (kamera, NVR, santral…) SN/IP/MAC/kimlik bilgileriyle */}
+      <View style={styles.kisilerHeader}>
+        <Text style={[styles.kisilerBaslik, { color: colors.textPrimary }]}>
+          Müşteri Cihaz Envanteri ({envanter.length})
+          {envanter.some((c) => c.durum === 'arizali') && (
+            <Text style={{ color: '#ef4444' }}>  ·  {envanter.filter((c) => c.durum === 'arizali').length} arızalı</Text>
+          )}
+        </Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ArizaliCihaz', { onDoldur: { musteriId: id }, mod: 'guncelle' })}
+          style={styles.taraBtn}
+        >
+          <Text style={styles.kisiEkleText}>+ SN ile Ekle</Text>
+        </TouchableOpacity>
+      </View>
+
+      {envanter.length === 0 ? (
+        <Text style={[styles.kisiBosText, { color: colors.textFaded }]}>
+          Henüz envanter kaydı yok. Müşterinin sahada kullandığı her donanımı "+ SN ile Ekle" ile kaydet —
+          kullanıcı adı/şifre dahil tüm bilgiler buradan takip edilir.
+        </Text>
+      ) : (
+        envanter.map((c) => {
+          const d = CIHAZ_DURUMLARI.find((x) => x.id === c.durum) || CIHAZ_DURUMLARI[0]
+          return (
+            <TouchableOpacity
+              key={c.id}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('ArizaliCihaz', { sn: c.seriNo, mod: 'guncelle' })}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10,
+                paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, marginBottom: 6,
+                backgroundColor: colors.surface, borderWidth: 1,
+                borderColor: c.durum === 'arizali' ? 'rgba(220,38,38,0.45)' : colors.border,
+              }}
+            >
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 13 }} numberOfLines={1}>
+                  {c.cihazAdi || [c.marka, c.model].filter(Boolean).join(' ') || 'Cihaz'}
+                </Text>
+                <Text style={{ color: colors.textMuted, fontSize: 11, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }} numberOfLines={1}>
+                  {c.seriNo}{c.ipAdresi ? `  ·  ${c.ipAdresi}` : ''}
+                </Text>
+                {!!c.lokasyon && (
+                  <Text style={{ color: colors.textMuted, fontSize: 11 }} numberOfLines={1}>📍 {c.lokasyon}</Text>
+                )}
+              </View>
+              <View style={{
+                paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6,
+                backgroundColor: d.renk + '22', borderWidth: 1, borderColor: d.renk + '66',
+              }}>
+                <Text style={{ color: d.renk, fontSize: 10, fontWeight: '800' }}>{d.isim.toLocaleUpperCase('tr')}</Text>
+              </View>
+            </TouchableOpacity>
+          )
+        })
       )}
 
       <TouchableOpacity style={styles.silBtn} onPress={sil}>

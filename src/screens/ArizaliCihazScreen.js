@@ -22,7 +22,7 @@ export default function ArizaliCihazScreen({ navigation, route }) {
 
   // 'ariza'   → arızalı ürün girişi (arıza nedeni zorunlu)
   // 'guncelle'→ cihaz kaydı / bilgi güncelleme (arıza işlenmez)
-  const [islem, setIslem] = useState('ariza')
+  const [islem, setIslem] = useState(route?.params?.mod === 'guncelle' ? 'guncelle' : 'ariza')
   const [seriNo, setSeriNo] = useState('')
   const [taramaAcik, setTaramaAcik] = useState(false)
   const [sorgulaniyor, setSorgulaniyor] = useState(false)
@@ -47,7 +47,16 @@ export default function ArizaliCihazScreen({ navigation, route }) {
       setMusteriler(liste)
       // Başka ekrandan SN ile gelindiyse (TaraScreen / CihazDetay köprüsü)
       const paramSN = route?.params?.sn
-      if (!paramSN) return
+      if (!paramSN) {
+        // SN'siz açılış (MusteriDetay '+ SN ile Ekle'): müşteriyi önceden seç
+        const d0 = route?.params?.onDoldur
+        if (d0?.musteriId) {
+          setMusteriId(d0.musteriId)
+          const m0 = liste.find((x) => x.id === d0.musteriId)
+          setFirmaAdi(m0?.firma || m0?.musteriAdi || `Müşteri #${d0.musteriId}`)
+        }
+        return
+      }
       setSeriNo(paramSN)
       const bulunan = await snSorgula(paramSN, liste)
       // SN müşteri envanterinde yoksa: stok kaydından gelen bilgilerle formu doldur
