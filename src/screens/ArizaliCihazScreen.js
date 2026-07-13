@@ -14,7 +14,7 @@ import QuickScanner from '../components/QuickScanner'
 import SecimPicker from '../components/SecimPicker'
 import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
-import { cihazGetirSeriNo, cihazEkle, cihazGuncelle, cihazArizaBildir } from '../services/musteriCihazService'
+import { cihazGetirSeriNo, cihazEkle, cihazGuncelle, cihazArizaBildir, cihazArizaGiderildi } from '../services/musteriCihazService'
 
 export default function ArizaliCihazScreen({ navigation, route }) {
   const { colors } = useTheme()
@@ -275,6 +275,36 @@ export default function ArizaliCihazScreen({ navigation, route }) {
               </Text>
             </View>
           </View>
+        )}
+        {mevcutCihaz?.durum === 'arizali' && (
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert('Arıza Giderildi', 'Cihaz "Aktif" durumuna alınacak. Onaylıyor musun?', [
+                { text: 'Vazgeç', style: 'cancel' },
+                {
+                  text: 'Onayla',
+                  onPress: async () => {
+                    const g = await cihazArizaGiderildi(mevcutCihaz.id, null, kullanici)
+                    if (g) {
+                      setMevcutCihaz(g)
+                      Alert.alert('✓', 'Arıza giderildi olarak işaretlendi.')
+                    } else {
+                      Alert.alert('Hata', 'İşaretlenemedi.')
+                    }
+                  },
+                },
+              ])
+            }}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: 11, borderRadius: 10, marginTop: 8,
+              backgroundColor: 'rgba(16,185,129,0.12)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.5)',
+            }}
+          >
+            <Feather name="check-circle" size={15} color="#10b981" />
+            <Text style={{ color: '#10b981', fontWeight: '800', fontSize: 13 }}>Arıza Giderildi</Text>
+          </TouchableOpacity>
         )}
 
         {/* Müşteri */}

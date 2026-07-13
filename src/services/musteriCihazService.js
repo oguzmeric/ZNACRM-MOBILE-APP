@@ -74,6 +74,16 @@ export const cihazGuncelle = async (id, patch, yapan, hareketNotu) => {
   return toCamel(data)
 }
 
+export const cihazArizaGiderildi = async (id, aciklama, yapan) => {
+  const { data, error } = await supabase
+    .from('musteri_cihazlari')
+    .update({ durum: 'aktif', ariza_nedeni: null })
+    .eq('id', id).select().single()
+  if (error) { console.warn('[cihazArizaGiderildi]', error.message); return null }
+  await hareketYaz(id, 'tamir', aciklama || 'Arıza giderildi', yapan)
+  return toCamel(data)
+}
+
 export const cihazArizaBildir = async (id, neden, yapan) => {
   const { data, error } = await supabase
     .from('musteri_cihazlari')
