@@ -16,7 +16,7 @@ import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { cihazGetirSeriNo, cihazEkle, cihazGuncelle, cihazArizaBildir } from '../services/musteriCihazService'
 
-export default function ArizaliCihazScreen({ navigation }) {
+export default function ArizaliCihazScreen({ navigation, route }) {
   const { colors } = useTheme()
   const { kullanici } = useAuth()
 
@@ -42,7 +42,15 @@ export default function ArizaliCihazScreen({ navigation }) {
   const [kaydediliyor, setKaydediliyor] = useState(false)
 
   useEffect(() => {
-    musterileriGetir().then((v) => setMusteriler(v ?? []))
+    musterileriGetir().then((v) => {
+      setMusteriler(v ?? [])
+      // Başka ekrandan SN ile gelindiyse (TaraScreen / CihazDetay köprüsü)
+      const paramSN = route?.params?.sn
+      if (paramSN) {
+        setSeriNo(paramSN)
+        snSorgula(paramSN, v ?? [])
+      }
+    })
   }, [])
 
   useEffect(() => {
@@ -69,7 +77,8 @@ export default function ArizaliCihazScreen({ navigation }) {
   }
 
   // SN sorgula — kayıtlıysa bilgileri getir
-  const snSorgula = async (sn) => {
+  // musteriListesi parametresi: mount anında müşteriler state'i henüz boşken çağrılırsa
+  const snSorgula = async (sn, musteriListesi = null) => {
     const temiz = String(sn ?? seriNo).trim()
     if (!temiz) return
     setSorgulaniyor(true)
@@ -78,7 +87,8 @@ export default function ArizaliCihazScreen({ navigation }) {
       if (c) {
         setMevcutCihaz(c)
         setMusteriId(c.musteriId)
-        const m = musteriler.find((x) => x.id === c.musteriId)
+        const liste = musteriListesi || musteriler
+        const m = liste.find((x) => x.id === c.musteriId)
         setFirmaAdi(m?.firma || m?.musteriAdi || `Müşteri #${c.musteriId}`)
         setForm({
           lokasyon: c.lokasyon || '', cihazAdi: c.cihazAdi || '',
@@ -217,12 +227,27 @@ export default function ArizaliCihazScreen({ navigation }) {
           </View>
         )}
         {mevcutCihaz && (
-          <View style={[styles.bilgiKart, { backgroundColor: 'rgba(37,99,235,0.1)', borderColor: 'rgba(37,99,235,0.35)' }]}>
-            <Feather name="info" size={14} color="#3b82f6" />
-            <Text style={{ color: colors.textPrimary, fontSize: 12, flex: 1 }}>
-              Bu SN kayıtlı: <Text style={{ fontWeight: '700' }}>{mevcutCihaz.cihazAdi || [mevcutCihaz.marka, mevcutCihaz.model].filter(Boolean).join(' ') || 'Cihaz'}</Text>
-              {' — '}bilgiler yüklendi, {islem === 'ariza' ? 'arıza mevcut kayda işlenecek' : 'değişiklikler mevcut kayda kaydedilecek'}.
-            </Text>
+          <View style={[styles.bilgiKart, mevcutCihaz.durum === 'arizali'
+            ? { backgroundColor: 'rgba(220,38,38,0.10)', borderColor: 'rgba(220,38,38,0.45)' }
+            : { backgroundColor: 'rgba(37,99,235,0.1)', borderColor: 'rgba(37,99,235,0.35)' }]}>
+            <Feather
+              name={mevcutCihaz.durum === 'arizali' ? 'alert-triangle' : 'info'}
+              size={14}
+              color={mevcutCihaz.durum === 'arizali' ? '#ef4444' : '#3b82f6'}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 12 }}>
+                Bu SN kayıtlı: <Text style={{ fontWeight: '700' }}>{mevcutCihaz.cihazAdi || [mevcutCihaz.marka, mevcutCihaz.model].filter(Boolean).join(' ') || 'Cihaz'}</Text>
+              </Text>
+              {mevcutCihaz.durum === 'arizali' && (
+                <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '700', marginTop: 2 }}>
+                  ⚠️ Şu an ARIZALI{mevcutCihaz.arizaNedeni ? `: ${mevcutCihaz.arizaNedeni}` : ''}
+                </Text>
+              )}
+              <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                {islem === 'ariza' ? 'Arıza mevcut kayda işlenecek.' : 'Değişiklikler mevcut kayda kaydedilecek.'}
+              </Text>
+            </View>
           </View>
         )}
 

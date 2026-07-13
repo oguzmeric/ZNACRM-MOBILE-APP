@@ -35,6 +35,7 @@ import { musterileriGetir, musteriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { kullanicilariGetir } from '../services/kullaniciService'
 import { tarihceGetir } from '../services/cihazKayitService'
+import { cihazGetirSeriNo } from '../services/musteriCihazService'
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
 import { trIcerir } from '../utils/trSearch'
 import { useTheme } from '../context/ThemeContext'
@@ -49,6 +50,7 @@ export default function CihazDetayScreen({ route, navigation }) {
   const [tarihce, setTarihce] = useState([])
   const [musteri, setMusteri] = useState(null)
   const [lokasyon, setLokasyon] = useState(null)
+  const [musteriCihaz, setMusteriCihaz] = useState(null) // aynı SN müşteri cihaz envanterinde mi?
   const [loading, setLoading] = useState(true)
 
   // Modaller
@@ -60,6 +62,11 @@ export default function CihazDetayScreen({ route, navigation }) {
   const yukle = useCallback(async () => {
     const k = await stokKalemGetir(id)
     setKalem(k)
+    if (k?.seriNo) {
+      cihazGetirSeriNo(k.seriNo).then(setMusteriCihaz).catch(() => setMusteriCihaz(null))
+    } else {
+      setMusteriCihaz(null)
+    }
     if (k) {
       const [h, t] = await Promise.all([
         kalemHareketleriniGetir(id),
@@ -289,6 +296,41 @@ export default function CihazDetayScreen({ route, navigation }) {
               {durum.ikon} {durum.isim}
             </Text>
           </View>
+        )}
+
+        {/* Bu SN müşteri cihaz envanterinde de kayıtlıysa köprü banner */}
+        {musteriCihaz && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ArizaliCihaz', { sn: kalem.seriNo })}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 8,
+              padding: 12, borderRadius: 10, marginTop: 10, borderWidth: 1,
+              backgroundColor: musteriCihaz.durum === 'arizali' ? 'rgba(220,38,38,0.12)' : 'rgba(37,99,235,0.10)',
+              borderColor: musteriCihaz.durum === 'arizali' ? 'rgba(220,38,38,0.5)' : 'rgba(37,99,235,0.35)',
+            }}
+          >
+            <Feather
+              name={musteriCihaz.durum === 'arizali' ? 'alert-triangle' : 'monitor'}
+              size={16}
+              color={musteriCihaz.durum === 'arizali' ? '#ef4444' : '#3b82f6'}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: '700' }}>
+                Müşteri Cihaz Envanterinde kayıtlı
+                {musteriCihaz.durum === 'arizali' ? ' — ARIZALI' : ''}
+              </Text>
+              {musteriCihaz.durum === 'arizali' && !!musteriCihaz.arizaNedeni && (
+                <Text style={{ color: '#ef4444', fontSize: 12 }} numberOfLines={2}>
+                  {musteriCihaz.arizaNedeni}
+                </Text>
+              )}
+              <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                Cihaz kartını açmak için dokun
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
         )}
 
         {/* Tanımlayıcılar */}

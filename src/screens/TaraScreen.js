@@ -18,6 +18,7 @@ import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '../context/ThemeContext'
 import { kalemAra, modellerOzetiniGetir, serileriTopluEkle } from '../services/stokKalemiService'
+import { cihazGetirSeriNo } from '../services/musteriCihazService'
 import { Modal, FlatList } from 'react-native'
 
 const BARKOD_TIPLERI = [
@@ -179,15 +180,36 @@ export default function TaraScreen({ navigation }) {
       gosterBanner('yok', 'Kayıtlı değil — önce model seç', kod)
       return
     }
+    // Normal mod — stokta yok: müşteri cihaz envanterine de bak
+    const musteriCihazi = await cihazGetirSeriNo(kod).catch(() => null)
+    if (musteriCihazi) {
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success) } catch {}
+      const arizali = musteriCihazi.durum === 'arizali'
+      Alert.alert(
+        arizali ? '⚠️ Müşteri Cihazı — ARIZALI' : 'Müşteri Cihazı',
+        `${musteriCihazi.cihazAdi || [musteriCihazi.marka, musteriCihazi.model].filter(Boolean).join(' ') || 'Cihaz'}\nS/N: ${kod}` +
+          (arizali && musteriCihazi.arizaNedeni ? `\nArıza: ${musteriCihazi.arizaNedeni}` : ''),
+        [
+          { text: 'Tekrar Tara', onPress: () => { sonOkunan.current = null; setScanning(true) } },
+          { text: 'Cihaz Kartını Aç', onPress: () => navigation.navigate('ArizaliCihaz', { sn: kod }) },
+        ]
+      )
+      return
+    }
+
     // Normal mod → Alert
     try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning) } catch {}
     Alert.alert(
       'Bulunamadı',
-      `S/N veya barkod: ${kod}\n\nBu cihaz sistemde kayıtlı değil. Yeni cihaz olarak eklemek ister misin?`,
+      `S/N veya barkod: ${kod}\n\nBu cihaz sistemde kayıtlı değil.`,
       [
         {
           text: 'Tekrar Tara',
           onPress: () => { sonOkunan.current = null; setScanning(true) },
+        },
+        {
+          text: 'Müşteri Cihazı Kaydet',
+          onPress: () => navigation.navigate('ArizaliCihaz', { sn: kod }),
         },
         {
           text: 'Yeni Cihaz Ekle',
