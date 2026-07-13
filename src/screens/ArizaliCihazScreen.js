@@ -42,13 +42,29 @@ export default function ArizaliCihazScreen({ navigation, route }) {
   const [kaydediliyor, setKaydediliyor] = useState(false)
 
   useEffect(() => {
-    musterileriGetir().then((v) => {
-      setMusteriler(v ?? [])
+    musterileriGetir().then(async (v) => {
+      const liste = v ?? []
+      setMusteriler(liste)
       // Başka ekrandan SN ile gelindiyse (TaraScreen / CihazDetay köprüsü)
       const paramSN = route?.params?.sn
-      if (paramSN) {
-        setSeriNo(paramSN)
-        snSorgula(paramSN, v ?? [])
+      if (!paramSN) return
+      setSeriNo(paramSN)
+      const bulunan = await snSorgula(paramSN, liste)
+      // SN müşteri envanterinde yoksa: stok kaydından gelen bilgilerle formu doldur
+      const d = route?.params?.onDoldur
+      if (!bulunan && d) {
+        if (d.musteriId) {
+          setMusteriId(d.musteriId)
+          const m = liste.find((x) => x.id === d.musteriId)
+          setFirmaAdi(m?.firma || m?.musteriAdi || `Müşteri #${d.musteriId}`)
+        }
+        setForm((f) => ({
+          ...f,
+          marka: d.marka || '', model: d.model || '',
+          ipAdresi: d.ipAdresi || '', macAdresi: d.macAdresi || '',
+          kullaniciAdi: d.kullaniciAdi || '', sifre: d.sifre || '',
+          lokasyon: d.lokasyon || '',
+        }))
       }
     })
   }, [])
@@ -80,7 +96,7 @@ export default function ArizaliCihazScreen({ navigation, route }) {
   // musteriListesi parametresi: mount anında müşteriler state'i henüz boşken çağrılırsa
   const snSorgula = async (sn, musteriListesi = null) => {
     const temiz = String(sn ?? seriNo).trim()
-    if (!temiz) return
+    if (!temiz) return null
     setSorgulaniyor(true)
     try {
       const c = await cihazGetirSeriNo(temiz)
@@ -100,6 +116,7 @@ export default function ArizaliCihazScreen({ navigation, route }) {
       } else {
         setMevcutCihaz(null)
       }
+      return c
     } finally {
       setSorgulaniyor(false)
     }

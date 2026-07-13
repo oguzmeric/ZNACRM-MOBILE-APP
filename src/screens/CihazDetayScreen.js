@@ -333,6 +333,37 @@ export default function CihazDetayScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
 
+        {/* SN müşteri envanterinde yoksa: buradan tek dokunuşla arızalı bildir
+            (stok kaydındaki bilgiler forma önceden doldurulur) */}
+        {!musteriCihaz && !!kalem.seriNo && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ArizaliCihaz', {
+              sn: kalem.seriNo,
+              onDoldur: {
+                musteriId: kalem.musteriId ?? null,
+                marka: kalem.marka || '',
+                model: kalem.model || '',
+                ipAdresi: kalem.ipAdresi || '',
+                macAdresi: kalem.macAdresi || '',
+                kullaniciAdi: kalem.cihazKullanici || '',
+                sifre: kalem.cihazSifre || '',
+                lokasyon: lokasyon?.ad || kalem.altLokasyon || '',
+              },
+            })}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: 12, borderRadius: 10, marginTop: 10,
+              backgroundColor: 'rgba(220,38,38,0.10)', borderWidth: 1, borderColor: 'rgba(220,38,38,0.45)',
+            }}
+          >
+            <Feather name="alert-triangle" size={15} color="#ef4444" />
+            <Text style={{ color: '#ef4444', fontWeight: '800', fontSize: 13 }}>
+              Arızalı Bildir (Müşteri Cihazı)
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Tanımlayıcılar */}
         <Field label="Seri No" deger={kalem.seriNo} mono />
         <Field label="Barkod" deger={kalem.barkod} mono />
