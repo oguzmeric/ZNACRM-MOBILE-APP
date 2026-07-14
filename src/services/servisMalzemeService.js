@@ -46,6 +46,19 @@ export const malzemePlanSil = async (id) => {
   await supabase.from('servis_malzeme_plani').delete().eq('id', id)
 }
 
+// === Web'den eklenen malzemeler (mig 153 — servis_malzemeleri) ===
+// Web ServisTalepDetay > "Kullanılan Malzemeler" kartından girilen kayıtlar;
+// mobilde read-only gösterilir (mobilin kendi akışı: plan + teslim al + kullan).
+export const webMalzemeleriGetir = async (servisTalepId) => {
+  const { data, error } = await supabase
+    .from('servis_malzemeleri')
+    .select('*')
+    .eq('servis_id', servisTalepId)
+    .order('tarih', { ascending: false })
+  if (error) { console.warn('[webMalzemeleriGetir]', error.message); return [] }
+  return arrayToCamel(data)
+}
+
 // === Servis kalem kullanımı (S/N bazlı) ===
 
 export const kullanilanKalemleriGetir = async (servisTalepId) => {

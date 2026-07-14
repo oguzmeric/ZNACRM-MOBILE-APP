@@ -14,6 +14,8 @@ import {
 import { Feather } from '@expo/vector-icons'
 import { modellerOzetiniGetir, teknisyenStoktariniGetir } from '../services/stokKalemiService'
 import { trIcerir } from '../utils/trSearch'
+import { sorguCozumle, urunEslesiyorMu } from '../utils/stokAkilliArama'
+import { akilliAramaBaglami } from '../services/stokOzellikService'
 
 // Malzeme planına yeni satır ekleme modalı.
 // Stok kataloğundan ürün seç → adet gir → kaydet
@@ -33,6 +35,17 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
   const [not, setNot] = useState('')
   const [arama, setArama] = useState('')
   const [urunPickerOpen, setUrunPickerOpen] = useState(false)
+  // Akıllı arama bağlamı (Stok v2 Faz 3): kategori + özellik tanımları +
+  // ürün değerleri — "2 mp 2.8 dome kamera" gibi sorgular çözümlenir
+  const [baglam, setBaglam] = useState(null)
+
+  useEffect(() => {
+    if (urunPickerOpen && !baglam) {
+      akilliAramaBaglami()
+        .then(setBaglam)
+        .catch((e) => console.warn('[MalzemePlanModal] akıllı arama bağlamı yüklenemedi:', e?.message))
+    }
+  }, [urunPickerOpen, baglam])
 
   useEffect(() => {
     if (visible) {
@@ -79,6 +92,12 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
     }
   }, [visible, initial, kullaniciId])
 
+  // Akıllı çözümleme: "2 mp 2.8 dome kamera" → kategori + özellik filtreleri
+  const cozum = useMemo(() => {
+    if (!baglam || arama.trim().length < 2) return null
+    return sorguCozumle(arama, baglam.kategoriler, baglam.tanimlar)
+  }, [arama, baglam])
+
   const filtrelenmis = useMemo(() => {
     // Tüm ürünler — stok yok olanlar da listelense "stok: 0" olarak görünsün
     const sirali = [...urunler].sort((a, b) => {
@@ -89,10 +108,24 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
       return 0
     })
     if (!arama.trim()) return sirali
-    return sirali.filter((u) =>
-      trIcerir([u.stokKodu, u.stokAdi, u.marka], arama)
-    )
-  }, [urunler, arama])
+    const metinAra = (u) => trIcerir([u.stokKodu, u.stokAdi, u.marka, u.model, u.seriNo], arama)
+    // Akıllı eşleşme VEYA metin eşleşmesi — özellik verisi girilmemiş ürünler
+    // kaybolmasın (web ile aynı kural)
+    if (cozum?.akilli) {
+      return sirali.filter((u) => {
+        const bilgi = baglam.kodBilgi.get(u.stokKodu)
+        const akilliUyum = bilgi
+          ? urunEslesiyorMu(
+              { id: bilgi.id, kategoriId: bilgi.kategoriId },
+              cozum, baglam.kategoriler, baglam.urunOzellikMap,
+              () => trIcerir([u.stokKodu, u.stokAdi, u.marka, u.model], cozum.kalan),
+            )
+          : false
+        return akilliUyum || metinAra(u)
+      })
+    }
+    return sirali.filter(metinAra)
+  }, [urunler, arama, cozum, baglam])
 
   const kaydet = () => {
     if (!secili) return Alert.alert('Eksik', 'Ürün seç.')
@@ -198,12 +231,27 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
                 <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
                   <TextInput
                     style={styles.input}
-                    placeholder="Ara: ad, kod, marka..."
+                    placeholder='Akıllı ara: "2 mp 2.8 dome kamera", ad, kod...'
                     placeholderTextColor="#64748b"
                     value={arama}
                     onChangeText={setArama}
                     autoCapitalize="none"
                   />
+                  {cozum?.akilli && (
+                    <View style={styles.algilananSatir}>
+                      <Text style={styles.algilananEtiket}>ALGILANDI:</Text>
+                      {cozum.rozetler.map((r, i) => (
+                        <View
+                          key={i}
+                          style={[styles.algilananRozet, r.tip === 'kategori' && styles.algilananRozetKategori]}
+                        >
+                          <Text style={[styles.algilananRozetText, r.tip === 'kategori' && { color: '#fff' }]}>
+                            {r.etiket}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
                 <FlatList
                   data={filtrelenmis}
@@ -352,4 +400,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   kaydetText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+
+  // Akıllı arama "Algılandı" rozetleri
+  algilananSatir: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  algilananEtiket: { color: '#64748b', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  algilananRozet: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#60a5fa',
+    backgroundColor: 'rgba(96, 165, 250, 0.15)',
+  },
+  algilananRozetKategori: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  algilananRozetText: { color: '#60a5fa', fontSize: 11, fontWeight: '700' },
 })

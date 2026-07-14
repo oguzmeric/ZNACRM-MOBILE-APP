@@ -24,6 +24,8 @@ import {
   DURUMLAR,
 } from '../services/stokKalemiService'
 import { trIcerir } from '../utils/trSearch'
+import { sorguCozumle, urunEslesiyorMu } from '../utils/stokAkilliArama'
+import { akilliAramaBaglami } from '../services/stokOzellikService'
 import { tarihFormat } from '../utils/format'
 
 const SEKMELER = [
@@ -44,6 +46,21 @@ export default function StokScreen({ navigation }) {
   const [arama, setArama] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  // Akıllı arama bağlamı (Stok v2 Faz 3) — ilk arama yazılınca lazy yüklenir
+  const [baglam, setBaglam] = useState(null)
+
+  useEffect(() => {
+    if (arama.trim().length >= 2 && !baglam) {
+      akilliAramaBaglami()
+        .then(setBaglam)
+        .catch((e) => console.warn('[StokScreen] akıllı arama bağlamı yüklenemedi:', e?.message))
+    }
+  }, [arama, baglam])
+
+  const cozum = useMemo(() => {
+    if (!baglam || arama.trim().length < 2) return null
+    return sorguCozumle(arama, baglam.kategoriler, baglam.tanimlar)
+  }, [arama, baglam])
 
   const yukle = useCallback(async () => {
     if (!kullanici) return
@@ -136,13 +153,32 @@ export default function StokScreen({ navigation }) {
       <View style={[styles.searchWrap, { borderBottomColor: colors.border }]}>
         <TextInput
           style={[styles.search, { backgroundColor: colors.surface, color: colors.textPrimary }]}
-          placeholder="Ara: S/N, marka, model..."
+          placeholder='Akıllı ara: "2 mp dome", S/N, marka, model...'
           placeholderTextColor={colors.textFaded}
           value={arama}
           onChangeText={setArama}
           autoCapitalize="none"
           autoCorrect={false}
         />
+        {cozum?.akilli && (aktifSekme === 'modeller' || aktifSekme === 'depoda') && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <Text style={{ color: colors.textFaded, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>ALGILANDI:</Text>
+            {cozum.rozetler.map((r, i) => (
+              <View
+                key={i}
+                style={{
+                  paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, borderWidth: 1,
+                  borderColor: '#60a5fa',
+                  backgroundColor: r.tip === 'kategori' ? '#2563eb' : 'rgba(96,165,250,0.15)',
+                }}
+              >
+                <Text style={{ color: r.tip === 'kategori' ? '#fff' : '#60a5fa', fontSize: 11, fontWeight: '700' }}>
+                  {r.etiket}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       {loading ? (
@@ -151,7 +187,20 @@ export default function StokScreen({ navigation }) {
         <FlatList
           data={(modeller ?? []).filter((m) => {
             if (!arama.trim()) return true
-            return trIcerir([m.stokKodu, m.marka, m.model], arama)
+            const metin = trIcerir([m.stokKodu, m.stokAdi, m.marka, m.model], arama)
+            // Akıllı eşleşme VEYA metin — etiketlenmemiş ürünler kaybolmasın
+            if (cozum?.akilli) {
+              const bilgi = baglam?.kodBilgi?.get(m.stokKodu)
+              const akilli = bilgi
+                ? urunEslesiyorMu(
+                    { id: bilgi.id, kategoriId: bilgi.kategoriId },
+                    cozum, baglam.kategoriler, baglam.urunOzellikMap,
+                    () => trIcerir([m.stokKodu, m.stokAdi, m.marka, m.model], cozum.kalan),
+                  )
+                : false
+              return akilli || metin
+            }
+            return metin
           })}
           keyExtractor={(m) => m.stokKodu}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}

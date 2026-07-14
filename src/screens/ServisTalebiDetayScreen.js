@@ -26,6 +26,7 @@ import {
   malzemePlanEkle,
   malzemePlanGuncelle,
   malzemePlanSil,
+  webMalzemeleriGetir,
 } from '../services/servisMalzemeService'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -74,6 +75,7 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
 
   // Malzeme planı
   const [malzemePlani, setMalzemePlani] = useState([])
+  const [webMalzemeler, setWebMalzemeler] = useState([])  // web'den girilen kullanımlar (mig 153)
   const [malzemeModalOpen, setMalzemeModalOpen] = useState(false)
   const [duzenlenenPlan, setDuzenlenenPlan] = useState(null)
 
@@ -137,12 +139,14 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   }
 
   const yukle = useCallback(async () => {
-    const [t, mp] = await Promise.all([
+    const [t, mp, wm] = await Promise.all([
       servisTalepGetir(id),
       malzemePlaniGetir(id),
+      webMalzemeleriGetir(id),
     ])
     setTalep(t)
     setMalzemePlani(mp ?? [])
+    setWebMalzemeler(wm ?? [])
     setTespit(t?.kokSebep ?? '')
     setYapilanMudahale(t?.yapilanMudahale ?? '')
     setLoading(false)
@@ -691,6 +695,38 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
               </TouchableOpacity>
             )
           })
+        )}
+
+        {/* Web'den eklenen malzeme kullanımları (Stok v2 Faz 4) — read-only.
+            Ofisten web ServisTalepDetay > Kullanılan Malzemeler kartıyla girilir. */}
+        {webMalzemeler.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted, marginTop: 20 }]}>
+              🖥️ Web'den Eklenen Malzemeler ({webMalzemeler.length})
+            </Text>
+            {webMalzemeler.map((m) => (
+              <View
+                key={m.id}
+                style={{
+                  backgroundColor: 'rgba(96, 165, 250, 0.08)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(96, 165, 250, 0.25)',
+                  borderRadius: 12,
+                  padding: 12,
+                  marginBottom: 8,
+                }}
+              >
+                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>
+                  {m.urunAdi}
+                </Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 3 }}>
+                  {m.miktar} {m.birim || 'Adet'}
+                  {m.seriNo ? ` · S/N: ${m.seriNo}` : ''}
+                  {m.kullaniciAd ? ` · ${m.kullaniciAd}` : ''}
+                </Text>
+              </View>
+            ))}
+          </>
         )}
 
         {/* Tespit (PDF'te "Tespit" başlığı altında görünür) */}
