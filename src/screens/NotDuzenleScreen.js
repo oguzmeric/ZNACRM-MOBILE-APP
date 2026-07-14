@@ -16,6 +16,7 @@ import Markdown from 'react-native-markdown-display'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { trIcerir } from '../utils/trSearch'
+import { htmlToDuzMetin, duzMetinToHtml } from '../utils/notIcerik'
 import {
   KATEGORILER, notuGetir, notEkle, notGuncelle, notSil,
   notCizimleriGuncelle, notEkleriGuncelle, cizimSignedUrl, cizimSil,
@@ -66,7 +67,8 @@ export default function NotDuzenleScreen({ route, navigation }) {
       const not = await notuGetir(id)
       if (not) {
         setBaslik(not.baslik || '')
-        setIcerik(not.icerik || '')
+        // Web (ReactQuill) HTML kaydeder — mobilde okunur düz metne çevir
+        setIcerik(htmlToDuzMetin(not.icerik || ''))
         setKategori(not.kategori || 'diger')
         setMusteriId(not.musteriId || null)
         setMusteri(not.musteri || null)
@@ -104,7 +106,8 @@ export default function NotDuzenleScreen({ route, navigation }) {
     setKaydediliyor(true)
     const payload = {
       baslik: baslik.trim() || null,
-      icerik: icerik.trim() || null,
+      // Web Quill'de satırlar kaybolmasın diye basit HTML olarak sakla
+      icerik: icerik.trim() ? duzMetinToHtml(icerik.trim()) : null,
       kategori,
       musteriId,
       cizimler,

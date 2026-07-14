@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { notlarimiGetir, KATEGORILER } from '../services/notService'
 import { trIcerir } from '../utils/trSearch'
+import { htmlToDuzMetin } from '../utils/notIcerik'
 
 const FILTRELER = [{ id: 'hepsi', isim: 'Hepsi', renk: '#64748b' }, ...KATEGORILER]
 
@@ -45,7 +46,7 @@ export default function NotlarimScreen({ navigation }) {
 
   const filtreli = notlar.filter((n) => {
     if (filtre !== 'hepsi' && n.kategori !== filtre) return false
-    if (arama && !trIcerir([n.baslik, n.icerik, n.musteri?.firma], arama)) return false
+    if (arama && !trIcerir([n.baslik, htmlToDuzMetin(n.icerik), n.musteri?.firma], arama)) return false
     return true
   })
 
@@ -171,7 +172,7 @@ export default function NotlarimScreen({ navigation }) {
                 </Text>
                 {!!item.icerik && (
                   <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 16 }} numberOfLines={3}>
-                    {item.icerik}
+                    {htmlToDuzMetin(item.icerik)}
                   </Text>
                 )}
                 {item.musteri?.firma && (
