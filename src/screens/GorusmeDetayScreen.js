@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity,
-  TextInput, Alert, KeyboardAvoidingView, Platform,
+  TextInput, Alert, KeyboardAvoidingView, Platform, Image,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
+import * as ImagePicker from 'expo-image-picker'
 import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { gorusmeGetir, gorusmeGuncelle } from '../services/gorusmeService'
+import { gorusmeYorumlariGetir, gorusmeYorumEkle, gorusmeYorumSil, yorumEkiYukle } from '../services/gorusmeYorumService'
 import { musterileriGetir } from '../services/musteriService'
 
 const trIcerir = (haystack, q) => {
@@ -30,8 +32,13 @@ const IRTIBAT_SEKILLERI = ['Telefon', 'WhatsApp', 'E-posta', 'Yüz yüze', 'Vide
 export default function GorusmeDetayScreen({ route, navigation }) {
   const { id } = route.params
   const { colors } = useTheme()
-  const { kullanicilar } = useAuth()
+  const { kullanici, kullanicilar } = useAuth()
   const [g, setG] = useState(null)
+  // Yorumlar (mig 184 — web ile AYNI tablo, tam senkron)
+  const [yorumlar, setYorumlar] = useState([])
+  const [yeniYorum, setYeniYorum] = useState('')
+  const [yorumFotolar, setYorumFotolar] = useState([]) // local uri[]
+  const [yorumGonderiliyor, setYorumGonderiliyor] = useState(false)
   const [loading, setLoading] = useState(true)
   const [duzenleAcik, setDuzenleAcik] = useState(false)
   const [form, setForm] = useState(null)
@@ -53,11 +60,78 @@ export default function GorusmeDetayScreen({ route, navigation }) {
   const yukle = useCallback(async () => {
     const veri = await gorusmeGetir(id)
     setG(veri)
+    gorusmeYorumlariGetir(id).then(setYorumlar).catch(() => {})
     setLoading(false)
   }, [id])
 
   useEffect(() => { yukle() }, [yukle])
   useFocusEffect(useCallback(() => { yukle() }, [yukle]))
+
+  // --- Yorum işlemleri (web ile aynı gorusme_yorumlari tablosu) ---
+  const yorumFotoSec = () => {
+    Alert.alert('Fotoğraf Ekle', 'Kaynak seç', [
+      {
+        text: 'Kamera',
+        onPress: async () => {
+          const izin = await ImagePicker.requestCameraPermissionsAsync()
+          if (!izin.granted) { Alert.alert('İzin Gerekli', 'Kamera izni verin.'); return }
+          const s = await ImagePicker.launchCameraAsync({ quality: 0.7 })
+          if (!s.canceled) setYorumFotolar(p => [...p, s.assets[0].uri])
+        },
+      },
+      {
+        text: 'Galeri',
+        onPress: async () => {
+          const izin = await ImagePicker.requestMediaLibraryPermissionsAsync()
+          if (!izin.granted) { Alert.alert('İzin Gerekli', 'Galeri izni verin.'); return }
+          const s = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.7, allowsMultipleSelection: true, selectionLimit: 5,
+          })
+          if (!s.canceled) setYorumFotolar(p => [...p, ...s.assets.map(a => a.uri)])
+        },
+      },
+      { text: 'Vazgeç', style: 'cancel' },
+    ])
+  }
+
+  const yorumGonder = async () => {
+    if (!yeniYorum.trim() && yorumFotolar.length === 0) return
+    setYorumGonderiliyor(true)
+    try {
+      const dosyalar = []
+      for (const uri of yorumFotolar) dosyalar.push(await yorumEkiYukle(uri))
+      const eklenen = await gorusmeYorumEkle({
+        gorusmeId: g.id,
+        kullaniciId: kullanici?.id,
+        yazarAd: kullanici?.ad ?? '',
+        icerik: yeniYorum.trim() || '(ek)',
+        dosyalar,
+      })
+      setYorumlar(prev => [...prev, eklenen])
+      setYeniYorum('')
+      setYorumFotolar([])
+    } catch (e) {
+      Alert.alert('Hata', 'Yorum eklenemedi: ' + (e?.message ?? 'bilinmeyen'))
+    } finally {
+      setYorumGonderiliyor(false)
+    }
+  }
+
+  const yorumSilOnayli = (yorum) => {
+    Alert.alert('Yorumu Sil', 'Bu yorum silinsin mi?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sil', style: 'destructive',
+        onPress: async () => {
+          try {
+            await gorusmeYorumSil(yorum.id)
+            setYorumlar(prev => prev.filter(y => y.id !== yorum.id))
+          } catch { Alert.alert('Hata', 'Yorum silinemedi.') }
+        },
+      },
+    ])
+  }
 
   const duzenleAc = () => {
     setForm({
@@ -418,6 +492,114 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                   </>
                 )
               })()}
+
+              {/* Yorumlar — web ile AYNI tablo (gorusme_yorumlari, mig 184) */}
+              <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: 12 }]}>
+                <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '800', marginBottom: 10 }}>
+                  Yorumlar ({yorumlar.length})
+                </Text>
+
+                {yorumlar.length === 0 && (
+                  <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 10 }}>Henüz yorum yok.</Text>
+                )}
+                {yorumlar.map((y) => {
+                  const benimMi = String(y.yazarId ?? '') === String(kullanici?.id ?? '_')
+                  const resimler = (y.dosyalar || []).filter(d => (d.type || '').startsWith('image/'))
+                  return (
+                    <View key={y.id} style={{
+                      padding: 10, borderRadius: 10, borderWidth: 1,
+                      borderColor: colors.border, backgroundColor: colors.background,
+                      marginBottom: 8,
+                    }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{ color: colors.textPrimary, fontSize: 12.5, fontWeight: '700' }}>{y.yazar}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Text style={{ color: colors.textMuted, fontSize: 10.5 }}>{y.tarih}</Text>
+                          {benimMi && (
+                            <TouchableOpacity onPress={() => yorumSilOnayli(y)} hitSlop={8}>
+                              <Feather name="trash-2" size={13} color="#ef4444" />
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                      {!!y.icerik && (
+                        <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4, lineHeight: 19 }}>{y.icerik}</Text>
+                      )}
+                      {resimler.length > 0 && (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                          {resimler.map((d, i) => (
+                            <Image key={i} source={{ uri: d.url }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  )
+                })}
+
+                {/* Yeni yorum */}
+                <View style={{ marginTop: 4 }}>
+                  <TextInput
+                    value={yeniYorum}
+                    onChangeText={setYeniYorum}
+                    placeholder="Yorum yaz…"
+                    placeholderTextColor={colors.textMuted}
+                    multiline
+                    style={{
+                      borderWidth: 1, borderColor: colors.border, borderRadius: 10,
+                      paddingHorizontal: 12, paddingVertical: 10, minHeight: 64,
+                      color: colors.textPrimary, backgroundColor: colors.background,
+                      textAlignVertical: 'top',
+                    }}
+                  />
+                  {yorumFotolar.length > 0 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                      {yorumFotolar.map((uri, i) => (
+                        <View key={uri + i}>
+                          <Image source={{ uri }} style={{ width: 56, height: 56, borderRadius: 8 }} />
+                          <TouchableOpacity
+                            onPress={() => setYorumFotolar(p => p.filter((_, j) => j !== i))}
+                            style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', borderRadius: 9, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Feather name="x" size={11} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                    <TouchableOpacity
+                      onPress={yorumFotoSec}
+                      disabled={yorumGonderiliyor}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 6,
+                        paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10,
+                        borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background,
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="camera" size={15} color={colors.primary} />
+                      <Text style={{ color: colors.textPrimary, fontSize: 12.5, fontWeight: '600' }}>Foto</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={yorumGonder}
+                      disabled={yorumGonderiliyor}
+                      style={{
+                        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        paddingVertical: 10, borderRadius: 10,
+                        backgroundColor: colors.primary, opacity: yorumGonderiliyor ? 0.6 : 1,
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      {yorumGonderiliyor
+                        ? <ActivityIndicator color="#fff" size="small" />
+                        : <Feather name="send" size={15} color="#fff" />}
+                      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
+                        {yorumGonderiliyor ? 'Gönderiliyor…' : 'Yorum Ekle'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
             </>
           )}
         </ScrollView>
