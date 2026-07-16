@@ -13,9 +13,11 @@ import {
   Image,
   Modal,
   Pressable,
+  Linking,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -30,6 +32,7 @@ import {
   gorevWebYorumlariGetir,
 } from '../services/gorevService'
 import { gorevFotosuYukle, gorevFotosuSil } from '../services/gorevFotoService'
+import { ekYukle } from '../services/ekYukleService'
 import { kullanicilariGetir } from '../services/kullaniciService'
 import { bildirimEkleDb } from '../services/bildirimService'
 import { parseMentions } from '../lib/mention'
@@ -70,6 +73,7 @@ export default function GorevDetayScreen({ route, navigation }) {
   const [yeniNot, setYeniNot] = useState('')
   const [notKaydediliyor, setNotKaydediliyor] = useState(false)
   const [secilenFotolar, setSecilenFotolar] = useState([]) // local URI'ler
+  const [secilenBelgeler, setSecilenBelgeler] = useState([]) // belge asset'leri { uri, name, mimeType, size }
   const [fotoYukleniyor, setFotoYukleniyor] = useState(false)
   const [tamEkranFoto, setTamEkranFoto] = useState(null) // { url, notIndex }
   const [duzenlenenNotIdx, setDuzenlenenNotIdx] = useState(null)
@@ -245,9 +249,19 @@ export default function GorevDetayScreen({ route, navigation }) {
     setSecilenFotolar((prev) => prev.filter((u) => u !== uri))
   }
 
+  // Belge seç (PDF/Excel/Word...) — nota dosyalar alanı olarak eklenir
+  const belgeSec = async () => {
+    const s = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true })
+    if (s.canceled) return
+    setSecilenBelgeler((prev) => [
+      ...prev,
+      ...(s.assets || []).map((a) => ({ uri: a.uri, name: a.name || null, mimeType: a.mimeType || null, size: a.size ?? null })),
+    ])
+  }
+
   const notKaydet = async () => {
     const metin = yeniNot.trim()
-    if (!metin && secilenFotolar.length === 0) return
+    if (!metin && secilenFotolar.length === 0 && secilenBelgeler.length === 0) return
     setNotKaydediliyor(true)
     let fotoUrls = []
     let hatalar = []
@@ -261,17 +275,21 @@ export default function GorevDetayScreen({ route, navigation }) {
       setFotoYukleniyor(false)
     }
 
-    // Eğer foto seçilmişti ama hiçbiri yüklenemediyse, notu kaydetme
-    if (secilenFotolar.length > 0 && fotoUrls.length === 0) {
+    // Belge ekleri (PDF/Excel...) — web ile aynı {url,name,type,size} şekli
+    let dosyalar = []
+    for (const ek of secilenBelgeler) {
+      try { dosyalar.push(await ekYukle('gorev-dosyalar', ek)) }
+      catch (e) { hatalar.push(e?.message ?? 'belge yüklenemedi') }
+    }
+
+    // Eğer ek seçilmişti ama hiçbiri yüklenemediyse, notu kaydetme
+    if ((secilenFotolar.length > 0 || secilenBelgeler.length > 0) && fotoUrls.length === 0 && dosyalar.length === 0 && hatalar.length > 0) {
       setNotKaydediliyor(false)
-      Alert.alert(
-        'Foto Yüklenemedi',
-        `Seçtiğin ${secilenFotolar.length} fotoğraf yüklenemedi:\n\n${hatalar[0]}`
-      )
+      Alert.alert('Ek Yüklenemedi', `Seçtiğin ekler yüklenemedi:\n\n${hatalar[0]}`)
       return
     }
 
-    const guncel = await gorevNotEkle(id, metin, kullanici?.ad, fotoUrls)
+    const guncel = await gorevNotEkle(id, metin, kullanici?.ad, fotoUrls, dosyalar)
     setNotKaydediliyor(false)
     if (guncel) {
       // @mention edilenlere push bildirimi (kendini etiketleyen hariç)
@@ -289,6 +307,7 @@ export default function GorevDetayScreen({ route, navigation }) {
       setGorev(guncel)
       setYeniNot('')
       setSecilenFotolar([])
+      setSecilenBelgeler([])
       if (hatalar.length > 0) {
         Alert.alert(
           'Kısmi Yükleme',
@@ -381,12 +400,12 @@ export default function GorevDetayScreen({ route, navigation }) {
     ...(gorev.notlar ?? []).map((n, origIndex) => ({
       kaynak: 'mobil', origIndex,
       metin: n.metin, kullanici: n.kullanici, tarih: n.tarih,
-      fotoUrls: n.fotoUrls ?? [], duzenlendiTarih: n.duzenlendiTarih,
+      fotoUrls: n.fotoUrls ?? [], dosyalar: n.dosyalar ?? [], duzenlendiTarih: n.duzenlendiTarih,
     })),
     ...webYorumlar.map((y) => ({
       kaynak: 'web', origIndex: null,
       metin: y.icerik, kullanici: y.yazarAd, tarih: y.olusturmaTarih,
-      fotoUrls: [], duzenlendiTarih: y.duzenlendi ? y.guncellemeTarih : null,
+      fotoUrls: [], dosyalar: y.dosyalar ?? [], duzenlendiTarih: y.duzenlendi ? y.guncellemeTarih : null,
     })),
   ].sort((a, b) => new Date(b.tarih || 0) - new Date(a.tarih || 0))
 
@@ -413,6 +432,33 @@ export default function GorevDetayScreen({ route, navigation }) {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Açıklama</Text>
           <Text style={[styles.body, { color: colors.textSecondary }]}>{gorev.aciklama}</Text>
+        </View>
+      )}
+
+      {/* Görev ekleri (mig 184 — görev oluştururken eklenen dosya/resimler) */}
+      {(gorev.dosyalar?.length ?? 0) > 0 && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Ekler</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+            {gorev.dosyalar.filter(d => (d.type || '').startsWith('image/')).map((d, i) => (
+              <TouchableOpacity key={`gi${i}`} onPress={() => Linking.openURL(d.url).catch(() => {})}>
+                <Image source={{ uri: d.url }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+              </TouchableOpacity>
+            ))}
+          </View>
+          {gorev.dosyalar.filter(d => !(d.type || '').startsWith('image/')).map((d, i) => (
+            <TouchableOpacity
+              key={`gb${i}`}
+              onPress={() => Linking.openURL(d.url).catch(() => Alert.alert('Hata', 'Dosya açılamadı.'))}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}
+              activeOpacity={0.7}
+            >
+              <Feather name="file-text" size={14} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600', flexShrink: 1 }} numberOfLines={1}>
+                {d.name}{d.size ? `  (${Math.round(d.size / 1024)} KB)` : ''}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
 
@@ -611,7 +657,7 @@ export default function GorevDetayScreen({ route, navigation }) {
             ((!yeniNot.trim() && secilenFotolar.length === 0) || notKaydediliyor) && { opacity: 0.4 },
           ]}
           onPress={notKaydet}
-          disabled={(!yeniNot.trim() && secilenFotolar.length === 0) || notKaydediliyor}
+          disabled={(!yeniNot.trim() && secilenFotolar.length === 0 && secilenBelgeler.length === 0) || notKaydediliyor}
         >
           {fotoYukleniyor ? (
             <ActivityIndicator color="#fff" size="small" />
@@ -630,10 +676,34 @@ export default function GorevDetayScreen({ route, navigation }) {
           <Feather name="image" size={16} color="#60a5fa" />
           <Text style={styles.fotoAksiyonText}>Galeri</Text>
         </TouchableOpacity>
-        {secilenFotolar.length > 0 && (
-          <Text style={styles.fotoSayac}>{secilenFotolar.length} foto seçili</Text>
+        <TouchableOpacity style={styles.fotoAksiyonBtn} onPress={belgeSec}>
+          <Feather name="paperclip" size={16} color="#60a5fa" />
+          <Text style={styles.fotoAksiyonText}>Belge</Text>
+        </TouchableOpacity>
+        {(secilenFotolar.length > 0 || secilenBelgeler.length > 0) && (
+          <Text style={styles.fotoSayac}>{secilenFotolar.length + secilenBelgeler.length} ek seçili</Text>
         )}
       </View>
+
+      {secilenBelgeler.length > 0 && (
+        <View style={{ marginTop: 8, gap: 6 }}>
+          {secilenBelgeler.map((ek, i) => (
+            <View key={ek.uri + i} style={{
+              flexDirection: 'row', alignItems: 'center', gap: 8,
+              paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8,
+              borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+            }}>
+              <Feather name="file-text" size={14} color={colors.primary} />
+              <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 12 }} numberOfLines={1}>
+                {ek.name || 'dosya'}{ek.size ? `  ·  ${Math.round(ek.size / 1024)} KB` : ''}
+              </Text>
+              <TouchableOpacity onPress={() => setSecilenBelgeler(p => p.filter((_, j) => j !== i))} hitSlop={8}>
+                <Feather name="x" size={14} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
 
       {secilenFotolar.length > 0 && (
         <ScrollView
@@ -712,6 +782,30 @@ export default function GorevDetayScreen({ route, navigation }) {
                         ))}
                       </View>
                     )}
+                    {/* Belge ekleri — hem mobil not hem web yorum ekleri (mig 184) */}
+                    {(n.dosyalar ?? []).map((d, di) => {
+                      const resimMi = (d.type || '').startsWith('image/')
+                      if (resimMi) {
+                        return (
+                          <TouchableOpacity key={`d${di}`} onPress={() => Linking.openURL(d.url).catch(() => {})} style={{ marginTop: 6 }}>
+                            <Image source={{ uri: d.url }} style={styles.notFotoThumb} />
+                          </TouchableOpacity>
+                        )
+                      }
+                      return (
+                        <TouchableOpacity
+                          key={`d${di}`}
+                          onPress={() => Linking.openURL(d.url).catch(() => Alert.alert('Hata', 'Dosya açılamadı.'))}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}
+                          activeOpacity={0.7}
+                        >
+                          <Feather name="file-text" size={13} color={colors.primary} />
+                          <Text style={{ color: colors.primary, fontSize: 12.5, fontWeight: '600', flexShrink: 1 }} numberOfLines={1}>
+                            {d.name}{d.size ? `  (${Math.round(d.size / 1024)} KB)` : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    })}
                     <View style={styles.notMetaRow}>
                       <Text style={[styles.notMeta, { color: colors.textFaded }]}>
                         {webMi ? '🖥️ ' : ''}{n.kullanici ?? '—'} · {tarihSaatFormat(n.tarih)}

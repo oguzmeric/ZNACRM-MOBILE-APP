@@ -72,8 +72,10 @@ export const gorevGuncelle = async (id, guncellenmis) => {
 export const gorevDurumGuncelle = (id, durum) =>
   gorevGuncelle(id, { durum, ...(durum === 'tamamlandi' ? { tamamlanmaTarihi: new Date().toISOString() } : {}) })
 
-// Göreve not ekle — notlar jsonb array, her not: { metin, kullanici, tarih, fotoUrls? }
-export const gorevNotEkle = async (id, metin, kullaniciAd, fotoUrls = []) => {
+// Göreve not ekle — notlar jsonb array, her not:
+// { metin, kullanici, tarih, fotoUrls?, dosyalar? }
+// dosyalar = belge ekleri [{url,name,type,size}] (web EkListesi ile aynı şekil)
+export const gorevNotEkle = async (id, metin, kullaniciAd, fotoUrls = [], dosyalar = []) => {
   const mevcut = await gorevGetir(id)
   if (!mevcut) return null
   const yeniNotlar = [
@@ -83,6 +85,7 @@ export const gorevNotEkle = async (id, metin, kullaniciAd, fotoUrls = []) => {
       kullanici: kullaniciAd ?? '',
       tarih: new Date().toISOString(),
       ...(fotoUrls.length > 0 ? { fotoUrls } : {}),
+      ...(dosyalar.length > 0 ? { dosyalar } : {}),
     },
   ]
   return gorevGuncelle(id, { notlar: yeniNotlar })

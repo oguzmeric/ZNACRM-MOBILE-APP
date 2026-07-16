@@ -11,15 +11,19 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { Feather } from '@expo/vector-icons'
+import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { kullanicilariGetir } from '../services/kullaniciService'
 import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { gorevEkle, gorevGuncelle } from '../services/gorevService'
+import { ekYukle } from '../services/ekYukleService'
 import { talepOlusturGorevden } from '../services/servisService'
 import { bildirimEkleDb } from '../services/bildirimService'
 import { smsGonder } from '../services/smsService'
@@ -42,6 +46,43 @@ export default function YeniGorevScreen({ navigation, route }) {
   const [baslik, setBaslik] = useState(duzenle?.baslik || baslangic.baslangicBaslik || '')
   const [aciklama, setAciklama] = useState(duzenle?.aciklama || baslangic.baslangicAciklama || '')
   const [oncelik, setOncelik] = useState(duzenle?.oncelik || 'normal')
+  // Görev ekleri (mig 184 — yalnız YENİ görevde; web'de detayda görünür)
+  const [ekler, setEkler] = useState([]) // { uri, name, mimeType, size }
+
+  const ekSec = () => {
+    Alert.alert('Ek Ekle', 'Kaynak seç', [
+      {
+        text: 'Kamera',
+        onPress: async () => {
+          const izin = await ImagePicker.requestCameraPermissionsAsync()
+          if (!izin.granted) { Alert.alert('İzin Gerekli', 'Kamera izni verin.'); return }
+          const s = await ImagePicker.launchCameraAsync({ quality: 0.7 })
+          if (!s.canceled) setEkler(p => [...p, { uri: s.assets[0].uri, name: s.assets[0].fileName || null, mimeType: s.assets[0].mimeType || 'image/jpeg', size: s.assets[0].fileSize ?? null }])
+        },
+      },
+      {
+        text: 'Galeri',
+        onPress: async () => {
+          const izin = await ImagePicker.requestMediaLibraryPermissionsAsync()
+          if (!izin.granted) { Alert.alert('İzin Gerekli', 'Galeri izni verin.'); return }
+          const s = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.7, allowsMultipleSelection: true, selectionLimit: 5,
+          })
+          if (!s.canceled) setEkler(p => [...p, ...s.assets.map(a => ({ uri: a.uri, name: a.fileName || null, mimeType: a.mimeType || 'image/jpeg', size: a.fileSize ?? null }))])
+        },
+      },
+      {
+        text: 'Belge (PDF/Excel...)',
+        onPress: async () => {
+          const s = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true })
+          if (s.canceled) return
+          setEkler(p => [...p, ...(s.assets || []).map(a => ({ uri: a.uri, name: a.name || null, mimeType: a.mimeType || null, size: a.size ?? null }))])
+        },
+      },
+      { text: 'Vazgeç', style: 'cancel' },
+    ])
+  }
   // Yeni: saatli ISO datetime (YYYY-MM-DDTHH:mm). Web ile uyumlu (bitis_tarih / baslama_tarih kolonları).
   const [baslamaTarih, setBaslamaTarih] = useState(duzenle?.baslamaTarih || null)
   const [bitisTarih, setBitisTarih] = useState(
@@ -170,9 +211,19 @@ export default function YeniGorevScreen({ navigation, route }) {
       return
     }
 
-    // Yeni görev
+    // Yeni görev — önce ekleri yükle (mig 184, web ile aynı {url,name,type,size})
+    let dosyalar = []
+    for (const ek of ekler) {
+      try { dosyalar.push(await ekYukle('gorev-dosyalar', ek)) }
+      catch (e) {
+        setKaydediliyor(false)
+        Alert.alert('Ek Yüklenemedi', e?.message ?? 'Dosya yüklenemedi.')
+        return
+      }
+    }
     const yeni = await gorevEkle({
       ...payload,
+      dosyalar,
       durum: 'bekliyor',
       olusturanAd: kullanici?.ad ?? '',
       gorusmeId: baslangic.baslangicGorusmeId ?? null,
@@ -423,6 +474,55 @@ export default function YeniGorevScreen({ navigation, route }) {
           label="Bitiş Tarihi *"
           placeholder="Tarih ve saat seç"
         />
+
+        {/* Ekler — yalnız YENİ görevde (mig 184); web görev detayında görünür */}
+        {!duzenle?.id && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '700', marginBottom: 8 }}>
+              Ekler (dosya / resim, opsiyonel)
+            </Text>
+            <TouchableOpacity
+              onPress={ekSec}
+              disabled={kaydediliyor}
+              style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                paddingVertical: 12, borderRadius: 10,
+                borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border,
+                backgroundColor: colors.surface,
+              }}
+              activeOpacity={0.8}
+            >
+              <Feather name="paperclip" size={16} color={colors.primary} />
+              <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: '600' }}>
+                Fotoğraf veya Belge Ekle
+              </Text>
+            </TouchableOpacity>
+            {ekler.length > 0 && (
+              <View style={{ marginTop: 8, gap: 6 }}>
+                {ekler.map((ek, i) => {
+                  const resimMi = (ek.mimeType || '').startsWith('image/')
+                  return (
+                    <View key={ek.uri + i} style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 8,
+                      paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8,
+                      borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+                    }}>
+                      {resimMi
+                        ? <Image source={{ uri: ek.uri }} style={{ width: 32, height: 32, borderRadius: 6 }} />
+                        : <Feather name="file-text" size={16} color={colors.primary} />}
+                      <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 12 }} numberOfLines={1}>
+                        {ek.name || 'fotoğraf'}{ek.size ? `  ·  ${Math.round(ek.size / 1024)} KB` : ''}
+                      </Text>
+                      <TouchableOpacity onPress={() => setEkler(p => p.filter((_, j) => j !== i))} hitSlop={8}>
+                        <Feather name="x" size={14} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  )
+                })}
+              </View>
+            )}
+          </View>
+        )}
 
         <TouchableOpacity
           style={[styles.kaydetBtn, kaydediliyor && { opacity: 0.6 }]}
