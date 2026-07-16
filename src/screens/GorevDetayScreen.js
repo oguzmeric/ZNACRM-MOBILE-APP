@@ -27,6 +27,7 @@ import {
   gorevNotFotoCikar,
   gorevNotGuncelle,
   gorevNotSil,
+  gorevWebYorumlariGetir,
 } from '../services/gorevService'
 import { gorevFotosuYukle, gorevFotosuSil } from '../services/gorevFotoService'
 import { kullanicilariGetir } from '../services/kullaniciService'
@@ -63,6 +64,7 @@ export default function GorevDetayScreen({ route, navigation }) {
   const headerHeight = useHeaderHeight()
   const { colors } = useTheme()
   const [gorev, setGorev] = useState(null)
+  const [webYorumlar, setWebYorumlar] = useState([]) // web'de yazılan yorumlar (gorev_yorumlari)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [yeniNot, setYeniNot] = useState('')
@@ -97,6 +99,8 @@ export default function GorevDetayScreen({ route, navigation }) {
     setLoading(true)
     const g = await gorevGetir(id)
     setGorev(g)
+    // Web yorumlarını da çek (mobil notlarla birleşik gösterilecek)
+    gorevWebYorumlariGetir(id).then(setWebYorumlar).catch(() => {})
     setLoading(false)
   }
 
@@ -132,10 +136,11 @@ export default function GorevDetayScreen({ route, navigation }) {
   const durumDegistir = async (yeniDurum) => {
     if (yeniDurum === gorev?.durum) return
 
-    // Tamamlandı için en az 1 not şart — fotoğraf opsiyonel
+    // Tamamlandı için en az 1 not/yorum şart — fotoğraf opsiyonel
+    // (mobil not VEYA web yorumu sayılır)
     if (yeniDurum === 'tamamlandi') {
-      const notlar = gorev?.notlar ?? []
-      if (notlar.length === 0) {
+      const toplamNot = (gorev?.notlar?.length ?? 0) + webYorumlar.length
+      if (toplamNot === 0) {
         Alert.alert(
           'Not Gerekli',
           'Görevi tamamlamadan önce en az 1 not ekle — ne yaptığını kısaca yaz. Aşağıdaki not alanını kullanabilirsin.',
@@ -369,6 +374,22 @@ export default function GorevDetayScreen({ route, navigation }) {
 
   const benimMi = gorev.olusturanAd === kullanici?.ad
 
+  // Mobil notlar (gorevler.notlar, fotoğraflı, düzenlenebilir) + web yorumları
+  // (gorev_yorumlari, salt-okunur) birleşik — en yeni üstte. Böylece web'de
+  // yazılan yorumlar telefonda da görünür.
+  const tumNotlar = [
+    ...(gorev.notlar ?? []).map((n, origIndex) => ({
+      kaynak: 'mobil', origIndex,
+      metin: n.metin, kullanici: n.kullanici, tarih: n.tarih,
+      fotoUrls: n.fotoUrls ?? [], duzenlendiTarih: n.duzenlendiTarih,
+    })),
+    ...webYorumlar.map((y) => ({
+      kaynak: 'web', origIndex: null,
+      metin: y.icerik, kullanici: y.yazarAd, tarih: y.olusturmaTarih,
+      fotoUrls: [], duzenlendiTarih: y.duzenlendi ? y.guncellemeTarih : null,
+    })),
+  ].sort((a, b) => new Date(b.tarih || 0) - new Date(a.tarih || 0))
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.bg }]}
@@ -573,7 +594,7 @@ export default function GorevDetayScreen({ route, navigation }) {
 
       {/* Notlar timeline */}
       <Text style={[styles.sectionLabel, { marginTop: 20 }]}>
-        📝 Notlar ({(gorev.notlar ?? []).length})
+        📝 Notlar ({tumNotlar.length})
       </Text>
 
       <View style={styles.notInputRow}>
@@ -632,19 +653,21 @@ export default function GorevDetayScreen({ route, navigation }) {
         </ScrollView>
       )}
 
-      {(gorev.notlar ?? []).length === 0 ? (
+      {tumNotlar.length === 0 ? (
         <Text style={[styles.bosNot, { color: colors.textFaded }]}>
           Henüz not yok. Görev bitince en az 1 not ekle (fotoğraf opsiyonel).
         </Text>
       ) : (
-        (gorev.notlar ?? [])
-          .map((n, origIndex) => ({ n, origIndex }))
-          .reverse()
-          .map(({ n, origIndex }) => {
-            const benimNotum = n.kullanici === kullanici?.ad
-            const duzenleniyor = duzenlenenNotIdx === origIndex
+        tumNotlar
+          .map((item, siraIdx) => {
+            const n = item
+            const origIndex = item.origIndex
+            const webMi = item.kaynak === 'web'
+            // Düzenle/sil yalnız kendi MOBİL notunda (web yorumları web'den yönetilir)
+            const benimNotum = !webMi && n.kullanici === kullanici?.ad
+            const duzenleniyor = !webMi && duzenlenenNotIdx === origIndex
             return (
-              <View key={origIndex} style={[styles.notCard, { backgroundColor: colors.surface }]}>
+              <View key={webMi ? `web-${siraIdx}` : `mobil-${origIndex}`} style={[styles.notCard, { backgroundColor: colors.surface }]}>
                 {duzenleniyor ? (
                   <>
                     <TextInput
@@ -691,8 +714,9 @@ export default function GorevDetayScreen({ route, navigation }) {
                     )}
                     <View style={styles.notMetaRow}>
                       <Text style={[styles.notMeta, { color: colors.textFaded }]}>
-                        {n.kullanici ?? '—'} · {tarihSaatFormat(n.tarih)}
+                        {webMi ? '🖥️ ' : ''}{n.kullanici ?? '—'} · {tarihSaatFormat(n.tarih)}
                         {n.duzenlendiTarih ? ' · düzenlendi' : ''}
+                        {webMi ? ' · web' : ''}
                       </Text>
                       {benimNotum && (
                         <View style={{ flexDirection: 'row', gap: 12 }}>

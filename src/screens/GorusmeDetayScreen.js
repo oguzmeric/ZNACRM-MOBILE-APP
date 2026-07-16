@@ -362,11 +362,17 @@ export default function GorusmeDetayScreen({ route, navigation }) {
               {/* Aksiyonlar — bu görüşmeden 3 farklı iş oluştur */}
               {(() => {
                 const konu = g.konu ? `Görüşme: ${g.konu}` : ''
+                // Teklif/Servis: görüşme bağlamı context olarak açıklamaya girsin
+                // (bu kayıtlar görüşmeye link tutmuyor).
                 const aciklama = [
                   g.firmaAdi && `Firma: ${g.firmaAdi}`,
                   g.tarih && `Görüşme tarihi: ${g.tarih}${g.saat ? ' ' + g.saat : ''}`,
                   (g.takipNotu || g.notlar) && `\nNotlar:\n${g.takipNotu || g.notlar}`,
                 ].filter(Boolean).join('\n')
+                // Görev: görüşmeye zaten gorusme_id + müşteri ile bağlı → açıklamaya
+                // Firma/tarih blob'u BASMA, yalnız asıl notu koy (web'de ham blob
+                // görünüyordu; artık kayıt en baştan temiz).
+                const gorevAciklama = (g.takipNotu || g.notlar || '').toString().trim()
                 return (
                   <>
                     <TouchableOpacity
@@ -376,7 +382,7 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                         baslangicMusteriId: g.musteriId,
                         baslangicLokasyonId: g.lokasyonId,
                         baslangicBaslik: konu,
-                        baslangicAciklama: aciklama,
+                        baslangicAciklama: gorevAciklama,
                       })}
                       activeOpacity={0.85}
                     >

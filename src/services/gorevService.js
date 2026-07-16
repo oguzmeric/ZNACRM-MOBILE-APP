@@ -92,6 +92,20 @@ export const gorevSil = async (id) => {
   await supabase.from('gorevler').delete().eq('id', id)
 }
 
+// Web yorumları (gorev_yorumlari tablosu, mig 174). Web'de yazılan yorumlar
+// bu tabloya gider; mobil de bunları OKUYUP notlarla birleşik gösterir ki
+// web↔mobil yorumlar iki tarafta da görünsün. (Mobil yazma yine gorevler.notlar'a
+// — fotoğraf + "tamamlamak için not şart" kuralı orada.)
+export const gorevWebYorumlariGetir = async (gorevId) => {
+  const { data, error } = await supabase
+    .from('gorev_yorumlari')
+    .select('*')
+    .eq('gorev_id', gorevId)
+    .order('olusturma_tarih', { ascending: true })
+  if (error) { console.warn('gorevWebYorumlariGetir:', error.message); return [] }
+  return arrayToCamel(data)
+}
+
 // Bir notu tamamen sil
 export const gorevNotSil = async (id, notIndex) => {
   const mevcut = await gorevGetir(id)
