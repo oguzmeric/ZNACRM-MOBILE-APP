@@ -49,6 +49,7 @@ import BelgePaylasModal from '../components/BelgePaylasModal'
 import { eksikCihazKayitlariGetir } from '../services/cihazKayitService'
 import ServisFormBilgileriCard from '../components/ServisFormBilgileriCard'
 import { arsivListele, arsivSignedUrl } from '../services/servisFormuArsivService'
+import { servistenFaturaTalebiAc, servisFaturaTalebiGetir } from '../services/faturaService'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 
@@ -61,6 +62,8 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [talep, setTalep] = useState(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [faturaTalebi, setFaturaTalebi] = useState(null)  // servise açılan proforma
+  const [faturaMesgul, setFaturaMesgul] = useState(false)
   const [yeniNot, setYeniNot] = useState('')
   const [notKaydediliyor, setNotKaydediliyor] = useState(false)
   const [fotoYukleniyor, setFotoYukleniyor] = useState(false)
@@ -149,8 +152,35 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     setWebMalzemeler(wm ?? [])
     setTespit(t?.kokSebep ?? '')
     setYapilanMudahale(t?.yapilanMudahale ?? '')
+    servisFaturaTalebiGetir(id).then(setFaturaTalebi).catch(() => {})
     setLoading(false)
   }, [id])
+
+  // "Fatura Kesilecek" — proforma açar (muhasebe tutar/PDF/ödemeyi keserken girer)
+  const faturaKesilecek = () => {
+    if (faturaMesgul) return
+    Alert.alert(
+      'Fatura Kesilecek',
+      'Bu servis için proforma açılıp muhasebenin "Fatura Kesilecek" kuyruğuna eklensin mi? Gerçek faturayı muhasebe kesip tutar/ödeme/PDF girecek.',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Evet, işaretle',
+          onPress: async () => {
+            setFaturaMesgul(true)
+            try {
+              const sonuc = await servistenFaturaTalebiAc({ servis: talep, kullanici })
+              if (sonuc?._hata) { Alert.alert('Hata', sonuc._hata); return }
+              setFaturaTalebi(sonuc)
+              Alert.alert('Tamam', 'Fatura kesilecek olarak işaretlendi — proforma kuyruğuna eklendi.')
+            } finally {
+              setFaturaMesgul(false)
+            }
+          },
+        },
+      ],
+    )
+  }
 
   const tespitKaydet = async () => {
     setTespitKaydediliyor(true)
@@ -1043,8 +1073,32 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
               </View>
             )}
 
+            {/* Fatura Kesilecek — proforma varsa durum, yoksa işaretle butonu */}
+            {faturaTalebi ? (
+              <View style={[styles.tamamlandiBox, { marginTop: 8, backgroundColor: 'rgba(37,99,235,0.10)', borderColor: 'rgba(37,99,235,0.35)' }]}>
+                <Feather name="file-text" size={18} color="#2563eb" />
+                <Text style={[styles.tamamlandiText, { color: '#2563eb' }]}>
+                  {faturaTalebi.durum === 'faturalandi'
+                    ? `Fatura kesildi · ${faturaTalebi.faturaNo || ''}`
+                    : faturaTalebi.durum === 'reddedildi'
+                      ? 'Proforma reddedildi'
+                      : `Fatura bekliyor · ${faturaTalebi.talepNo}`}
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.formuAcBtn, { backgroundColor: '#0ea5e9', marginTop: 8, opacity: faturaMesgul ? 0.6 : 1 }]}
+                onPress={faturaKesilecek}
+                disabled={faturaMesgul}
+                activeOpacity={0.88}
+              >
+                <Feather name="dollar-sign" size={18} color="#fff" />
+                <Text style={styles.formuAcBtnText}>{faturaMesgul ? 'İşaretleniyor…' : 'Fatura Kesilecek'}</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              style={[styles.formuAcBtn, { backgroundColor: colors.primary }]}
+              style={[styles.formuAcBtn, { backgroundColor: colors.primary, marginTop: 8 }]}
               onPress={servisFormuAksiyon}
               activeOpacity={0.88}
             >
