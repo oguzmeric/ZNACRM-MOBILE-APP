@@ -456,49 +456,60 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                 // Firma/tarih blob'u BASMA, yalnız asıl notu koy (web'de ham blob
                 // görünüyordu; artık kayıt en baştan temiz).
                 const gorevAciklama = (g.takipNotu || g.notlar || '').toString().trim()
+                // Kompakt üçlü: eskiden 3 tam-genişlik buton alt alta sayfayı
+                // domine ediyordu — tek kartta yan yana ikon+etiket düzeni.
+                const AKSIYONLAR = [
+                  {
+                    ikon: 'check-square', etiket: 'Görev', renk: colors.primary,
+                    git: () => navigation.navigate('YeniGörev', {
+                      baslangicGorusmeId: g.id,
+                      baslangicMusteriId: g.musteriId,
+                      baslangicLokasyonId: g.lokasyonId,
+                      baslangicBaslik: konu,
+                      baslangicAciklama: gorevAciklama,
+                    }),
+                  },
+                  {
+                    ikon: 'file-text', etiket: 'Teklif', renk: '#8b5cf6',
+                    git: () => navigation.navigate('YeniTeklif', {
+                      baslangicMusteriId: g.musteriId,
+                      baslangicKonu: g.konu || '',
+                      baslangicAciklama: aciklama,
+                    }),
+                  },
+                  {
+                    ikon: 'tool', etiket: 'Servis', renk: '#f59e0b',
+                    git: () => navigation.navigate('YeniServisTalebi', {
+                      baslangicMusteriId: g.musteriId,
+                      baslangicKonu: g.konu || '',
+                      baslangicAciklama: aciklama,
+                    }),
+                  },
+                ]
                 return (
-                  <>
-                    <TouchableOpacity
-                      style={[styles.aksiyonBtn, { backgroundColor: colors.primary }]}
-                      onPress={() => navigation.navigate('YeniGörev', {
-                        baslangicGorusmeId: g.id,
-                        baslangicMusteriId: g.musteriId,
-                        baslangicLokasyonId: g.lokasyonId,
-                        baslangicBaslik: konu,
-                        baslangicAciklama: gorevAciklama,
-                      })}
-                      activeOpacity={0.85}
-                    >
-                      <Feather name="check-square" size={18} color="#fff" />
-                      <Text style={styles.aksiyonText}>Görev Oluştur</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.aksiyonBtn, { backgroundColor: '#8b5cf6' }]}
-                      onPress={() => navigation.navigate('YeniTeklif', {
-                        baslangicMusteriId: g.musteriId,
-                        baslangicKonu: g.konu || '',
-                        baslangicAciklama: aciklama,
-                      })}
-                      activeOpacity={0.85}
-                    >
-                      <Feather name="file-text" size={18} color="#fff" />
-                      <Text style={styles.aksiyonText}>Teklif Oluştur</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.aksiyonBtn, { backgroundColor: '#f59e0b' }]}
-                      onPress={() => navigation.navigate('YeniServisTalebi', {
-                        baslangicMusteriId: g.musteriId,
-                        baslangicKonu: g.konu || '',
-                        baslangicAciklama: aciklama,
-                      })}
-                      activeOpacity={0.85}
-                    >
-                      <Feather name="tool" size={18} color="#fff" />
-                      <Text style={styles.aksiyonText}>Servis Talebi Oluştur</Text>
-                    </TouchableOpacity>
-                  </>
+                  <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 0.4, marginBottom: 10 }}>
+                      BU GÖRÜŞMEDEN OLUŞTUR
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {AKSIYONLAR.map((a) => (
+                        <TouchableOpacity
+                          key={a.etiket}
+                          onPress={a.git}
+                          activeOpacity={0.8}
+                          style={{
+                            flex: 1, alignItems: 'center', gap: 6,
+                            paddingVertical: 12, borderRadius: 10,
+                            backgroundColor: a.renk + '1c',
+                            borderWidth: 1, borderColor: a.renk + '55',
+                          }}
+                        >
+                          <Feather name={a.ikon} size={18} color={a.renk} />
+                          <Text style={{ color: a.renk, fontSize: 12, fontWeight: '700' }}>{a.etiket}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
                 )
               })()}
 
