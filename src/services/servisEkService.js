@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { oturumTokenAl } from '../lib/storageAuth'
 
 const BUCKET = 'urun-gorselleri'
 const KLASOR = 'servis-ekler'
@@ -15,6 +16,8 @@ export const servisEkiYukle = async (talepNoVeyaId, uri) => {
 
     const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
     const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+    // ANON bearer RLS'e takılıyor — personel JWT'siyle yükle (lib/storageAuth.js)
+    const token = await oturumTokenAl()
 
     const formData = new FormData()
     formData.append('file', {
@@ -28,7 +31,7 @@ export const servisEkiYukle = async (talepNoVeyaId, uri) => {
       method: 'POST',
       headers: {
         apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
+        Authorization: `Bearer ${token}`,
         'x-upsert': 'true',
       },
       body: formData,

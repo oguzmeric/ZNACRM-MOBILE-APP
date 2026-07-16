@@ -1,5 +1,6 @@
 import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel } from '../lib/mapper'
+import { oturumTokenAl } from '../lib/storageAuth'
 
 // Web ile AYNI flow: Supabase Auth → başarılı ise kullanicilar tablosundan
 // profil çek (auth_id ile eşleme). Eski `kullanicilar.sifre` kolonu migration
@@ -224,6 +225,9 @@ export const profilFotosuYukle = async (kullaniciId, uri) => {
 
     const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
     const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+    // ANON bearer artık RLS'e takılıyor ("permission denied for table musteriler")
+    // — oturumdaki personel JWT'siyle yükle (bkz. lib/storageAuth.js)
+    const token = await oturumTokenAl()
 
     const formData = new FormData()
     formData.append('file', {
@@ -237,7 +241,7 @@ export const profilFotosuYukle = async (kullaniciId, uri) => {
       method: 'POST',
       headers: {
         apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
+        Authorization: `Bearer ${token}`,
         'x-upsert': 'true',
       },
       body: formData,
