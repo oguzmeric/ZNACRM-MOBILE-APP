@@ -472,6 +472,18 @@ export default function GorevDetayScreen({ route, navigation }) {
         <Text style={[styles.body, { color: colors.textSecondary }]}>{gorev.olusturanAd || '—'}</Text>
       </View>
 
+      {/* Ekip üyeleri — gösterilmediği için "bu görev neden Bana'da?" karışıklığı oluyordu */}
+      {Array.isArray(gorev.ekip) && gorev.ekip.length > 0 && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Ekip</Text>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>
+            {gorev.ekip
+              .map((uid) => personeller.find((k) => String(k.id) === String(uid))?.ad || `#${uid}`)
+              .join(', ')}
+          </Text>
+        </View>
+      )}
+
       {!!gorev.firmaAdi && (
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Firma</Text>
