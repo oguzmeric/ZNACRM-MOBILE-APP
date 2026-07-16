@@ -121,7 +121,7 @@ export default function GorevDetayScreen({ route, navigation }) {
       headerRight: () => (
         gorev ? (
           <TouchableOpacity
-            onPress={() => navigation.navigate('YeniGorev', { duzenlenecekGorev: gorev })}
+            onPress={() => navigation.navigate('YeniGörev', { duzenlenecekGorev: gorev })}
             hitSlop={10}
             style={{ paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}
           >
