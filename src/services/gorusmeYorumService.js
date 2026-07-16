@@ -55,20 +55,38 @@ export const gorusmeYorumSil = async (id) => {
   if (error) { console.error('[gorusmeYorumSil]', error.message); throw error }
 }
 
-// Yorum eki yükle — FormData + OTURUM JWT (ANON bearer RLS'e takılır).
+// Uzantıdan MIME tahmini (picker mimeType vermezse)
+const mimeTahmin = (ad) => {
+  const ext = (String(ad).split('.').pop() || '').toLowerCase()
+  const map = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+    webp: 'image/webp', heic: 'image/heic',
+    pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    zip: 'application/zip',
+  }
+  return map[ext] || 'application/octet-stream'
+}
+
+// Yorum eki yükle — foto VEYA belge (PDF/Excel/Word...). FormData + OTURUM JWT
+// (ANON bearer RLS'e takılır). asset: { uri, name?, mimeType?/type?, size? }
 // Dönen nesne web ile aynı: { url, name, type, size }
-export const yorumEkiYukle = async (uri) => {
-  const uzanti = (uri.match(/\.(\w+)(?:\?|$)/)?.[1] || 'jpg').toLowerCase()
-  const mimeType = uzanti === 'png' ? 'image/png' : 'image/jpeg'
-  const ad = `foto_${Date.now()}.${uzanti}`
-  const yol = `${KLASOR}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${uzanti}`
+export const yorumEkiYukle = async (asset) => {
+  const a = typeof asset === 'string' ? { uri: asset } : asset
+  const ad = a.name || `foto_${Date.now()}.${(a.uri.match(/\.(\w+)(?:\?|$)/)?.[1] || 'jpg').toLowerCase()}`
+  const mimeType = a.mimeType || a.type || mimeTahmin(ad)
+  const safe = ad.replace(/[^\w.\-]/g, '_')
+  const yol = `${KLASOR}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}_${safe}`
 
   const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
   const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
   const token = await oturumTokenAl()
 
   const formData = new FormData()
-  formData.append('file', { uri, name: ad, type: mimeType })
+  formData.append('file', { uri: a.uri, name: safe, type: mimeType })
 
   const resp = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${yol}`, {
     method: 'POST',
@@ -83,6 +101,6 @@ export const yorumEkiYukle = async (uri) => {
     url: `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${yol}`,
     name: ad,
     type: mimeType,
-    size: null,
+    size: a.size ?? null,
   }
 }

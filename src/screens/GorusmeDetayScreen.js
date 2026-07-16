@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity,
-  TextInput, Alert, KeyboardAvoidingView, Platform, Image,
+  TextInput, Alert, KeyboardAvoidingView, Platform, Image, Linking,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
 import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
 import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
@@ -37,7 +38,7 @@ export default function GorusmeDetayScreen({ route, navigation }) {
   // Yorumlar (mig 184 — web ile AYNI tablo, tam senkron)
   const [yorumlar, setYorumlar] = useState([])
   const [yeniYorum, setYeniYorum] = useState('')
-  const [yorumFotolar, setYorumFotolar] = useState([]) // local uri[]
+  const [yorumEkler, setYorumEkler] = useState([]) // local asset[] { uri, name, mimeType, size }
   const [yorumGonderiliyor, setYorumGonderiliyor] = useState(false)
   const [loading, setLoading] = useState(true)
   const [duzenleAcik, setDuzenleAcik] = useState(false)
@@ -68,15 +69,15 @@ export default function GorusmeDetayScreen({ route, navigation }) {
   useFocusEffect(useCallback(() => { yukle() }, [yukle]))
 
   // --- Yorum işlemleri (web ile aynı gorusme_yorumlari tablosu) ---
-  const yorumFotoSec = () => {
-    Alert.alert('Fotoğraf Ekle', 'Kaynak seç', [
+  const yorumEkSec = () => {
+    Alert.alert('Ek Ekle', 'Kaynak seç', [
       {
         text: 'Kamera',
         onPress: async () => {
           const izin = await ImagePicker.requestCameraPermissionsAsync()
           if (!izin.granted) { Alert.alert('İzin Gerekli', 'Kamera izni verin.'); return }
           const s = await ImagePicker.launchCameraAsync({ quality: 0.7 })
-          if (!s.canceled) setYorumFotolar(p => [...p, s.assets[0].uri])
+          if (!s.canceled) setYorumEkler(p => [...p, { uri: s.assets[0].uri, name: s.assets[0].fileName || null, mimeType: s.assets[0].mimeType || 'image/jpeg', size: s.assets[0].fileSize ?? null }])
         },
       },
       {
@@ -88,7 +89,15 @@ export default function GorusmeDetayScreen({ route, navigation }) {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             quality: 0.7, allowsMultipleSelection: true, selectionLimit: 5,
           })
-          if (!s.canceled) setYorumFotolar(p => [...p, ...s.assets.map(a => a.uri)])
+          if (!s.canceled) setYorumEkler(p => [...p, ...s.assets.map(a => ({ uri: a.uri, name: a.fileName || null, mimeType: a.mimeType || 'image/jpeg', size: a.fileSize ?? null }))])
+        },
+      },
+      {
+        text: 'Belge (PDF/Excel...)',
+        onPress: async () => {
+          const s = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true })
+          if (s.canceled) return
+          setYorumEkler(p => [...p, ...(s.assets || []).map(a => ({ uri: a.uri, name: a.name || null, mimeType: a.mimeType || null, size: a.size ?? null }))])
         },
       },
       { text: 'Vazgeç', style: 'cancel' },
@@ -96,11 +105,11 @@ export default function GorusmeDetayScreen({ route, navigation }) {
   }
 
   const yorumGonder = async () => {
-    if (!yeniYorum.trim() && yorumFotolar.length === 0) return
+    if (!yeniYorum.trim() && yorumEkler.length === 0) return
     setYorumGonderiliyor(true)
     try {
       const dosyalar = []
-      for (const uri of yorumFotolar) dosyalar.push(await yorumEkiYukle(uri))
+      for (const ek of yorumEkler) dosyalar.push(await yorumEkiYukle(ek))
       const eklenen = await gorusmeYorumEkle({
         gorusmeId: g.id,
         kullaniciId: kullanici?.id,
@@ -110,7 +119,7 @@ export default function GorusmeDetayScreen({ route, navigation }) {
       })
       setYorumlar(prev => [...prev, eklenen])
       setYeniYorum('')
-      setYorumFotolar([])
+      setYorumEkler([])
     } catch (e) {
       Alert.alert('Hata', 'Yorum eklenemedi: ' + (e?.message ?? 'bilinmeyen'))
     } finally {
@@ -505,6 +514,7 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                 {yorumlar.map((y) => {
                   const benimMi = String(y.yazarId ?? '') === String(kullanici?.id ?? '_')
                   const resimler = (y.dosyalar || []).filter(d => (d.type || '').startsWith('image/'))
+                  const belgeler = (y.dosyalar || []).filter(d => !(d.type || '').startsWith('image/'))
                   return (
                     <View key={y.id} style={{
                       padding: 10, borderRadius: 10, borderWidth: 1,
@@ -528,10 +538,25 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                       {resimler.length > 0 && (
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                           {resimler.map((d, i) => (
-                            <Image key={i} source={{ uri: d.url }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+                            <TouchableOpacity key={i} onPress={() => Linking.openURL(d.url).catch(() => {})}>
+                              <Image source={{ uri: d.url }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+                            </TouchableOpacity>
                           ))}
                         </View>
                       )}
+                      {belgeler.map((d, i) => (
+                        <TouchableOpacity
+                          key={`b${i}`}
+                          onPress={() => Linking.openURL(d.url).catch(() => Alert.alert('Hata', 'Dosya açılamadı.'))}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}
+                          activeOpacity={0.7}
+                        >
+                          <Feather name="file-text" size={14} color={colors.primary} />
+                          <Text style={{ color: colors.primary, fontSize: 12.5, fontWeight: '600', flexShrink: 1 }} numberOfLines={1}>
+                            {d.name}{d.size ? `  (${Math.round(d.size / 1024)} KB)` : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
                   )
                 })}
@@ -551,24 +576,43 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                       textAlignVertical: 'top',
                     }}
                   />
-                  {yorumFotolar.length > 0 && (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                      {yorumFotolar.map((uri, i) => (
-                        <View key={uri + i}>
-                          <Image source={{ uri }} style={{ width: 56, height: 56, borderRadius: 8 }} />
-                          <TouchableOpacity
-                            onPress={() => setYorumFotolar(p => p.filter((_, j) => j !== i))}
-                            style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', borderRadius: 9, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }}
-                          >
-                            <Feather name="x" size={11} color="#fff" />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
+                  {yorumEkler.length > 0 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                      {yorumEkler.map((ek, i) => {
+                        const resimMi = (ek.mimeType || '').startsWith('image/')
+                        return (
+                          <View key={ek.uri + i} style={resimMi ? null : {
+                            flexDirection: 'row', alignItems: 'center', gap: 6,
+                            paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8,
+                            borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background,
+                            maxWidth: 200,
+                          }}>
+                            {resimMi ? (
+                              <Image source={{ uri: ek.uri }} style={{ width: 56, height: 56, borderRadius: 8 }} />
+                            ) : (
+                              <>
+                                <Feather name="file-text" size={14} color={colors.primary} />
+                                <Text style={{ color: colors.textPrimary, fontSize: 11.5, flexShrink: 1 }} numberOfLines={1}>
+                                  {ek.name || 'dosya'}
+                                </Text>
+                              </>
+                            )}
+                            <TouchableOpacity
+                              onPress={() => setYorumEkler(p => p.filter((_, j) => j !== i))}
+                              style={resimMi
+                                ? { position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', borderRadius: 9, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' }
+                                : { marginLeft: 2 }}
+                            >
+                              <Feather name="x" size={11} color={resimMi ? '#fff' : colors.textMuted} />
+                            </TouchableOpacity>
+                          </View>
+                        )
+                      })}
                     </View>
                   )}
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                     <TouchableOpacity
-                      onPress={yorumFotoSec}
+                      onPress={yorumEkSec}
                       disabled={yorumGonderiliyor}
                       style={{
                         flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -577,8 +621,8 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                       }}
                       activeOpacity={0.8}
                     >
-                      <Feather name="camera" size={15} color={colors.primary} />
-                      <Text style={{ color: colors.textPrimary, fontSize: 12.5, fontWeight: '600' }}>Foto</Text>
+                      <Feather name="paperclip" size={15} color={colors.primary} />
+                      <Text style={{ color: colors.textPrimary, fontSize: 12.5, fontWeight: '600' }}>Ek</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={yorumGonder}
