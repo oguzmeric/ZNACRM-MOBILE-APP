@@ -167,6 +167,9 @@ export default function YeniGorusmeScreen({ navigation, route }) {
       durum,
       tarih: tarihStr,
       saat: saatStr,
+      // "Görüşen" web listesinde gösterilen kolon — mobil bunu yazmadığı için
+      // liste boş görünüyordu. Web formu gorusen=kullanici.ad set ediyor; eşitliyoruz.
+      gorusen: kullanici?.ad ?? null,
       hazirlayan: kullanici?.ad ?? null,
       lokasyonId: lokasyonSecili?.id ?? null,
     })
