@@ -13,10 +13,12 @@ import {
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useHeaderHeight } from '@react-navigation/elements'
+import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
 import ScreenContainer from '../components/ScreenContainer'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { gorusmeEkle } from '../services/gorusmeService'
+import { gorusmeEkle, gorusmeDosyalariEkle } from '../services/gorusmeService'
 import { kullanicilariGetir } from '../services/kullaniciService'
 import { bildirimEkleDb } from '../services/bildirimService'
 import { parseMentions } from '../lib/mention'
@@ -67,6 +69,39 @@ export default function YeniGorusmeScreen({ navigation, route }) {
   }, [])
   const [durum, setDurum] = useState('acik')
   const [kaydediliyor, setKaydediliyor] = useState(false)
+  // Eklenecek dosyalar (local, submit'te yüklenir): { uri, name, type, size }
+  const [dosyalar, setDosyalar] = useState([])
+
+  const fotoEkle = async () => {
+    const izin = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!izin.granted) { Alert.alert('İzin Gerekli', 'Fotoğraf eklemek için galeri izni verin.'); return }
+    const s = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7, allowsMultipleSelection: true, selectionLimit: 10,
+    })
+    if (s.canceled) return
+    const yeni = (s.assets || []).map((a) => ({
+      uri: a.uri,
+      name: a.fileName || `foto_${Date.now()}.jpg`,
+      type: a.mimeType || 'image/jpeg',
+      size: a.fileSize ?? null,
+    }))
+    setDosyalar((p) => [...p, ...yeni])
+  }
+
+  const belgeEkle = async () => {
+    const s = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true })
+    if (s.canceled) return
+    const yeni = (s.assets || []).map((a) => ({
+      uri: a.uri,
+      name: a.name || `dosya_${Date.now()}`,
+      type: a.mimeType || null,
+      size: a.size ?? null,
+    }))
+    setDosyalar((p) => [...p, ...yeni])
+  }
+
+  const dosyaCikar = (idx) => setDosyalar((p) => p.filter((_, i) => i !== idx))
 
   // Müşteri autocomplete
   const [musteriler, setMusteriler] = useState([])
@@ -135,11 +170,20 @@ export default function YeniGorusmeScreen({ navigation, route }) {
       hazirlayan: kullanici?.ad ?? null,
       lokasyonId: lokasyonSecili?.id ?? null,
     })
-    setKaydediliyor(false)
     if (!sonuc) {
+      setKaydediliyor(false)
       Alert.alert('Kaydedilemedi', 'Görüşme eklenemedi. Tekrar deneyin.')
       return
     }
+
+    // Dosyalar — görüşme oluştuktan sonra storage'a yükle (web ile aynı bucket/kolon)
+    let dosyaHatalari = []
+    if (dosyalar.length) {
+      const { hatalar } = await gorusmeDosyalariEkle(sonuc.id, dosyalar, kullanici?.ad ?? null)
+      dosyaHatalari = hatalar
+    }
+    setKaydediliyor(false)
+
     // @mention edilenlere push bildirimi (kendini etiketleyen hariç)
     const mentionIdler = parseMentions(notlar, personeller).filter(mid => mid !== kullanici?.id)
     for (const mid of mentionIdler) {
@@ -151,6 +195,15 @@ export default function YeniGorusmeScreen({ navigation, route }) {
         mesaj: `"${notlar.slice(0, 90)}" — ${firmaAdi.trim()}`,
         link: sonuc.id ? `/gorusmeler/${sonuc.id}` : '/gorusmeler',
       }).catch(() => {})
+    }
+
+    if (dosyaHatalari.length) {
+      Alert.alert(
+        'Kısmi yükleme',
+        `Görüşme kaydedildi ancak bazı dosyalar yüklenemedi:\n${dosyaHatalari.join('\n')}`,
+        [{ text: 'Tamam', onPress: () => navigation.goBack() }],
+      )
+      return
     }
     navigation.goBack()
   }
@@ -295,6 +348,53 @@ export default function YeniGorusmeScreen({ navigation, route }) {
             style={[styles.input, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 110 }]}
           />
 
+          {/* Dosyalar — web ile senkron (bucket: gorusme-dosyalari) */}
+          <Text style={[styles.label, { color: colors.textMuted }]}>Dosyalar</Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              onPress={fotoEkle}
+              disabled={kaydediliyor}
+              activeOpacity={0.8}
+              style={[styles.dosyaBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            >
+              <Feather name="image" size={16} color={colors.primary} />
+              <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: '600' }}>Fotoğraf</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={belgeEkle}
+              disabled={kaydediliyor}
+              activeOpacity={0.8}
+              style={[styles.dosyaBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            >
+              <Feather name="paperclip" size={16} color={colors.primary} />
+              <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: '600' }}>Belge / PDF</Text>
+            </TouchableOpacity>
+          </View>
+
+          {dosyalar.length > 0 && (
+            <View style={{ marginTop: 10, gap: 6 }}>
+              {dosyalar.map((d, i) => (
+                <View
+                  key={`${d.uri}-${i}`}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}
+                >
+                  <Feather
+                    name={(d.type || '').startsWith('image/') ? 'image' : 'file'}
+                    size={15}
+                    color={colors.textMuted}
+                  />
+                  <Text numberOfLines={1} style={{ flex: 1, color: colors.textPrimary, fontSize: 12 }}>
+                    {d.name}
+                    {d.size ? `  ·  ${(d.size / 1024).toFixed(0)} KB` : ''}
+                  </Text>
+                  <TouchableOpacity onPress={() => dosyaCikar(i)} hitSlop={8} disabled={kaydediliyor}>
+                    <Feather name="x" size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
           <TouchableOpacity
             onPress={kaydet}
             disabled={kaydediliyor}
@@ -333,6 +433,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  dosyaBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
