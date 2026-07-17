@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { AppState } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Sentry from '@sentry/react-native'
 import { supabase } from '../lib/supabase'
@@ -22,6 +23,30 @@ export const AuthProvider = ({ children }) => {
   const [kullanici, setKullanici] = useState(null)
   const [loading, setLoading] = useState(true)
   const [mod, setMod] = useState('teknisyen')
+  const kullaniciIdRef = useRef(null)
+  useEffect(() => {
+    kullaniciIdRef.current = kullanici?.id ?? null
+  }, [kullanici?.id])
+
+  // Profili DB'den sessizce tazele — webden ad/kullanıcı adı/foto değişirse
+  // çıkış-giriş gerekmeden mobile yansısın (best-effort, hata yutar)
+  const profilTazele = async (id) => {
+    if (!id) return
+    try {
+      const { data } = await supabase
+        .from('kullanicilar')
+        .select('*')
+        .eq('id', id)
+        .single()
+      if (data && kullaniciIdRef.current === id) {
+        const guncel = toCamel(data)
+        setKullanici((onceki) => ({ ...onceki, ...guncel }))
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(guncel))
+      }
+    } catch (e) {
+      console.warn('[Auth] Profil tazelenemedi', e?.message)
+    }
+  }
 
   // Uygulama açılışında oturumu yükle
   //
@@ -52,6 +77,9 @@ export const AuthProvider = ({ children }) => {
             } catch (_) {}
             // Push token kaydı (best-effort, simülatörde no-op)
             pushTokenKaydet(k.id).catch((e) => console.warn('[push token]', e?.message))
+            // Cihazdaki profil bayat olabilir — DB'den güncelini çek
+            kullaniciIdRef.current = k.id
+            profilTazele(k.id)
           }
         }
       } catch (e) {
@@ -60,6 +88,14 @@ export const AuthProvider = ({ children }) => {
         setLoading(false)
       }
     })()
+  }, [])
+
+  // Uygulama arka plandan öne gelince profili tazele
+  useEffect(() => {
+    const abone = AppState.addEventListener('change', (durum) => {
+      if (durum === 'active') profilTazele(kullaniciIdRef.current)
+    })
+    return () => abone.remove()
   }, [])
 
   const modDegistir = async (yeniMod) => {
@@ -99,19 +135,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   // Veritabanından kullanıcı bilgisini yeniden çek (foto değişmesi, unvan değişmesi vb. durumlarda)
-  const kullaniciyiTazele = async () => {
-    if (!kullanici?.id) return
-    const { data } = await supabase
-      .from('kullanicilar')
-      .select('*')
-      .eq('id', kullanici.id)
-      .single()
-    if (data) {
-      const guncel = toCamel(data)
-      setKullanici(guncel)
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(guncel))
-    }
-  }
+  const kullaniciyiTazele = () => profilTazele(kullanici?.id)
 
   return (
     <AuthContext.Provider
