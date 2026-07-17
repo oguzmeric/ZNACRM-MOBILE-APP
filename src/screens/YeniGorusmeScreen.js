@@ -60,6 +60,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
   const [manuelKonuAcik, setManuelKonuAcik] = useState(false)
   const [irtibatSekli, setIrtibatSekli] = useState('Telefon')
   const [notlar, setNotlar] = useState('')
+  const [gorusmeSonucu, setGorusmeSonucu] = useState('')
   // @mention için personel listesi
   const [personeller, setPersoneller] = useState([])
   useEffect(() => {
@@ -163,6 +164,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
       musteriAdi: muhatapAd.trim() || null,
       konu: sonKonu,
       notlar: notlar.trim() || null,
+      gorusmeSonucu: gorusmeSonucu.trim() || null,
       tip: irtibatSekli,
       durum,
       tarih: tarihStr,
@@ -340,8 +342,8 @@ export default function YeniGorusmeScreen({ navigation, route }) {
             })}
           </View>
 
-          {/* Notlar — @ ile personel etiketlenebilir */}
-          <Text style={[styles.label, { color: colors.textMuted }]}>Notlar / Takip</Text>
+          {/* Görüşme Açıklaması — @ ile personel etiketlenebilir */}
+          <Text style={[styles.label, { color: colors.textMuted }]}>Görüşme Açıklaması</Text>
           <MentionInput
             value={notlar}
             onChangeText={setNotlar}
@@ -349,6 +351,18 @@ export default function YeniGorusmeScreen({ navigation, route }) {
             placeholder="Görüşme detayları… @ ile arkadaşını etiketle"
             inputProps={{ numberOfLines: 5, textAlignVertical: 'top' }}
             style={[styles.input, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 110 }]}
+          />
+
+          {/* Görüşme Sonucu — web ile aynı kolon (gorusme_sonucu, mig 187) */}
+          <Text style={[styles.label, { color: colors.textMuted }]}>Görüşme Sonucu</Text>
+          <TextInput
+            value={gorusmeSonucu}
+            onChangeText={setGorusmeSonucu}
+            placeholder="Görüşme neticesi — varılan karar, anlaşılan adımlar…"
+            placeholderTextColor={colors.textFaded}
+            multiline
+            textAlignVertical="top"
+            style={[styles.input, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 70 }]}
           />
 
           {/* Dosyalar — web ile senkron (bucket: gorusme-dosyalari) */}

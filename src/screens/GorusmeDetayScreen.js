@@ -153,6 +153,7 @@ export default function GorusmeDetayScreen({ route, navigation }) {
       tarih: g.tarih || '',
       durum: g.durum || 'acik',
       takipNotu: g.takipNotu ?? g.notlar ?? '',
+      gorusmeSonucu: g.gorusmeSonucu ?? '',
     })
     setFirmaOneriGoster(false)
     setDuzenleAcik(true)
@@ -187,6 +188,7 @@ export default function GorusmeDetayScreen({ route, navigation }) {
         tarih: form.tarih || null,
         durum: form.durum,
         takipNotu: form.takipNotu || null,
+        gorusmeSonucu: form.gorusmeSonucu || null,
       })
       if (!guncellenen) {
         Alert.alert('Hata', 'Güncelleme başarısız oldu.')
@@ -387,12 +389,22 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                 })}
               </View>
 
-              <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>TAKİP NOTU</Text>
+              <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>GÖRÜŞME AÇIKLAMASI</Text>
               <TextInput
                 value={form.takipNotu}
                 onChangeText={v => setForm({ ...form, takipNotu: v })}
                 style={[styles.input, styles.textarea, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bg }]}
-                placeholder="Takip edilecek konular / notlar..."
+                placeholder="Görüşme detayları, takip edilecek konular..."
+                placeholderTextColor={colors.textFaded}
+                multiline
+              />
+
+              <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>GÖRÜŞME SONUCU</Text>
+              <TextInput
+                value={form.gorusmeSonucu}
+                onChangeText={v => setForm({ ...form, gorusmeSonucu: v })}
+                style={[styles.input, styles.textarea, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bg }]}
+                placeholder="Görüşme neticesi — varılan karar, anlaşılan adımlar..."
                 placeholderTextColor={colors.textFaded}
                 multiline
               />
@@ -432,12 +444,22 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                 {!!g.aktNo && <Satir ikon="hash" label="Aktivite No" value={g.aktNo} colors={colors} />}
               </View>
 
-              {/* Takip Notu */}
+              {/* Görüşme Açıklaması */}
               {!!(g.takipNotu || g.notlar) && (
                 <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Text style={[styles.label, { color: colors.textMuted }]}>TAKİP NOTU</Text>
+                  <Text style={[styles.label, { color: colors.textMuted }]}>GÖRÜŞME AÇIKLAMASI</Text>
                   <Text style={[styles.notlar, { color: colors.textPrimary }]} selectable>
                     {g.takipNotu || g.notlar}
+                  </Text>
+                </View>
+              )}
+
+              {/* Görüşme Sonucu — web ile aynı kolon (gorusme_sonucu, mig 187) */}
+              {!!g.gorusmeSonucu && (
+                <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  <Text style={[styles.label, { color: colors.textMuted }]}>GÖRÜŞME SONUCU</Text>
+                  <Text style={[styles.notlar, { color: colors.textPrimary }]} selectable>
+                    {g.gorusmeSonucu}
                   </Text>
                 </View>
               )}
