@@ -304,6 +304,29 @@ export default function GorevDetayScreen({ route, navigation }) {
           link: `/gorevler/${id}`,
         }).catch(() => {})
       }
+      // Paydaşlara da haber ver (web GorevDetay deseniyle aynı): görevi AÇAN +
+      // atanan + ekip — yazan kendisi ve mention'da zaten olanlar atlanır.
+      // (Eskiden mobil not yalnız mention'a bildirim atıyordu; görevi açan
+      // kişi nottan habersiz kalıyordu.)
+      const alanlar = new Set(mentionIdler.map(String))
+      const paydasIdler = []
+      const olusturanK = (personeller || []).find(p => p.ad === guncel.olusturanAd)
+      if (olusturanK?.id) paydasIdler.push(olusturanK.id)
+      const atananId = guncel.atananId ?? guncel.atanan
+      if (atananId) paydasIdler.push(atananId)
+      for (const eid of (guncel.ekip || [])) paydasIdler.push(eid)
+      for (const pid of [...new Set(paydasIdler.map(x => String(x)))]) {
+        if (!pid || pid === String(kullanici?.id) || alanlar.has(pid)) continue
+        alanlar.add(pid)
+        bildirimEkleDb({
+          aliciId: Number(pid),
+          gonderenId: kullanici?.id,
+          tip: 'gorev',
+          baslik: `💬 ${kullanici?.ad || 'Bir arkadaşın'} göreve not ekledi`,
+          mesaj: `"${guncel.baslik || 'Görev'}": ${metin.slice(0, 90)}`,
+          link: `/gorevler/${id}`,
+        }).catch(() => {})
+      }
       setGorev(guncel)
       setYeniNot('')
       setSecilenFotolar([])
