@@ -9,15 +9,20 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  Alert,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { destekTalepGetir, durumEtiket } from '../services/destekService'
+import { destekTalepGetir, destekTalepSil, durumEtiket } from '../services/destekService'
 import { tarihSaatFormat } from '../utils/format'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
 
-export default function DestekDetayScreen({ route }) {
+export default function DestekDetayScreen({ route, navigation }) {
   const { id } = route.params
   const { colors } = useTheme()
+  const { kullanici } = useAuth()
+  // Destek yöneticisi TEK kişi: Oğuz Meriç (id 2) — mig 190 RLS aynı kuralı DB'de uygular
+  const yoneticiMi = Number(kullanici?.id) === 2
   const [talep, setTalep] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fotoTamEkran, setFotoTamEkran] = useState(null)
@@ -83,6 +88,34 @@ export default function DestekDetayScreen({ route }) {
               Destek ekibi talebini inceliyor. Cevap gelince burada görünecek.
             </Text>
           </View>
+        )}
+
+        {/* Sil — yalnız destek yöneticisi (web ile senkron, kalıcı silme) */}
+        {yoneticiMi && (
+          <TouchableOpacity
+            style={styles.silBtn}
+            activeOpacity={0.8}
+            onPress={() => {
+              Alert.alert(
+                'Talebi Sil',
+                'Bu destek talebi kalıcı olarak silinecek. Emin misin?',
+                [
+                  { text: 'Vazgeç', style: 'cancel' },
+                  {
+                    text: 'Sil', style: 'destructive',
+                    onPress: async () => {
+                      const ok = await destekTalepSil(id)
+                      if (ok) navigation.goBack()
+                      else Alert.alert('Hata', 'Talep silinemedi.')
+                    },
+                  },
+                ]
+              )
+            }}
+          >
+            <Feather name="trash-2" size={15} color="#ef4444" />
+            <Text style={styles.silBtnText}>Talebi Sil</Text>
+          </TouchableOpacity>
         )}
       </ScrollView>
 
@@ -164,6 +197,20 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(148, 163, 184, 0.2)',
   },
   bekleniyorText: { color: '#94a3b8', fontSize: 13, flex: 1, lineHeight: 18 },
+
+  silBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 24,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+  },
+  silBtnText: { color: '#ef4444', fontSize: 13, fontWeight: '700' },
 
   tamEkranBg: {
     flex: 1,

@@ -58,6 +58,16 @@ export const destekTalepCevapla = async (id, cevap, _cevaplayanAd) => {
   return toCamel(data)
 }
 
+// Silme — RLS gereği yalnız Oğuz Meriç (kullanicilar.id=2) başarılı olur (mig 190)
+export const destekTalepSil = async (id) => {
+  const { error } = await supabase.from('destek_talepleri').delete().eq('id', id)
+  if (error) {
+    console.error('destekTalepSil hata:', error.message)
+    return false
+  }
+  return true
+}
+
 export const destekTalepKapat = async (id) => {
   const { error } = await supabase
     .from('destek_talepleri')
