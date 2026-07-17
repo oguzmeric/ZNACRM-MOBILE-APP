@@ -21,7 +21,7 @@ import ScreenContainer from '../components/ScreenContainer'
 import Avatar from '../components/Avatar'
 import { banaAtananAktifGorevSayisi } from '../services/gorevService'
 import { banaAtananAktifTalepSayisi } from '../services/servisService'
-import { kullaniciMenuYetkileri } from '../services/menuYetkiService'
+import { kullaniciMenuYetkileri, menuGorunurMu } from '../services/menuYetkiService'
 import { okunmamisBildirimSayisi, bildirimleriDinle } from '../services/bildirimService'
 import { aktifZimmetleriGetir } from '../services/demoService'
 import DuyuruBanner from '../components/DuyuruBanner'
@@ -101,8 +101,9 @@ export default function HomeScreen({ navigation }) {
     setYetki(harita)
   }, [kullanici])
 
-  // Default: kayıt yoksa görünür (true)
-  const gorunur = (anahtar) => yetki[anahtar] !== false
+  // Web "Modül erişimleri" (kullanicilar.moduller) + mobil-özel gizleme (menu_yetkileri)
+  // birlikte: webde yetki verilmeyen modül mobilde de görünmez (Yunus vakası)
+  const gorunur = (anahtar) => menuGorunurMu(anahtar, kullanici, yetki)
 
   useEffect(() => { sayilariYukle(); yetkiYukle() }, [sayilariYukle, yetkiYukle])
   useFocusEffect(useCallback(() => { sayilariYukle(); yetkiYukle() }, [sayilariYukle, yetkiYukle]))

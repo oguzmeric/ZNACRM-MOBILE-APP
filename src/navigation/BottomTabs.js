@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
 import { View, Text, StyleSheet } from 'react-native'
@@ -7,6 +8,8 @@ import ServisTalepleriScreen from '../screens/ServisTalepleriScreen'
 import StokScreen from '../screens/StokScreen'
 import MusterilerScreen from '../screens/MusterilerScreen'
 import { colors } from '../theme'
+import { useAuth } from '../context/AuthContext'
+import { kullaniciMenuYetkileri, menuGorunurMu } from '../services/menuYetkiService'
 
 const Tab = createBottomTabNavigator()
 
@@ -21,6 +24,18 @@ const tabBarStyle = {
 }
 
 export default function BottomTabs() {
+  const { kullanici } = useAuth()
+  const [harita, setHarita] = useState({})
+
+  // Sekmeler de web "Modül erişimleri" + mobil menü yetkilerine uyar
+  // (eskiden herkes 5 sekmenin hepsini görüyordu)
+  useEffect(() => {
+    if (!kullanici?.id) return
+    kullaniciMenuYetkileri(kullanici.id).then(setHarita).catch(() => {})
+  }, [kullanici?.id])
+
+  const g = (anahtar) => menuGorunurMu(anahtar, kullanici, harita)
+
   return (
     <Tab.Navigator
       initialRouteName="Ana"
@@ -39,36 +54,44 @@ export default function BottomTabs() {
           tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
         }}
       />
-      <Tab.Screen
-        name="Görevler"
-        component={GorevlerScreen}
-        options={{
-          tabBarIcon: ({ color }) => <Feather name="check-square" size={22} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Servisler"
-        component={ServisTalepleriScreen}
-        options={{
-          tabBarIcon: ({ color }) => <Feather name="tool" size={22} color={color} />,
-          tabBarLabel: 'Servis',
-        }}
-      />
-      <Tab.Screen
-        name="Stok"
-        component={StokScreen}
-        options={{
-          tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Müşteriler"
-        component={MusterilerScreen}
-        options={{
-          tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} />,
-          tabBarLabel: 'Müşteri',
-        }}
-      />
+      {g('gorevler') && (
+        <Tab.Screen
+          name="Görevler"
+          component={GorevlerScreen}
+          options={{
+            tabBarIcon: ({ color }) => <Feather name="check-square" size={22} color={color} />,
+          }}
+        />
+      )}
+      {g('servisler') && (
+        <Tab.Screen
+          name="Servisler"
+          component={ServisTalepleriScreen}
+          options={{
+            tabBarIcon: ({ color }) => <Feather name="tool" size={22} color={color} />,
+            tabBarLabel: 'Servis',
+          }}
+        />
+      )}
+      {g('stok') && (
+        <Tab.Screen
+          name="Stok"
+          component={StokScreen}
+          options={{
+            tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} />,
+          }}
+        />
+      )}
+      {g('musteriler') && (
+        <Tab.Screen
+          name="Müşteriler"
+          component={MusterilerScreen}
+          options={{
+            tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} />,
+            tabBarLabel: 'Müşteri',
+          }}
+        />
+      )}
     </Tab.Navigator>
   )
 }

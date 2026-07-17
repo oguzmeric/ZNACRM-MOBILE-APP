@@ -18,6 +18,36 @@ const ADMIN_UNVANLARI = ['Genel Müdür', 'Genel Müdür Yardımcısı', 'Teknik
 const norm = (s) => (s ?? '').trim().toLocaleLowerCase('tr-TR')
 const adminMi = (unvan) => ADMIN_UNVANLARI.map(norm).includes(norm(unvan))
 
+// Mobil menü anahtarı → web "Modül erişimleri" (kullanicilar.moduller) eşlemesi.
+// Web Kullanıcılar sayfasında verilen yetkiler mobilde de geçerli olsun diye
+// (eskiden mobil yalnız menu_yetkileri'ne bakıyor, web yetkilerini YOK SAYIYORDU).
+export const MODUL_ESLEME = {
+  gorevler:   'gorevler',
+  servisler:  'servis_talepleri',
+  stok:       'stok',
+  tara:       'stok',            // barkod tarama = stok işlemi
+  teklif:     'musteriler',      // web'de Teklifler "Müşteri & Satış" modülüne bağlı
+  kesif:      'musteriler',
+  musteriler: 'musteriler',
+  gorusmeler: 'gorusmeler',
+  demolar:    'demolar',
+  arac_takip: 'arac_takip',
+  destek:     null,              // herkes
+}
+
+// Tek karar noktası (web MainLayout filtresiyle aynı kural):
+// 1) mobil-özel gizleme (menu_yetkileri gorunur=false) her zaman kazanır
+// 2) admin rolü her modülü görür
+// 3) modül eşlemesi yoksa (Takvim, Notlarım, Destek...) herkes görür
+// 4) aksi halde kullanicilar.moduller listesinde olmalı
+export const menuGorunurMu = (anahtar, kullanici, harita = {}) => {
+  if (harita[anahtar] === false) return false
+  if (kullanici?.rol === 'admin') return true
+  const modul = MODUL_ESLEME[anahtar]
+  if (modul === undefined || modul === null) return true
+  return Array.isArray(kullanici?.moduller) && kullanici.moduller.includes(modul)
+}
+
 // Bir kullanıcının yetki haritası: { menu_anahtari: gorunur }
 // Kayıt yoksa default true (görünür)
 export const kullaniciMenuYetkileri = async (kullaniciId) => {
