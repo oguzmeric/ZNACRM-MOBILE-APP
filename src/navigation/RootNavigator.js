@@ -1,4 +1,7 @@
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native'
+import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from '@react-navigation/native'
+
+// Push bildirimine dokununca App.js'in navigasyon yapabilmesi için global ref
+export const navigationRef = createNavigationContainerRef()
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { ActivityIndicator, View } from 'react-native'
@@ -144,7 +147,7 @@ export default function RootNavigator() {
   const navKey = !kullanici ? 'auth' : adminModu ? 'admin' : 'teknisyen'
 
   return (
-    <NavigationContainer key={navKey} theme={navTheme}>
+    <NavigationContainer key={navKey} theme={navTheme} ref={navigationRef}>
       <Stack.Navigator screenOptions={stackHeader}>
         {!kullanici ? (
           <>

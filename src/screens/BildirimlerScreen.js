@@ -19,6 +19,7 @@ import {
   bildirimleriDinle,
 } from '../services/bildirimService'
 import { badgeAyarla } from '../lib/pushBildirimKayit'
+import { bildirimLinkHedefi } from '../lib/bildirimLink'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 
@@ -87,17 +88,9 @@ export default function BildirimlerScreen({ navigation }) {
       await bildirimOkuDb(b.id)
     }
     if (!b.link) return
-    // Link örnekleri: /gorevler/123, /servis-talepleri/456 → mobile screen'lere map
-    const parcalar = b.link.split('/').filter(Boolean)
-    if (parcalar[0] === 'gorevler' && parcalar[1]) {
-      navigation.navigate('GörevDetay', { id: parseInt(parcalar[1]) })
-    } else if (parcalar[0] === 'servis-talepleri' && parcalar[1]) {
-      navigation.navigate('ServisDetay', { id: parseInt(parcalar[1]) })
-    } else if (parcalar[0] === 'gorusmeler' && parcalar[1]) {
-      navigation.navigate('GorusmeDetay', { id: parseInt(parcalar[1]) })
-    } else if (parcalar[0] === 'teklifler' && parcalar[1]) {
-      navigation.navigate('TeklifDetay', { id: parseInt(parcalar[1]) })
-    }
+    // Link → ekran eşlemesi tek yerde (lib/bildirimLink) — push tıklamasıyla ortak
+    const hedef = bildirimLinkHedefi(b.link, kullanici)
+    if (hedef) navigation.navigate(...hedef)
   }
 
   const sil = (b) => {

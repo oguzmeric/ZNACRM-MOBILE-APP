@@ -10,8 +10,9 @@ import * as Sentry from '@sentry/react-native'
 import * as Notifications from 'expo-notifications'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
 import { ThemeProvider, useTheme } from './src/context/ThemeContext'
-import RootNavigator from './src/navigation/RootNavigator'
+import RootNavigator, { navigationRef } from './src/navigation/RootNavigator'
 import { toplantiHatirlaticilariniYenile } from './src/lib/toplantiHatirlatici'
+import { bildirimLinkHedefi } from './src/lib/bildirimLink'
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
@@ -75,20 +76,44 @@ function ToplantiHatirlaticiKurulum() {
 
 function AppInner() {
   const { colors, mod } = useTheme()
+  const { kullanici } = useAuth()
   const responseListener = useRef(null)
   const receivedListener = useRef(null)
+  const kullaniciRef = useRef(null)
+  useEffect(() => { kullaniciRef.current = kullanici }, [kullanici])
 
   useEffect(() => {
+    // Push'a dokununca ilgili ekrana git (bildirimLinkHedefi eşler).
+    // Navigasyon/oturum henüz hazır değilse kısa aralıklarla yeniden dene
+    // (uygulama push'tan soğuk açıldığında gerekir).
+    const linkeGit = (data, deneme = 0) => {
+      if (data?.tip === 'toplanti' && data?.link) {
+        try { Linking.openURL(data.link) } catch {}
+        return
+      }
+      if (!data?.link) return
+      if (!navigationRef.isReady() || !kullaniciRef.current?.id) {
+        if (deneme < 10) setTimeout(() => linkeGit(data, deneme + 1), 700)
+        return
+      }
+      const hedef = bildirimLinkHedefi(data.link, kullaniciRef.current)
+      if (hedef) {
+        try { navigationRef.navigate(...hedef) } catch (e) { console.warn('[push nav]', e?.message) }
+      }
+    }
+
     // Foreground'da bildirim geldiğinde — sadece logla, handler shouldShowAlert ile zaten gösterir
     receivedListener.current = Notifications.addNotificationReceivedListener(() => {})
 
-    // Kullanıcı bildirime dokunduğunda — toplantı bildirimindeyse Meet linkini aç
+    // Kullanıcı bildirime dokunduğunda (uygulama açık/arka planda)
     responseListener.current = Notifications.addNotificationResponseReceivedListener((resp) => {
-      const data = resp?.notification?.request?.content?.data
-      if (data?.tip === 'toplanti' && data?.link) {
-        try { Linking.openURL(data.link) } catch {}
-      }
+      linkeGit(resp?.notification?.request?.content?.data)
     })
+
+    // Uygulama push'a dokunularak KAPALIYKEN açıldıysa — son yanıtı yakala
+    Notifications.getLastNotificationResponseAsync()
+      .then((resp) => { if (resp) linkeGit(resp?.notification?.request?.content?.data) })
+      .catch(() => {})
 
     return () => {
       try { Notifications.removeNotificationSubscription(receivedListener.current) } catch {}
