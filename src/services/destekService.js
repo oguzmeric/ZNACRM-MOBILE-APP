@@ -1,5 +1,6 @@
 import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
+import { bildirimEkleDb } from './bildirimService'
 
 export const kullaniciDestekTalepleriniGetir = async (kullaniciId) => {
   const data = await tumSayfalariCek('destek_talepleri', (q) =>
@@ -28,6 +29,22 @@ export const destekTalepEkle = async (talep) => {
     console.error('destekTalepEkle hata:', error.message)
     return null
   }
+  // Destek yöneticisine (Oğuz Meriç, id 2) haber ver — web ile aynı davranış.
+  // bildirimler INSERT → DB trigger'ı push'u da gönderir (webden eksikti,
+  // mobilden açılan talepler sessiz kalıyordu — 2026-07-17).
+  try {
+    const DESTEK_YONETICISI_ID = 2
+    if (String(rest.kullaniciId) !== String(DESTEK_YONETICISI_ID)) {
+      await bildirimEkleDb({
+        aliciId: DESTEK_YONETICISI_ID,
+        gonderenId: rest.kullaniciId || null,
+        baslik: `🆘 Yeni destek talebi — ${rest.kullaniciAd || ''}`,
+        mesaj: (rest.mesaj || '').slice(0, 90),
+        tip: 'destek',
+        link: '/destek',
+      })
+    }
+  } catch (e) { console.warn('[destek] yönetici bildirimi:', e?.message) }
   return toCamel(data)
 }
 
