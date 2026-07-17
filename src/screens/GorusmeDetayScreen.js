@@ -210,6 +210,23 @@ export default function GorusmeDetayScreen({ route, navigation }) {
     setForm({ ...form, gorusen: yeni.join(', ') })
   }
 
+  // Sadece Yönetici Görsün (mig 188) — aynı DB alanı, web ile anında senkron
+  const gizliToggle = async () => {
+    const yeni = !g.yalnizYonetici
+    const gncl = await gorusmeGuncelle(id, { yalnizYonetici: yeni })
+    if (gncl) {
+      setG(gncl)
+      Alert.alert(
+        yeni ? 'Görüşme gizlendi' : 'Görüşme açıldı',
+        yeni
+          ? 'Bu görüşmeyi artık yalnız yöneticiler görebilir (web + mobil).'
+          : 'Görüşme tüm personele açıldı.'
+      )
+    } else {
+      Alert.alert('Hata', 'Güncellenemedi.')
+    }
+  }
+
   if (loading) {
     return <ScreenContainer><ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} /></ScreenContainer>
   }
@@ -244,17 +261,32 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                 )}
               </View>
               {!duzenleAcik && (
-                <TouchableOpacity
-                  onPress={duzenleAc}
-                  style={[styles.duzenleBtn, { borderColor: colors.border }]}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="edit-2" size={13} color={colors.textPrimary} />
-                  <Text style={[styles.duzenleText, { color: colors.textPrimary }]}>Düzenle</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {kullanici?.rol === 'admin' && (
+                    <TouchableOpacity
+                      onPress={gizliToggle}
+                      style={[styles.duzenleBtn, { borderColor: g.yalnizYonetici ? '#dc2626' : colors.border }]}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name={g.yalnizYonetici ? 'unlock' : 'lock'} size={13} color={g.yalnizYonetici ? '#dc2626' : colors.textPrimary} />
+                      <Text style={[styles.duzenleText, { color: g.yalnizYonetici ? '#dc2626' : colors.textPrimary }]}>
+                        {g.yalnizYonetici ? 'Gizli — Aç' : 'Gizle'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity
+                    onPress={duzenleAc}
+                    style={[styles.duzenleBtn, { borderColor: colors.border }]}
+                    activeOpacity={0.7}
+                  >
+                    <Feather name="edit-2" size={13} color={colors.textPrimary} />
+                    <Text style={[styles.duzenleText, { color: colors.textPrimary }]}>Düzenle</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
             <View style={styles.rozetRow}>
+              {!!g.yalnizYonetici && <Rozet renk="#dc2626" text="🔒 Yalnız Yönetici" />}
               {!!g.konu && <Rozet renk={colors.primary} text={g.konu} />}
               {!!g.irtibatSekli && <Rozet renk={colors.info ?? '#06b6d4'} text={g.irtibatSekli} />}
               {!!g.durum && <Rozet renk={colors.warning ?? '#f59e0b'} text={DURUM_ETIKET[g.durum] ?? g.durum} />}
