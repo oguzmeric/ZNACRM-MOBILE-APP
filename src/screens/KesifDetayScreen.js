@@ -22,6 +22,7 @@ import {
   kesifKalemleriGetir, kesifKalemEkle, kesifKalemSil,
   kesifFotolariGetir, kesifFotoYukle, kesifFotoSil, kesifFotoUrlleri,
   kesifFotoGuncelle, kesifFotoCizimKaydet, kesifFotoEtiketBilgi,
+  kesifKrokileriGetir, kesifKrokiKaydet, kesifKrokiSil, krokiSembolBilgi,
   KESIF_KATEGORILERI, KESIF_TURLERI, KESIF_DURUMLARI, KESIF_ONCELIKLERI,
   KESIF_FOTO_ETIKETLERI,
 } from '../services/kesifService'
@@ -50,6 +51,12 @@ export default function KesifDetayScreen({ route, navigation }) {
   const [cizimKaydediliyor, setCizimKaydediliyor] = useState(false)
   const [goruntule, setGoruntule] = useState(null)     // { foto, cizimli } — tam ekran görüntüleyici
   const [fotoMenuFoto, setFotoMenuFoto] = useState(null) // alt sayfa seçenek menüsü — HOOK'lar erken dönüşten ÖNCE!
+  // Krokiler (mig 202) — boş tuvalde saha yerleşim planı
+  const [krokiler, setKrokiler] = useState([])
+  const [krokiBaslikModal, setKrokiBaslikModal] = useState(false)
+  const [krokiBaslik, setKrokiBaslik] = useState('')
+  const [krokiDuzenlenen, setKrokiDuzenlenen] = useState(null) // { id?, baslik, veri, gorselYolu }
+  const [krokiKaydediliyor, setKrokiKaydediliyor] = useState(false)
 
   // Yeni kalem formu
   const [kKategori, setKKategori] = useState('kamera')
@@ -59,16 +66,21 @@ export default function KesifDetayScreen({ route, navigation }) {
   const [kNot, setKNot] = useState('')
 
   const yukle = useCallback(async () => {
-    const [k, kal, fot] = await Promise.all([
+    const [k, kal, fot, kro] = await Promise.all([
       kesifGetir(kesifId),
       kesifKalemleriGetir(kesifId),
       kesifFotolariGetir(kesifId),
+      kesifKrokileriGetir(kesifId),
     ])
     setKesif(k)
     setKalemler(kal)
     setFotolar(fot)
-    // Orijinal + çizimli yollar birlikte imzalanır
-    setFotoUrls(await kesifFotoUrlleri(fot.flatMap(f => [f.dosyaYolu, f.cizimYolu]).filter(Boolean)))
+    setKrokiler(kro)
+    // Orijinal + çizimli + kroki yolları birlikte imzalanır
+    setFotoUrls(await kesifFotoUrlleri([
+      ...fot.flatMap(f => [f.dosyaYolu, f.cizimYolu]),
+      ...kro.map(x => x.gorselYolu),
+    ].filter(Boolean)))
     setYukleniyor(false)
     if (k?.kesifNo) navigation.setOptions({ title: k.kesifNo })
   }, [kesifId, navigation])
@@ -222,6 +234,58 @@ export default function KesifDetayScreen({ route, navigation }) {
   const duzenleyebilir = (f) =>
     kullanici?.rol === 'admin' || !f.olusturanId || String(f.olusturanId) === String(kullanici?.id)
 
+  // ─── Krokiler ───
+  const krokiKaydetHandler = async (base64Png, veri) => {
+    setKrokiKaydediliyor(true)
+    const sonuc = await kesifKrokiKaydet({
+      id: krokiDuzenlenen?.id,
+      kesifId,
+      baslik: krokiDuzenlenen?.baslik,
+      veri,
+      pngBase64: base64Png,
+      mevcutYol: krokiDuzenlenen?.gorselYolu,
+      kullanici,
+    })
+    setKrokiKaydediliyor(false)
+    if (!sonuc.ok) { Alert.alert('Hata', sonuc.hata || 'Kroki kaydedilemedi.'); return }
+    setKrokiDuzenlenen(null)
+    const kayit = sonuc.kroki
+    setKrokiler(prev => prev.some(x => x.id === kayit.id)
+      ? prev.map(x => x.id === kayit.id ? kayit : x)
+      : [...prev, kayit])
+    const yeniUrls = await kesifFotoUrlleri([kayit.gorselYolu])
+    setFotoUrls(prev => ({ ...prev, ...yeniUrls }))
+  }
+
+  const krokiMenu = (k) => {
+    const yetkili = duzenleyebilir(k)
+    if (!yetkili) return
+    // 3 buton — Android Alert sınırına uyar
+    Alert.alert(k.baslik, undefined, [
+      { text: 'Düzenle', onPress: () => setKrokiDuzenlenen({ id: k.id, baslik: k.baslik, veri: k.veri, gorselYolu: k.gorselYolu }) },
+      {
+        text: 'Sil', style: 'destructive',
+        onPress: async () => {
+          const onay = await confirmSil(`"${k.baslik}" silinsin mi?`)
+          if (!onay) return
+          const ok = await kesifKrokiSil(k)
+          if (ok) setKrokiler(prev => prev.filter(x => x.id !== k.id))
+          else Alert.alert('Silinemedi', 'Krokiyi yalnız çizen kişi veya yönetici silebilir.')
+        },
+      },
+      { text: 'Vazgeç', style: 'cancel' },
+    ])
+  }
+
+  const krokiSembolOzet = (k) => {
+    const say = new Map()
+    for (const s of (k.veri?.sekiller || [])) {
+      if (s.tip !== 'sembol') continue
+      say.set(s.sembol, (say.get(s.sembol) || 0) + 1)
+    }
+    return [...say.entries()].map(([id, n]) => `${n} ${krokiSembolBilgi(id).ad}`).join(' · ')
+  }
+
   const fotoKaldir = async (f) => {
     const onay = await confirmSil('Bu fotoğraf (varsa çizimiyle) silinsin mi?')
     if (!onay) return
@@ -367,6 +431,48 @@ export default function KesifDetayScreen({ route, navigation }) {
                       <Text numberOfLines={1} style={{ color: colors.textMuted, fontSize: 10 }}>
                         {f.olusturanAd || '—'}
                       </Text>
+                    </View>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          )}
+
+          {/* Krokiler — boş tuvalde saha yerleşim planı (mig 202) */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={bolumBaslik}>🗺️ Krokiler ({krokiler.length})</Text>
+            <TouchableOpacity
+              onPress={() => { setKrokiBaslik(`Kroki ${krokiler.length + 1}`); setKrokiBaslikModal(true) }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14,
+                paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: colors.primary,
+              }}>
+              <Feather name="edit-3" size={13} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>Kroki Çiz</Text>
+            </TouchableOpacity>
+          </View>
+          {krokiler.length === 0 ? (
+            <Text style={{ color: colors.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: 4 }}>
+              Mekânın yerleşimini çiz: duvarlar, kamera noktaları (K1, K2…), kablo güzergahı.
+              Semboller malzeme kalemlerine bağlanabilir.
+            </Text>
+          ) : (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              {krokiler.map(k => {
+                const url = fotoUrls[k.gorselYolu]
+                const ozet = krokiSembolOzet(k)
+                return (
+                  <TouchableOpacity key={k.id} onPress={() => krokiMenu(k)} activeOpacity={0.8}
+                    style={{
+                      width: '48%', borderRadius: 10, overflow: 'hidden',
+                      backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+                    }}>
+                    <View style={{ aspectRatio: 4 / 3, backgroundColor: '#fff' }}>
+                      {url && <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />}
+                    </View>
+                    <View style={{ padding: 8, gap: 2 }}>
+                      <Text numberOfLines={1} style={{ color: colors.textPrimary, fontSize: 12, fontWeight: '700' }}>{k.baslik}</Text>
+                      {!!ozet && <Text numberOfLines={1} style={{ color: colors.textMuted, fontSize: 10.5 }}>{ozet}</Text>}
                     </View>
                   </TouchableOpacity>
                 )
@@ -645,6 +751,51 @@ export default function KesifDetayScreen({ route, navigation }) {
         onKapat={() => setCizilen(null)}
         onKaydet={cizimKaydetHandler}
         kaydediliyor={cizimKaydediliyor}
+      />
+
+      {/* KROKİ BAŞLIK modalı */}
+      <Modal visible={krokiBaslikModal} transparent animationType="fade" onRequestClose={() => setKrokiBaslikModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.75)', justifyContent: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18 }}>
+            <Text style={{ color: '#0f172a', fontSize: 15, fontWeight: '700', marginBottom: 10 }}>Yeni Kroki</Text>
+            <TextInput
+              value={krokiBaslik}
+              onChangeText={setKrokiBaslik}
+              placeholder="Örn. Zemin kat, Dükkan içi, Otopark…"
+              placeholderTextColor="#94a3b8"
+              style={{
+                borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#cbd5e1',
+                color: '#0f172a', backgroundColor: '#fff',
+              }}
+            />
+            <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
+              <TouchableOpacity onPress={() => setKrokiBaslikModal(false)}
+                style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#fff' }}>
+                <Text style={{ color: '#475569', fontWeight: '600', fontSize: 13 }}>Vazgeç</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={!krokiBaslik.trim()}
+                onPress={() => {
+                  setKrokiBaslikModal(false)
+                  setKrokiDuzenlenen({ baslik: krokiBaslik.trim(), veri: null, gorselYolu: null })
+                }}
+                style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, backgroundColor: '#2563eb', opacity: krokiBaslik.trim() ? 1 : 0.5 }}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Çizime Başla</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* KROKİ EDİTÖRÜ — boş tuval + sembol paleti + kalem bağı */}
+      <KesifFotoCizimModal
+        visible={!!krokiDuzenlenen}
+        krokiModu
+        kalemler={kalemler}
+        baslangicSekilleri={krokiDuzenlenen?.veri?.sekiller || []}
+        onKapat={() => setKrokiDuzenlenen(null)}
+        onKaydet={krokiKaydetHandler}
+        kaydediliyor={krokiKaydediliyor}
       />
     </ScreenContainer>
   )

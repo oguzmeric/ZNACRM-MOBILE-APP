@@ -226,6 +226,68 @@ export const kesifFotoSil = async (foto) => {
   return true
 }
 
+// ---------- Krokiler (mig 202) ----------
+// Sembol paleti — web kesifService.KROKI_SEMBOLLERI ile AYNI liste
+export const KROKI_SEMBOLLERI = [
+  { id: 'kamera',  kod: 'K',  ad: 'Kamera',          renk: '#2563eb' },
+  { id: 'ptz',     kod: 'P',  ad: 'PTZ Kamera',      renk: '#7c3aed' },
+  { id: 'nvr',     kod: 'N',  ad: 'NVR / Kayıt',     renk: '#0f766e' },
+  { id: 'switch',  kod: 'S',  ad: 'Switch',          renk: '#0891b2' },
+  { id: 'guc',     kod: 'G',  ad: 'Güç Noktası',     renk: '#ea580c' },
+  { id: 'network', kod: 'NT', ad: 'Network Noktası', renk: '#4f46e5' },
+  { id: 'bariyer', kod: 'B',  ad: 'Bariyer',         renk: '#b91c1c' },
+  { id: 'turnike', kod: 'T',  ad: 'Turnike',         renk: '#a16207' },
+  { id: 'kapi',    kod: 'KP', ad: 'Kapı',            renk: '#64748b' },
+]
+export const krokiSembolBilgi = (id) => KROKI_SEMBOLLERI.find(s => s.id === id) || KROKI_SEMBOLLERI[0]
+
+export const kesifKrokileriGetir = async (kesifId) => {
+  const { data, error } = await supabase
+    .from('kesif_krokiler')
+    .select('*')
+    .eq('kesif_id', kesifId)
+    .order('olusturma_tarih', { ascending: true })
+  if (error) { console.warn('[kesif] krokiler:', error.message); return [] }
+  return arrayToCamel(data ?? [])
+}
+
+// Yeni kroki VEYA güncelleme: flatten PNG (Skia base64) aynı yola upsert
+export async function kesifKrokiKaydet({ id, kesifId, baslik, veri, pngBase64, mevcutYol, kullanici }) {
+  const yol = mevcutYol || `${kesifId}/kroki/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.png`
+  const buf = base64ToArrayBuffer(pngBase64)
+  if (!buf?.byteLength) return { ok: false, hata: 'Kroki görseli boş.' }
+  const { error: upErr } = await supabase.storage.from(FOTO_BUCKET).upload(yol, buf, {
+    contentType: 'image/png', upsert: true,
+  })
+  if (upErr) return { ok: false, hata: 'Yükleme hatası: ' + upErr.message }
+  if (id) {
+    const { data, error } = await supabase.from('kesif_krokiler').update({
+      baslik: baslik || 'Kroki', veri, gorsel_yolu: yol,
+      guncelleme_tarih: new Date().toISOString(),
+    }).eq('id', id).select()
+    if (error) return { ok: false, hata: error.message }
+    if (!data?.length) return { ok: false, hata: 'Güncelleme yetkin yok — yalnız çizen kişi veya yönetici.' }
+    return { ok: true, kroki: toCamel(data[0]) }
+  }
+  const { data, error } = await supabase.from('kesif_krokiler').insert({
+    kesif_id: kesifId, baslik: baslik || 'Kroki', veri, gorsel_yolu: yol,
+    olusturan_ad: kullanici?.ad || null, olusturan_id: kullanici?.id || null,
+  }).select().single()
+  if (error) {
+    await supabase.storage.from(FOTO_BUCKET).remove([yol]).catch(() => {})
+    return { ok: false, hata: error.message }
+  }
+  return { ok: true, kroki: toCamel(data) }
+}
+
+export const kesifKrokiSil = async (kroki) => {
+  const { data, error } = await supabase.from('kesif_krokiler').delete().eq('id', kroki.id).select('id')
+  if (error) { console.warn('[kesif] kroki sil:', error.message); return false }
+  if (!data?.length) return false
+  if (kroki.gorselYolu) await supabase.storage.from(FOTO_BUCKET).remove([kroki.gorselYolu]).catch(() => {})
+  return true
+}
+
 // Private bucket — okuma signed URL ile
 export async function kesifFotoUrl(yol, saniye = 3600) {
   const { data } = await supabase.storage.from(FOTO_BUCKET).createSignedUrl(yol, saniye)
