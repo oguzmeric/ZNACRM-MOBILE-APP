@@ -1524,10 +1524,35 @@ export default function GorevDetayScreen({ route, navigation }) {
           .map((item, siraIdx) => {
             const n = item
             const origIndex = item.origIndex
+
+            // SİSTEM HAREKETİ — gri kapsül; not değildir, düzenlenemez/silinemez
+            if (item.kaynak === 'hareket') {
+              return (
+                <View key={`hareket-${siraIdx}`} style={{ alignItems: 'center', marginBottom: 8 }}>
+                  <View style={{
+                    maxWidth: '94%', paddingHorizontal: 12, paddingVertical: 6,
+                    borderRadius: 999, backgroundColor: colors.surfaceDark ?? colors.surface,
+                    borderWidth: 1, borderColor: colors.border,
+                  }}>
+                    {(item.metinler || []).map((m, mi) => (
+                      <Text key={mi} style={{ color: colors.textMuted, fontSize: 11.5, textAlign: 'center', lineHeight: 16 }}>
+                        {m}
+                      </Text>
+                    ))}
+                    <Text style={{ color: colors.textFaded ?? colors.textMuted, fontSize: 10, textAlign: 'center', marginTop: 2 }}>
+                      {n.kullanici || 'Sistem'}{n.tarih ? ` · ${tarihSaatFormat(n.tarih)}` : ''}
+                    </Text>
+                  </View>
+                </View>
+              )
+            }
+
             const webMi = item.kaynak === 'web'
-            // Düzenle/sil yalnız kendi MOBİL notunda (web yorumları web'den yönetilir)
+            // Düzenle/sil yalnız kendi MOBİL notunda (web yorumları web'den yönetilir).
+            // origIndex null kontrolü ŞART — null===null eşleşmesi tüm kartları
+            // düzenleme moduna sokuyordu (2026-07-19 ekran görüntüsü bulgusu).
             const benimNotum = !webMi && n.kullanici === kullanici?.ad
-            const duzenleniyor = !webMi && duzenlenenNotIdx === origIndex
+            const duzenleniyor = item.kaynak === 'mobil' && origIndex !== null && duzenlenenNotIdx === origIndex
             return (
               <View key={webMi ? `web-${siraIdx}` : `mobil-${origIndex}`} style={[styles.notCard, { backgroundColor: colors.surface }]}>
                 {duzenleniyor ? (
