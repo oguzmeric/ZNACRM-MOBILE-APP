@@ -49,6 +49,7 @@ export default function KesifDetayScreen({ route, navigation }) {
   const [cizilen, setCizilen] = useState(null)         // çizim yapılan foto
   const [cizimKaydediliyor, setCizimKaydediliyor] = useState(false)
   const [goruntule, setGoruntule] = useState(null)     // { foto, cizimli } — tam ekran görüntüleyici
+  const [fotoMenuFoto, setFotoMenuFoto] = useState(null) // alt sayfa seçenek menüsü — HOOK'lar erken dönüşten ÖNCE!
 
   // Yeni kalem formu
   const [kKategori, setKKategori] = useState('kamera')
@@ -231,7 +232,6 @@ export default function KesifDetayScreen({ route, navigation }) {
 
   // Doküman "Önerilen Ekran Mantığı": fotoğrafa dokununca seçenek menüsü.
   // Alert KULLANILMAZ — Android'de Alert en fazla 3 buton gösterir, 5 seçenek kırpılırdı.
-  const [fotoMenuFoto, setFotoMenuFoto] = useState(null)
   const fotoMenuSecenekleri = (f) => {
     if (!f) return []
     const yetkili = duzenleyebilir(f)

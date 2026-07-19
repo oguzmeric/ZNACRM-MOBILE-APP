@@ -44,6 +44,7 @@ import {
   gorevHareketleriGetir,
   gorevAyarlariGetir,
 } from '../services/gorevService'
+import { supabase } from '../lib/supabase'
 import { gorevFotosuYukle, gorevFotosuSil } from '../services/gorevFotoService'
 import { ekYukle } from '../services/ekYukleService'
 import { kullanicilariGetir } from '../services/kullaniciService'
@@ -226,6 +227,24 @@ export default function GorevDetayScreen({ route, navigation }) {
     return unsub
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigation])
+
+  // Realtime: web ile fark tazelikteydi — webden yazılan yorum/not/durum artık
+  // ekran açıkken de anında düşer (web GorevDetay'daki kanalın mobil karşılığı).
+  useEffect(() => {
+    const kanal = supabase
+      .channel(`gorev-detay-${id}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'gorev_yorumlari', filter: `gorev_id=eq.${id}` },
+        () => { gorevWebYorumlariGetir(id).then(setWebYorumlar).catch(() => {}) })
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'gorevler', filter: `id=eq.${id}` },
+        () => { gorevGetir(id).then((g) => { if (g) setGorev(g) }).catch(() => {}) })
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'gorev_hareketleri', filter: `gorev_id=eq.${id}` },
+        () => { gorevHareketleriGetir(id).then(setHareketler).catch(() => {}) })
+      .subscribe()
+    return () => { supabase.removeChannel(kanal) }
+  }, [id])
 
   // Header sağa 'Düzenle' butonu — sadece görev yüklendiyse
   useLayoutEffect(() => {
