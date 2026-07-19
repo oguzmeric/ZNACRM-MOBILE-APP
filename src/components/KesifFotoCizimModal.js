@@ -369,8 +369,8 @@ export default function KesifFotoCizimModal({
                   borderColor: secSembol === s.id ? '#60a5fa' : 'rgba(255,255,255,0.18)',
                   backgroundColor: secSembol === s.id ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.05)',
                 }}>
-                <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: s.renk, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: '#fff', fontSize: 7, fontWeight: '800' }}>{s.kod}</Text>
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: s.renk, alignItems: 'center', justifyContent: 'center' }}>
+                  <Feather name={s.ikon} size={11} color="#fff" />
                 </View>
                 <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{s.ad}</Text>
               </TouchableOpacity>
