@@ -13,6 +13,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext'
 import RootNavigator, { navigationRef } from './src/navigation/RootNavigator'
 import { toplantiHatirlaticilariniYenile } from './src/lib/toplantiHatirlatici'
 import { bildirimLinkHedefi } from './src/lib/bildirimLink'
+import GecikmisGorevKapisi from './src/components/GecikmisGorevKapisi'
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
@@ -125,6 +126,8 @@ function AppInner() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style={mod === 'gunduz' ? 'dark' : 'light'} />
       <ToplantiHatirlaticiKurulum />
+      {/* Gecikmiş GÖREV kapısı — yalnız görevler; servis talepleri etkilenmez */}
+      <GecikmisGorevKapisi />
       <RootNavigator />
     </View>
   )
