@@ -131,6 +131,92 @@ export const gorevNotGuncelle = async (id, notIndex, yeniMetin) => {
   return gorevGuncelle(id, { notlar })
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Görev v2 — alt görevler / kabul / onay / kontrol listesi / hareketler
+// (mig 195-196; web src/services/gorevService.js ile aynı payload'lar)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Bir görevin doğrudan alt görevleri
+export const altGorevleriGetir = async (ustGorevId) => {
+  const { data, error } = await supabase
+    .from('gorevler')
+    .select('*')
+    .eq('ust_gorev_id', ustGorevId)
+    .order('gorev_no', { ascending: true })
+  if (error) { console.error('altGorevleriGetir hata:', error.message); return [] }
+  return arrayToCamel(data || [])
+}
+
+// Görev no'ya göre tüm ağaç (GRV-2026-000123-01, -01-01 ...) — no LIKE 'üstno-%'
+export const gorevAgaciGetir = async (gorevNo) => {
+  if (!gorevNo) return []
+  const { data, error } = await supabase
+    .from('gorevler')
+    .select('*')
+    .like('gorev_no', `${gorevNo}-%`)
+    .order('gorev_no', { ascending: true })
+  if (error) { console.error('gorevAgaciGetir hata:', error.message); return [] }
+  return arrayToCamel(data || [])
+}
+
+// Kabul akışı — hareket geçmişini DB trigger'ı yazar
+export const gorevGoruldu = (id) => gorevGuncelle(id, { kabulDurumu: 'goruldu' })
+
+export const gorevKabulEt = (id) => gorevGuncelle(id, { kabulDurumu: 'kabul_edildi' })
+
+export const gorevReddet = (id, sebep) =>
+  gorevGuncelle(id, { kabulDurumu: 'reddedildi', durum: 'reddedildi', redSebebi: sebep })
+
+// Onay akışı
+export const gorevOnayaGonder = (id) =>
+  gorevGuncelle(id, { durum: 'onay_bekliyor', onayDurumu: 'bekliyor', ilerleme: 100 })
+
+export const gorevOnayla = (id, not_) =>
+  gorevGuncelle(id, { durum: 'tamamlandi', onayDurumu: 'onaylandi', onayNotu: not_ || null, onayTarih: new Date().toISOString() })
+
+export const gorevRevizeIste = (id, not_) =>
+  gorevGuncelle(id, { durum: 'revize', onayDurumu: 'revize', onayNotu: not_ || null, ilerleme: 90 })
+
+// Kontrol listesi — mobilde işaretleme + görüntüleme (madde ekleme web'de)
+export const kontrolListesiGetir = async (gorevId) => {
+  const { data, error } = await supabase
+    .from('gorev_kontrol_listesi')
+    .select('*')
+    .eq('gorev_id', gorevId)
+    .order('sira')
+    .order('id')
+  if (error) { console.error('kontrolListesiGetir hata:', error.message); return [] }
+  return arrayToCamel(data || [])
+}
+
+export const kontrolMaddeIsaretle = async (id, tamamlandi, kullanici) => {
+  const degisiklik = toSnake({
+    tamamlandi,
+    tamamlayanId: tamamlandi ? kullanici?.id : null,
+    tamamlayanAd: tamamlandi ? kullanici?.ad : null,
+    tamamlanmaTarih: tamamlandi ? new Date().toISOString() : null,
+  })
+  const { data, error } = await supabase
+    .from('gorev_kontrol_listesi')
+    .update(degisiklik)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) { console.error('kontrolMaddeIsaretle hata:', error.message); return null }
+  return toCamel(data)
+}
+
+// Hareket geçmişi — SALT OKUNUR; yazan DB trigger'ıdır
+export const gorevHareketleriGetir = async (gorevId) => {
+  const { data, error } = await supabase
+    .from('gorev_hareketleri')
+    .select('*')
+    .eq('gorev_id', gorevId)
+    .order('olusturma_tarih', { ascending: true })
+  if (error) { console.error('gorevHareketleriGetir hata:', error.message); return [] }
+  return arrayToCamel(data || [])
+}
+
 // Bir not'tan tek bir foto URL'sini çıkar (notIndex notlar array'indeki pozisyon)
 export const gorevNotFotoCikar = async (id, notIndex, fotoUrl) => {
   const mevcut = await gorevGetir(id)

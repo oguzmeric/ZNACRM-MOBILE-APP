@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   Modal,
   Pressable,
   Linking,
+  Switch,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
@@ -24,12 +25,23 @@ import {
   gorevGetir,
   gorevGuncelle,
   gorevDurumGuncelle,
+  gorevEkle,
   gorevNotEkle,
   gorevSil,
   gorevNotFotoCikar,
   gorevNotGuncelle,
   gorevNotSil,
   gorevWebYorumlariGetir,
+  gorevAgaciGetir,
+  gorevGoruldu,
+  gorevKabulEt,
+  gorevReddet,
+  gorevOnayaGonder,
+  gorevOnayla,
+  gorevRevizeIste,
+  kontrolListesiGetir,
+  kontrolMaddeIsaretle,
+  gorevHareketleriGetir,
 } from '../services/gorevService'
 import { gorevFotosuYukle, gorevFotosuSil } from '../services/gorevFotoService'
 import { ekYukle } from '../services/ekYukleService'
@@ -38,21 +50,63 @@ import { bildirimEkleDb } from '../services/bildirimService'
 import { parseMentions } from '../lib/mention'
 import MentionInput, { MentionText } from '../components/MentionInput'
 import TarihSec from '../components/TarihSec'
+import SecimPicker from '../components/SecimPicker'
 import { useTheme } from '../context/ThemeContext'
+import { tarihSaatFormat, tarihFormat } from '../utils/format'
 import {
-  tarihSaatFormat,
-  renkDurum,
-  etiketDurum,
-  etiketOncelik,
-  renkOncelik,
-} from '../utils/format'
+  durumBilgi,
+  etkinDurum,
+  KAPALI_DURUMLAR,
+  SEBEP_ZORUNLU_DURUMLAR,
+  KABUL_MAP,
+  RET_SEBEPLERI,
+  ONAY_DURUM_ISIM,
+  oncelikBilgi,
+  ONCELIK_SECENEKLERI,
+  ILERLEME_ADIMLARI,
+} from '../lib/gorevSabitleri'
 
 const DURUM_SECENEKLERI = [
-  { id: 'bekliyor', label: 'Açık' },
-  { id: 'devam_ediyor', label: 'Devam Ediyor' },
-  { id: 'tamamlandi', label: 'Tamamlandı' },
-  { id: 'iptal', label: 'İptal' },
+  { id: 'bekliyor',         label: 'Atandı' },
+  { id: 'devam',            label: 'Devam Ediyor' },
+  { id: 'beklemede',        label: 'Beklemede' },
+  { id: 'bilgi_bekleniyor', label: 'Bilgi Bekleniyor' },
+  { id: 'tamamlandi',       label: 'Tamamlandı' },
+  { id: 'iptal',            label: 'İptal' },
 ]
+
+// Sebep modalı başlıkları (beklemede / bilgi_bekleniyor / iptal)
+const SEBEP_MODAL_BASLIK = {
+  beklemede: 'Beklemede — Sebep',
+  bilgi_bekleniyor: 'Bilgi Bekleniyor — Sebep',
+  iptal: 'İptal — Sebep',
+}
+
+// DD.MM.YYYY (hareket geçmişindeki tarih alanları için)
+const trTarih = (v) => (v ? String(v).slice(0, 10).split('-').reverse().join('.') : '—')
+
+// gorev_hareketleri 'guncellendi' detay satırını Türkçe kısa metne çevir
+const hareketAlanMetni = (d) => {
+  switch (d?.alan) {
+    case 'durum':        return `Durum: ${durumBilgi(d.eski).isim} → ${durumBilgi(d.yeni).isim}`
+    case 'atanan':       return `Atanan: ${d.eski || '—'} → ${d.yeni || '—'}`
+    case 'son_tarih':    return `Bitiş: ${trTarih(d.eski)} → ${trTarih(d.yeni)}`
+    case 'oncelik':      return `Öncelik: ${oncelikBilgi(d.eski).isim} → ${oncelikBilgi(d.yeni).isim}`
+    case 'ilerleme':     return `İlerleme: %${d.eski ?? 0} → %${d.yeni ?? 0}`
+    case 'kabul_durumu': return `Kabul: ${KABUL_MAP[d.yeni]?.isim || d.yeni}${d.sebep ? ` (${d.sebep})` : ''}`
+    case 'onay_durumu':  return `Onay: ${ONAY_DURUM_ISIM[d.yeni] || d.yeni || '—'}${d.not ? ` — ${d.not}` : ''}`
+    case 'durum_sebebi': return d.yeni ? `Sebep: ${d.yeni}` : null
+    default:             return null
+  }
+}
+
+const hareketMetinleri = (h) => {
+  if (h.islem === 'olusturuldu') return [`${h.yapanAd || 'Sistem'} görevi oluşturdu`]
+  if (h.islem === 'guncellendi') {
+    return (Array.isArray(h.detay) ? h.detay : []).map(hareketAlanMetni).filter(Boolean)
+  }
+  return []
+}
 
 const DEVAM_SEBEPLERI = [
   { id: 'hava_muhalefeti',   isim: 'Hava Muhalefeti',   ikon: '🌧️' },
@@ -80,6 +134,26 @@ export default function GorevDetayScreen({ route, navigation }) {
   const [duzenlenenNotMetin, setDuzenlenenNotMetin] = useState('')
   const [notGuncelleniyor, setNotGuncelleniyor] = useState(false)
   const [devamSebepModal, setDevamSebepModal] = useState(false)
+  // ─── v2 state ───
+  const [altGorevler, setAltGorevler] = useState([])       // gorev_no ağacı
+  const [kontrolListesi, setKontrolListesi] = useState([])
+  const [hareketler, setHareketler] = useState([])
+  const [hareketGoster, setHareketGoster] = useState(true)
+  const [redModal, setRedModal] = useState(false)
+  const [redSebep, setRedSebep] = useState(null)
+  const [redAciklama, setRedAciklama] = useState('')
+  const [durumSebepModal, setDurumSebepModal] = useState(null) // hedef durum id
+  const [durumSebepMetin, setDurumSebepMetin] = useState('')
+  const [onayIslemModal, setOnayIslemModal] = useState(null)   // 'onayla' | 'revize'
+  const [onayNotMetin, setOnayNotMetin] = useState('')
+  const [altGorevModal, setAltGorevModal] = useState(false)
+  const [agBaslik, setAgBaslik] = useState('')
+  const [agAtanan, setAgAtanan] = useState(null)   // kullanıcı id
+  const [agBitis, setAgBitis] = useState('')
+  const [agOncelik, setAgOncelik] = useState('normal')
+  const [agZorunlu, setAgZorunlu] = useState(false)
+  const [agKaydediliyor, setAgKaydediliyor] = useState(false)
+  const gorulduRef = useRef(false) // otomatik "görüldü" yalnız 1 kez
   // @mention için personel listesi
   const [personeller, setPersoneller] = useState([])
   useEffect(() => {
@@ -99,13 +173,31 @@ export default function GorevDetayScreen({ route, navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [devamSebepModal])
 
+  // Ben görevden sorumlu muyum? (birincil atanan veya ekip üyesi)
+  const sorumluMuyum = (g) => {
+    if (!g || !kullanici) return false
+    const bid = String(kullanici.id)
+    return String(g.atananId ?? '') === bid ||
+      (Array.isArray(g.ekip) && g.ekip.map(String).includes(bid))
+  }
+
   const yukle = async () => {
     setLoading(true)
     const g = await gorevGetir(id)
     setGorev(g)
     // Web yorumlarını da çek (mobil notlarla birleşik gösterilecek)
     gorevWebYorumlariGetir(id).then(setWebYorumlar).catch(() => {})
+    // v2 verileri — paralel, ekranı bloklamaz
+    gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
+    kontrolListesiGetir(id).then(setKontrolListesi).catch(() => {})
+    if (g?.gorevNo) gorevAgaciGetir(g.gorevNo).then(setAltGorevler).catch(() => {})
+    else setAltGorevler([])
     setLoading(false)
+    // Otomatik "görüldü" — atanan ekranı ilk açtığında (yalnız 1 kez)
+    if (g && g.kabulDurumu === 'atandi' && !gorulduRef.current && sorumluMuyum(g)) {
+      gorulduRef.current = true
+      gorevGoruldu(id).then((guncel) => { if (guncel) setGorev(guncel) }).catch(() => {})
+    }
   }
 
   useEffect(() => {
@@ -137,12 +229,63 @@ export default function GorevDetayScreen({ route, navigation }) {
     })
   }, [navigation, gorev, colors.primary])
 
+  // Onaylayıcıya (yoksa oluşturana) bildirim gönder
+  const onaylayiciyaBildir = (g) => {
+    let aliciId = g?.onaylayiciId ? Number(g.onaylayiciId) : null
+    if (!aliciId) {
+      const olusturanK = (personeller || []).find(p => p.ad === g?.olusturanAd)
+      aliciId = olusturanK?.id ? Number(olusturanK.id) : (g?.olusturanId ? Number(g.olusturanId) : null)
+    }
+    if (!aliciId || String(aliciId) === String(kullanici?.id)) return
+    bildirimEkleDb({
+      aliciId,
+      gonderenId: kullanici?.id,
+      tip: 'gorev',
+      baslik: 'Görev Onayınızı Bekliyor',
+      mesaj: `${kullanici?.ad || 'Bir arkadaşınız'} "${g?.baslik || 'Görev'}" görevini tamamladı, onayınızı bekliyor.`,
+      link: `/gorevler/${id}`,
+    }).catch(() => {})
+  }
+
   const durumDegistir = async (yeniDurum) => {
     if (yeniDurum === gorev?.durum) return
 
-    // Tamamlandı için en az 1 not/yorum şart — fotoğraf opsiyonel
-    // (mobil not VEYA web yorumu sayılır)
+    // Beklemede / Bilgi Bekleniyor / İptal → sebep ZORUNLU (modal)
+    if (SEBEP_ZORUNLU_DURUMLAR.includes(yeniDurum)) {
+      setDurumSebepMetin('')
+      setDurumSebepModal(yeniDurum)
+      return
+    }
+
     if (yeniDurum === 'tamamlandi') {
+      // Açık ZORUNLU alt görev varsa ana görev kapatılamaz
+      const acikZorunlu = altGorevler.filter(
+        (a) => a.zorunlu && !KAPALI_DURUMLAR.includes(a.durum)
+      )
+      if (acikZorunlu.length > 0) {
+        Alert.alert(
+          'Alt Görevler Açık',
+          `Zorunlu alt görevler tamamlanmadan bu görev kapatılamaz (${acikZorunlu.length} açık):\n\n${acikZorunlu.map(a => `• ${a.gorevNo || ''} ${a.baslik}`).join('\n')}`,
+          [{ text: 'Tamam' }]
+        )
+        return
+      }
+
+      // Bağımlılık kapısı (madde 16): bağlı görev bitmeden bu görev kapanamaz
+      if (gorev?.bagimliGorevId && gorev?.bagimlilikTuru === 'once_tamamlanmali') {
+        const bagimli = await gorevGetir(gorev.bagimliGorevId).catch(() => null)
+        if (bagimli && bagimli.durum !== 'tamamlandi') {
+          Alert.alert(
+            'Bağımlı Görev Açık',
+            `Önce bağımlı görev tamamlanmalı: ${bagimli.gorevNo || ''} "${bagimli.baslik}"`,
+            [{ text: 'Tamam' }]
+          )
+          return
+        }
+      }
+
+      // Tamamlandı için en az 1 not/yorum şart — fotoğraf opsiyonel
+      // (mobil not VEYA web yorumu sayılır)
       const toplamNot = (gorev?.notlar?.length ?? 0) + webYorumlar.length
       if (toplamNot === 0) {
         Alert.alert(
@@ -152,9 +295,40 @@ export default function GorevDetayScreen({ route, navigation }) {
         )
         return
       }
-    }
 
-    if (yeniDurum === 'tamamlandi') {
+      // Onay gerekli ise: tamamlama yerine ONAYA GÖNDER.
+      // İstisna: onaylayıcı BENSEM (onaylayici_id benim ya da onaylayıcı boş +
+      // görevi ben açtıysam) onay adımı gereksiz — doğrudan kapanır.
+      const benOnaylayici = gorev?.onaylayiciId
+        ? String(gorev.onaylayiciId) === String(kullanici?.id)
+        : (String(gorev?.olusturanId ?? '') === String(kullanici?.id) || gorev?.olusturanAd === kullanici?.ad)
+      if (gorev?.onayGerekli && !benOnaylayici) {
+        Alert.alert(
+          'Onaya Gönder',
+          'Bu görev onay gerektiriyor. Tamamlandı olarak işaretlenip onaya gönderilsin mi?',
+          [
+            { text: 'Vazgeç', style: 'cancel' },
+            {
+              text: 'Onaya Gönder',
+              onPress: async () => {
+                setUpdating(true)
+                const guncel = await gorevOnayaGonder(id)
+                setUpdating(false)
+                if (guncel) {
+                  setGorev(guncel)
+                  onaylayiciyaBildir(guncel)
+                  gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
+                  Alert.alert('Onaya Gönderildi', 'Görev onaya gönderildi. Onaylayıcı bilgilendirildi.')
+                } else {
+                  Alert.alert('Hata', 'Onaya gönderilemedi.')
+                }
+              },
+            },
+          ]
+        )
+        return
+      }
+
       Alert.alert('Görevi Tamamla', 'Bu görev "Tamamlandı" olarak kapatılsın mı?', [
         { text: 'Vazgeç', style: 'cancel' },
         {
@@ -163,7 +337,10 @@ export default function GorevDetayScreen({ route, navigation }) {
             setUpdating(true)
             const guncel = await gorevDurumGuncelle(id, yeniDurum)
             setUpdating(false)
-            if (guncel) setGorev(guncel)
+            if (guncel) {
+              setGorev(guncel)
+              gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
+            }
           },
         },
       ])
@@ -171,16 +348,186 @@ export default function GorevDetayScreen({ route, navigation }) {
     }
 
     setUpdating(true)
-    // Devam ediyor değilse mevcut sebep temizlenir; devam ediyor'a geçince sonra modal açılır
+    // Devam ediyor değilse mevcut sebep temizlenir; devam'a geçince sonra modal açılır
     const guncelleme = { durum: yeniDurum }
-    if (yeniDurum !== 'devam_ediyor') guncelleme.devamSebep = null
+    if (yeniDurum !== 'devam') guncelleme.devamSebep = null
     const guncel = await gorevGuncelle(id, guncelleme)
     setUpdating(false)
     if (guncel) {
       setGorev(guncel)
-      if (yeniDurum === 'devam_ediyor') setDevamSebepModal(true)
+      gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
+      if (yeniDurum === 'devam') setDevamSebepModal(true)
     } else {
       Alert.alert('Hata', 'Durum güncellenemedi.')
+    }
+  }
+
+  // Sebep zorunlu durum geçişi (beklemede / bilgi_bekleniyor / iptal)
+  const durumSebepKaydet = async () => {
+    const metin = durumSebepMetin.trim()
+    if (!metin) {
+      Alert.alert('Sebep Gerekli', 'Bu durum değişikliği için sebep yazman zorunlu.')
+      return
+    }
+    const hedef = durumSebepModal
+    setUpdating(true)
+    const guncel = await gorevGuncelle(id, { durum: hedef, durumSebebi: metin })
+    if (guncel) {
+      // Sebebi not olarak da düşür — timeline'da görünsün
+      const durumAd = DURUM_SECENEKLERI.find(d => d.id === hedef)?.label || hedef
+      const notlu = await gorevNotEkle(id, `Durum "${durumAd}" olarak değişti — Sebep: ${metin}`, kullanici?.ad)
+      setGorev(notlu || guncel)
+      gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
+      setDurumSebepModal(null)
+    } else {
+      Alert.alert('Hata', 'Durum güncellenemedi.')
+    }
+    setUpdating(false)
+  }
+
+  // ─── Kabul / Ret ───
+  const kabulEt = async () => {
+    setUpdating(true)
+    const guncel = await gorevKabulEt(id)
+    setUpdating(false)
+    if (guncel) {
+      setGorev(guncel)
+      gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
+    } else {
+      Alert.alert('Hata', 'Kabul kaydedilemedi.')
+    }
+  }
+
+  const reddiKaydet = async () => {
+    if (!redSebep) {
+      Alert.alert('Sebep Gerekli', 'Ret sebebi seçmen zorunlu.')
+      return
+    }
+    const sebepTam = redAciklama.trim() ? `${redSebep} — ${redAciklama.trim()}` : redSebep
+    setUpdating(true)
+    const guncel = await gorevReddet(id, sebepTam)
+    setUpdating(false)
+    if (!guncel) {
+      Alert.alert('Hata', 'Ret kaydedilemedi.')
+      return
+    }
+    setGorev(guncel)
+    setRedModal(false)
+    gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
+    // Oluşturana bildirim
+    const olusturanK = (personeller || []).find(p => p.ad === guncel.olusturanAd)
+    const aliciId = olusturanK?.id ?? guncel.olusturanId
+    if (aliciId && String(aliciId) !== String(kullanici?.id)) {
+      bildirimEkleDb({
+        aliciId: Number(aliciId),
+        gonderenId: kullanici?.id,
+        tip: 'gorev',
+        baslik: 'Görev Reddedildi',
+        mesaj: `${kullanici?.ad || 'Atanan kişi'} "${guncel.baslik || 'Görev'}" görevini reddetti. Sebep: ${sebepTam}`,
+        link: `/gorevler/${id}`,
+      }).catch(() => {})
+    }
+  }
+
+  // ─── Onay / Revize (onaylayıcı aksiyonları) ───
+  const onayIslemKaydet = async () => {
+    const not_ = onayNotMetin.trim()
+    if (onayIslemModal === 'revize' && !not_) {
+      Alert.alert('Not Gerekli', 'Revize isterken ne düzeltilmesi gerektiğini yazmalısın.')
+      return
+    }
+    setUpdating(true)
+    const guncel = onayIslemModal === 'onayla'
+      ? await gorevOnayla(id, not_)
+      : await gorevRevizeIste(id, not_)
+    setUpdating(false)
+    if (!guncel) {
+      Alert.alert('Hata', 'İşlem kaydedilemedi.')
+      return
+    }
+    setGorev(guncel)
+    setOnayIslemModal(null)
+    setOnayNotMetin('')
+    gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
+    // Sorumluya bildirim
+    const aliciId = guncel.atananId
+    if (aliciId && String(aliciId) !== String(kullanici?.id)) {
+      bildirimEkleDb({
+        aliciId: Number(aliciId),
+        gonderenId: kullanici?.id,
+        tip: 'gorev',
+        baslik: onayIslemModal === 'onayla' ? 'Göreviniz Onaylandı' : 'Görevde Revize İstendi',
+        mesaj: onayIslemModal === 'onayla'
+          ? `"${guncel.baslik || 'Görev'}" görevi onaylandı ve tamamlandı.${not_ ? ` Not: ${not_}` : ''}`
+          : `"${guncel.baslik || 'Görev'}" görevinde revize istendi: ${not_}`,
+        link: `/gorevler/${id}`,
+      }).catch(() => {})
+    }
+  }
+
+  // ─── İlerleme ───
+  const ilerlemeDegistir = async (deger) => {
+    if (Number(gorev?.ilerleme ?? 0) === deger) return
+    setUpdating(true)
+    const guncel = await gorevGuncelle(id, { ilerleme: deger })
+    setUpdating(false)
+    if (guncel) {
+      setGorev(guncel)
+      gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
+    }
+  }
+
+  // ─── Kontrol listesi ───
+  const kontrolToggle = async (madde) => {
+    const guncel = await kontrolMaddeIsaretle(madde.id, !madde.tamamlandi, kullanici)
+    if (guncel) {
+      setKontrolListesi((prev) => prev.map((m) => (m.id === guncel.id ? guncel : m)))
+    } else {
+      Alert.alert('Hata', 'Madde güncellenemedi.')
+    }
+  }
+
+  // ─── Alt görev oluştur ───
+  const altGorevKaydet = async () => {
+    if (!agBaslik.trim()) { Alert.alert('Eksik', 'Alt görev başlığı gerekli.'); return }
+    if (!agAtanan) { Alert.alert('Eksik', 'Alt görevi bir kişiye ata.'); return }
+    if (!agBitis) { Alert.alert('Eksik', 'Bitiş tarihi gerekli.'); return }
+    const atananK = (personeller || []).find(p => String(p.id) === String(agAtanan))
+    setAgKaydediliyor(true)
+    const yeni = await gorevEkle({
+      ustGorevId: gorev.id,           // gorev_no'yu (üstno-01) DB trigger atar
+      baslik: agBaslik.trim(),
+      atananId: atananK?.id ?? agAtanan,
+      atananAd: atananK?.ad ?? '',
+      oncelik: agOncelik,
+      zorunlu: agZorunlu,
+      bitisTarihi: agBitis,
+      bitisTarih: `${agBitis}T23:59`,
+      durum: 'bekliyor',
+      kabulDurumu: 'atandi',
+      olusturanAd: kullanici?.ad ?? '',
+      olusturanId: kullanici?.id ?? null,
+      musteriId: gorev.musteriId ?? null,
+      firmaAdi: gorev.firmaAdi ?? null,
+    })
+    setAgKaydediliyor(false)
+    if (!yeni) {
+      Alert.alert('Hata', 'Alt görev oluşturulamadı.')
+      return
+    }
+    setAltGorevModal(false)
+    setAgBaslik(''); setAgAtanan(null); setAgBitis(''); setAgOncelik('normal'); setAgZorunlu(false)
+    if (gorev?.gorevNo) gorevAgaciGetir(gorev.gorevNo).then(setAltGorevler).catch(() => {})
+    // Atanana bildirim
+    if (atananK?.id && String(atananK.id) !== String(kullanici?.id)) {
+      bildirimEkleDb({
+        aliciId: Number(atananK.id),
+        gonderenId: kullanici?.id,
+        tip: 'gorev',
+        baslik: 'Yeni Alt Görev Atandı',
+        mesaj: `${kullanici?.ad || 'Bir arkadaşınız'}, "${gorev.baslik}" kapsamında size "${yeni.baslik}" alt görevini atadı. Son tarih: ${trTarih(agBitis)}`,
+        link: `/gorevler/${yeni.id}`,
+      }).catch(() => {})
     }
   }
 
@@ -415,10 +762,22 @@ export default function GorevDetayScreen({ route, navigation }) {
   }
 
   const benimMi = gorev.olusturanAd === kullanici?.ad
+  const benSorumlu = sorumluMuyum(gorev)
+  const acikMi = !KAPALI_DURUMLAR.includes(gorev.durum)
+  const benOnaylayici =
+    String(gorev.onaylayiciId ?? '') === String(kullanici?.id ?? '') ||
+    (!gorev.onaylayiciId && (benimMi || String(gorev.olusturanId ?? '') === String(kullanici?.id ?? '')))
+  const kabulBariGoster =
+    benSorumlu && acikMi && ['atandi', 'goruldu'].includes(gorev.kabulDurumu)
+  const etkin = etkinDurum(gorev)
+  const kabulRozet = KABUL_MAP[gorev.kabulDurumu]
+  const ilerleme = Math.max(0, Math.min(100, Number(gorev.ilerleme ?? 0)))
+  const kontrolTamam = kontrolListesi.filter((m) => m.tamamlandi).length
 
   // Mobil notlar (gorevler.notlar, fotoğraflı, düzenlenebilir) + web yorumları
-  // (gorev_yorumlari, salt-okunur) birleşik — en yeni üstte. Böylece web'de
-  // yazılan yorumlar telefonda da görünür.
+  // (gorev_yorumlari, salt-okunur) + SİSTEM HAREKETLERİ (gorev_hareketleri,
+  // gri kapsül) birleşik — en yeni üstte. Böylece web'de yazılan yorumlar
+  // ve otomatik geçmiş telefonda da görünür.
   const tumNotlar = [
     ...(gorev.notlar ?? []).map((n, origIndex) => ({
       kaynak: 'mobil', origIndex,
@@ -430,6 +789,16 @@ export default function GorevDetayScreen({ route, navigation }) {
       metin: y.icerik, kullanici: y.yazarAd, tarih: y.olusturmaTarih,
       fotoUrls: [], dosyalar: y.dosyalar ?? [], duzenlendiTarih: y.duzenlendi ? y.guncellemeTarih : null,
     })),
+    ...(hareketGoster
+      ? hareketler
+          .map((h) => ({
+            kaynak: 'hareket', origIndex: null,
+            metinler: hareketMetinleri(h),
+            kullanici: h.yapanAd, tarih: h.olusturmaTarih,
+            fotoUrls: [], dosyalar: [],
+          }))
+          .filter((h) => h.metinler.length > 0)
+      : []),
   ].sort((a, b) => new Date(b.tarih || 0) - new Date(a.tarih || 0))
 
   return (

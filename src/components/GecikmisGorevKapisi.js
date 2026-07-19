@@ -11,6 +11,7 @@ import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { gorevleriGetir, gorevGuncelle, gorevNotEkle, gorevDurumGuncelle } from '../services/gorevService'
+import { bildirimEkleDb } from '../services/bildirimService'
 
 const SEBEPLER = [
   { id: 'hava_muhalefeti',   isim: 'Hava Muhalefeti',   ikon: 'cloud-rain' },
@@ -69,8 +70,11 @@ export default function GecikmisGorevKapisi() {
         const liste = await gorevleriGetir()
         if (iptal) return
         const bugun = bugunStr()
+        // Kapıya TAKILMAYAN durumlar: kapalılar + onayda bekleyen + taslak +
+        // bilinçli duraklatılmışlar (denetim bulgusu 2026-07-19, web ile aynı)
+        const KAPI_DISI = ['tamamlandi', 'iptal', 'reddedildi', 'onay_bekliyor', 'taslak', 'beklemede', 'bilgi_bekleniyor']
         const geciken = (liste || [])
-          .filter(g => g.durum !== 'tamamlandi')
+          .filter(g => !KAPI_DISI.includes(g.durum))
           .filter(g => g.sonTarih && String(g.sonTarih).slice(0, 10) < bugun)
           .filter(g => benimMi(g, kullanici.id))
           .sort((a, b) => String(a.sonTarih).localeCompare(String(b.sonTarih)))
@@ -130,6 +134,34 @@ export default function GecikmisGorevKapisi() {
   const tamamlandiYap = async () => {
     setMesgul(true)
     try {
+      // Kapı, detay ekranındaki kapıları BAYPAS edemez (denetim bulgusu):
+      // 1) Açık zorunlu alt görev varsa engelle
+      const liste = await gorevleriGetir().catch(() => [])
+      const KAPALI = ['tamamlandi', 'iptal', 'reddedildi']
+      const acikZorunluAlt = (liste || []).filter(a =>
+        String(a.ustGorevId) === String(aktif.id) && a.zorunlu !== false && !KAPALI.includes(a.durum))
+      if (acikZorunluAlt.length > 0) {
+        setHata(`Alt görevler tamamlanmadan bu görev kapatılamaz (${acikZorunluAlt.length} açık) — görev detayından yönet.`)
+        return
+      }
+      // 2) Onay gerekliyse doğrudan kapanmaz, onaya gider
+      const benOnaylayici = aktif.onaylayiciId
+        ? String(aktif.onaylayiciId) === String(kullanici?.id)
+        : (String(aktif.olusturanId ?? '') === String(kullanici?.id) || aktif.olusturanAd === kullanici?.ad)
+      if (aktif.onayGerekli && !benOnaylayici) {
+        const g = await gorevGuncelle(aktif.id, { durum: 'onay_bekliyor', onayDurumu: 'bekliyor', ilerleme: 100 })
+        if (!g) throw new Error('Onaya gönderilemedi')
+        const hedef = aktif.onaylayiciId || aktif.olusturanId
+        if (hedef && String(hedef) !== String(kullanici?.id)) {
+          bildirimEkleDb({
+            aliciId: hedef, baslik: '⏳ Görev onayınızı bekliyor',
+            mesaj: `${kullanici?.ad}, "${aktif.baslik}" görevini tamamladı — onayınız bekleniyor.`,
+            tip: 'gorev', link: `/gorevler/${aktif.id}`,
+          }).catch(() => {})
+        }
+        dusur()
+        return
+      }
       const g = await gorevDurumGuncelle(aktif.id, 'tamamlandi')
       if (!g) throw new Error('Görev güncellenemedi')
       dusur()
