@@ -1836,12 +1836,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'flex-end',
+    marginTop: 18,
   },
   modalBtn: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  modalBtnIptal: {
+    backgroundColor: '#ffffff',
+    borderColor: '#cbd5e1',
+  },
+  modalBtnIptalText: { color: '#475569', fontWeight: '600', fontSize: 13 },
+  modalBtnKaydet: {
+    backgroundColor: '#2563eb',
+    borderColor: '#2563eb',
   },
   modalBtnAtla: {
     backgroundColor: '#f1f5f9',
