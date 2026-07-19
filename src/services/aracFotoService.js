@@ -241,6 +241,24 @@ export async function referansKaydet({ aracId, bolge, dosyaUri, aciklama = null,
   return { ok: true, foto_url: yol, versiyon: (eski?.versiyon ?? 0) + 1 }
 }
 
+// Referansı SİL (yalnız Ferdi + admin) — DB satırı + storage dosyası kalkar;
+// bölge boşalınca o araçta günlük çekim kilidi yeniden devreye girer.
+// RLS 0-satır sahte başarısına karşı silinen satır doğrulanır.
+export async function referansSil(ref, kullanici) {
+  if (!referansYetkiliMi(kullanici)) {
+    return { ok: false, hata: 'Referansı yalnız Teknik Müdür veya admin silebilir.' }
+  }
+  if (!ref?.id) return { ok: false, hata: 'Kayıt bulunamadı' }
+  const { data, error } = await supabase
+    .from('arac_referans_fotolar').delete().eq('id', ref.id).select('id')
+  if (error) return { ok: false, hata: 'DB: ' + error.message }
+  if (!data || data.length === 0) return { ok: false, hata: 'Silme yetkisi yok (RLS engelledi).' }
+  if (ref.foto_url) {
+    supabase.storage.from('arac-fotolari').remove([ref.foto_url]).catch(() => {})
+  }
+  return { ok: true }
+}
+
 // Liste ekranı için toplu referans özeti: aracId → tamam bölge sayısı
 export async function tumAraclarReferansOzet() {
   const { data } = await supabase

@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import ScreenContainer from '../components/ScreenContainer'
 import {
   BOLGELER, ZAMANLAR, bugunkuKayitlariGetir, fotoKaydet, imzaliUrl, fotoKaydiSil,
-  referansDurumu, referansKaydet, referansYetkiliMi, FERDI_ID,
+  referansDurumu, referansKaydet, referansYetkiliMi, referansSil, FERDI_ID,
 } from '../services/aracFotoService'
 import { bildirimEkleDb } from '../services/bildirimService'
 
@@ -113,7 +113,11 @@ export default function AracFotoDetayScreen({ route, navigation }) {
   const kaydiSil = async () => {
     if (!onIzleme?.kayit) return
     setSiliniyor(true)
-    const r = await fotoKaydiSil(onIzleme.kayit)
+    // Referans modunda referans kaydı silinir (yalnız Ferdi + admin);
+    // bölge boşalır ve o araçta günlük çekim kilidi yeniden devreye girer
+    const r = referansModu
+      ? await referansSil(onIzleme.kayit, kullanici)
+      : await fotoKaydiSil(onIzleme.kayit)
     setSiliniyor(false)
     if (r.ok) {
       setOnIzleme(null); setSilmeOnay(false)
@@ -260,8 +264,9 @@ export default function AracFotoDetayScreen({ route, navigation }) {
               )}
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                {/* Referans SİLİNMEZ — yalnız yeni versiyon çekilir (arşiv ispattır) */}
-                {!referansModu && (
+                {/* Günlük kayıtta herkes kendi fotosunu, referans modunda yalnız
+                    Ferdi + admin siler (2026-07-19 talebi) */}
+                {(!referansModu || refYetkili) && (
                 <TouchableOpacity
                   onPress={silmeOnay ? kaydiSil : () => setSilmeOnay(true)}
                   disabled={siliniyor}
