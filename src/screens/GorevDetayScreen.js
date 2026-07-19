@@ -813,12 +813,109 @@ export default function GorevDetayScreen({ route, navigation }) {
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
+      {!!gorev.gorevNo && (
+        <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, marginBottom: 4 }}>
+          {gorev.gorevNo}
+        </Text>
+      )}
       <Text style={[styles.title, { color: colors.textPrimary }]}>{gorev.baslik}</Text>
 
       <View style={styles.row}>
-        <Badge text={etiketDurum(gorev.durum)} renk={renkDurum(gorev.durum)} />
+        <Badge text={etkin.isim} renk={etkin.renk} />
         <Badge text={etiketOncelik(gorev.oncelik)} renk={renkOncelik(gorev.oncelik)} />
+        {kabulRozet && gorev.kabulDurumu !== 'kabul_edildi' && gorev.durum !== 'tamamlandi' && (
+          <Badge text={kabulRozet.isim} renk={kabulRozet.renk} />
+        )}
       </View>
+
+      {/* Alt görevse üst göreve dön linki */}
+      {!!gorev.ustGorevId && (
+        <TouchableOpacity
+          onPress={() => navigation.push('GörevDetay', { id: gorev.ustGorevId })}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}
+        >
+          <Feather name="corner-left-up" size={14} color={colors.primary} />
+          <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '700' }}>Ana göreve git</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* İlerleme (madde 15) */}
+      <View style={{ marginTop: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surfaceDark, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+            <View style={{ width: `${gorev.durum === 'tamamlandi' ? 100 : ilerleme}%`, height: '100%', backgroundColor: (gorev.durum === 'tamamlandi' || ilerleme >= 100) ? colors.success : colors.primary }} />
+          </View>
+          <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '800', minWidth: 36, textAlign: 'right' }}>
+            %{gorev.durum === 'tamamlandi' ? 100 : ilerleme}
+          </Text>
+        </View>
+        {benSorumlu && acikMi && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {ILERLEME_ADIMLARI.map((p) => (
+                <TouchableOpacity
+                  key={p}
+                  onPress={() => ilerlemeDegistir(p)}
+                  disabled={updating}
+                  style={{
+                    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
+                    backgroundColor: ilerleme === p ? colors.primary : colors.surface,
+                    borderWidth: 1, borderColor: ilerleme === p ? colors.primary : colors.border,
+                  }}
+                >
+                  <Text style={{ color: ilerleme === p ? '#fff' : colors.textSecondary, fontSize: 11, fontWeight: '700' }}>{p}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        )}
+      </View>
+
+      {/* KABUL BARI (madde 11) — atanan, görevi kabul/ret eder */}
+      {kabulBariGoster && (
+        <View style={{
+          marginTop: 14, padding: 14, borderRadius: 12,
+          backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary,
+        }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '800' }}>Bu görev sana atandı</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4, lineHeight: 17 }}>
+            Görevi kabul edebilir ya da gerekçesiyle reddedebilirsin.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TouchableOpacity onPress={kabulEt} disabled={updating}
+              style={{ flex: 1, padding: 12, borderRadius: 10, alignItems: 'center', backgroundColor: colors.success, opacity: updating ? 0.6 : 1 }}>
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>✓ Görevi Kabul Et</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => { setRedSebep(null); setRedAciklama(''); setRedModal(true) }} disabled={updating}
+              style={{ flex: 1, padding: 12, borderRadius: 10, alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.danger }}>
+              <Text style={{ color: colors.danger, fontWeight: '800', fontSize: 13 }}>✕ Reddet</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ONAY PANELİ (madde 14) — onaylayıcıya karar butonları */}
+      {gorev.durum === 'onay_bekliyor' && benOnaylayici && (
+        <View style={{
+          marginTop: 14, padding: 14, borderRadius: 12,
+          backgroundColor: colors.surface, borderWidth: 1, borderColor: '#06b6d4',
+        }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '800' }}>Onayını bekliyor</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
+            {gorev.atananAd || 'Sorumlu'} görevi tamamladığını bildirdi — kontrol edip karar ver.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+            <TouchableOpacity onPress={() => { setOnayNotMetin(''); setOnayIslemModal('onayla') }} disabled={updating}
+              style={{ flex: 1, padding: 12, borderRadius: 10, alignItems: 'center', backgroundColor: colors.success }}>
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>✓ Onayla ve Tamamla</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => { setOnayNotMetin(''); setOnayIslemModal('revize') }} disabled={updating}
+              style={{ flex: 1, padding: 12, borderRadius: 10, alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.warning }}>
+              <Text style={{ color: colors.warning, fontWeight: '800', fontSize: 13 }}>↺ Revize İste</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {!!gorev.aciklama && (
         <View style={styles.section}>
@@ -878,7 +975,7 @@ export default function GorevDetayScreen({ route, navigation }) {
 
       {!!gorev.firmaAdi && (
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Firma</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Müşteri</Text>
           <Text style={[styles.body, { color: colors.textSecondary }]}>{gorev.firmaAdi}</Text>
         </View>
       )}
@@ -928,8 +1025,107 @@ export default function GorevDetayScreen({ route, navigation }) {
         })}
       </View>
 
-      {/* Devam sebebi göstergesi + değiştir butonu (sadece devam_ediyor durumunda) */}
-      {gorev.durum === 'devam_ediyor' && (
+      {/* ALT GÖREVLER (madde 3, 6.3) — ağaç + oluşturma */}
+      {(altGorevler.length > 0 || ((benSorumlu || benimMi || kullanici?.rol === 'admin') && acikMi)) && (
+        <View style={{ marginTop: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={styles.sectionLabel}>
+              Alt Görevler{altGorevler.length > 0 ? ` (${altGorevler.filter(a => a.durum === 'tamamlandi').length}/${altGorevler.length})` : ''}
+            </Text>
+            {(benSorumlu || benimMi || kullanici?.rol === 'admin') && acikMi && (
+              <TouchableOpacity
+                onPress={() => setAltGorevModal(true)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.primary }}
+              >
+                <Feather name="plus" size={13} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>Alt Görev Oluştur</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {altGorevler.length === 0 ? (
+            <Text style={{ color: colors.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: 6 }}>
+              Alt görev yok — işi bölmek için alt görev oluşturabilirsin; ana sorumluluk sende kalır.
+            </Text>
+          ) : (
+            <View style={{ gap: 8, marginTop: 8 }}>
+              {altGorevler.map((a) => {
+                const aEtkin = etkinDurum(a)
+                const girinti = Math.max(0, (a.seviye ?? 1) - (gorev.seviye ?? 0) - 1) * 14
+                return (
+                  <TouchableOpacity
+                    key={a.id}
+                    onPress={() => navigation.push('GörevDetay', { id: a.id })}
+                    activeOpacity={0.8}
+                    style={{
+                      marginLeft: girinti,
+                      backgroundColor: colors.surface, borderRadius: 10, padding: 12,
+                      borderWidth: 1, borderColor: colors.border,
+                      flexDirection: 'row', alignItems: 'center', gap: 10,
+                    }}
+                  >
+                    <Feather name="corner-down-right" size={13} color={colors.textMuted} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.textMuted, fontSize: 10, fontWeight: '700' }}>{a.gorevNo}</Text>
+                      <Text style={{ color: colors.textPrimary, fontSize: 13.5, fontWeight: '700', marginTop: 1 }} numberOfLines={1}>
+                        {a.baslik}
+                      </Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                        {a.atananAd || '—'}{a.sonTarih ? ` · ${String(a.sonTarih).slice(0, 10).split('-').reverse().join('.')}` : ''}
+                        {a.zorunlu !== false ? ' · zorunlu' : ''}
+                      </Text>
+                    </View>
+                    <Badge text={aEtkin.isim} renk={aEtkin.renk} />
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* KONTROL LİSTESİ (madde 18) — işaretleme mobilden */}
+      {kontrolListesi.length > 0 && (
+        <View style={{ marginTop: 16 }}>
+          <Text style={styles.sectionLabel}>Kontrol Listesi ({kontrolTamam}/{kontrolListesi.length})</Text>
+          <View style={{ gap: 6, marginTop: 8 }}>
+            {kontrolListesi.map((m) => (
+              <TouchableOpacity
+                key={m.id}
+                onPress={() => kontrolToggle(m)}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 10,
+                  backgroundColor: colors.surface, borderRadius: 10, padding: 12,
+                  borderWidth: 1, borderColor: colors.border,
+                }}
+              >
+                <Feather
+                  name={m.tamamlandi ? 'check-square' : 'square'}
+                  size={18}
+                  color={m.tamamlandi ? colors.success : colors.textMuted}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={{
+                    color: m.tamamlandi ? colors.textMuted : colors.textPrimary,
+                    fontSize: 13.5, fontWeight: '600',
+                    textDecorationLine: m.tamamlandi ? 'line-through' : 'none',
+                  }}>
+                    {m.baslik}{m.zorunlu && !m.tamamlandi ? '  •zorunlu' : ''}
+                  </Text>
+                  {m.tamamlandi && (
+                    <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                      ✓ {m.tamamlayanAd || ''}{m.tamamlanmaTarih ? ` · ${tarihFormat(m.tamamlanmaTarih)}` : ''}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Devam sebebi göstergesi + değiştir butonu (sadece devam durumunda) */}
+      {(gorev.durum === 'devam' || gorev.durum === 'devam_ediyor') && (
         <View style={styles.devamSebepBar}>
           {gorev.devamSebep ? (
             <View style={styles.devamSebepSol}>
@@ -1037,6 +1233,198 @@ export default function GorevDetayScreen({ route, navigation }) {
                   </Text>
                 </TouchableOpacity>
               )}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* RET modalı (madde 11) — sebep zorunlu */}
+      <Modal visible={redModal} transparent animationType="slide" onRequestClose={() => setRedModal(false)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setRedModal(false)} style={styles.modalArkaPlan}>
+          <TouchableOpacity activeOpacity={1} style={styles.modalKart} onPress={(e) => e.stopPropagation?.()}>
+            <Text style={styles.modalBaslik}>Görevi Reddet</Text>
+            <Text style={styles.modalAltBaslik}>Ret sebebini seç — görevi oluşturan bilgilendirilecek.</Text>
+            <SecimPicker
+              deger={redSebep}
+              onSec={setRedSebep}
+              secenekler={RET_SEBEPLERI}
+              placeholder="Ret sebebi seç…"
+            />
+            <TextInput
+              value={redAciklama}
+              onChangeText={setRedAciklama}
+              placeholder="Açıklama (Diğer için zorunlu)…"
+              placeholderTextColor="#94a3b8"
+              multiline
+              style={{
+                marginTop: 10, minHeight: 60, borderRadius: 10, padding: 10,
+                borderWidth: 1, borderColor: '#cbd5e1', color: '#0f172a',
+                backgroundColor: '#fff', textAlignVertical: 'top',
+              }}
+            />
+            <View style={styles.modalButonSira}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnIptal]} onPress={() => setRedModal(false)}>
+                <Text style={styles.modalBtnIptalText}>Vazgeç</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: '#dc2626' }]}
+                onPress={reddiKaydet}
+                disabled={updating}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                  {updating ? 'Kaydediliyor…' : 'Reddet'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Sebep zorunlu durum modalı (beklemede / bilgi_bekleniyor / iptal) */}
+      <Modal visible={!!durumSebepModal} transparent animationType="slide" onRequestClose={() => setDurumSebepModal(null)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setDurumSebepModal(null)} style={styles.modalArkaPlan}>
+          <TouchableOpacity activeOpacity={1} style={styles.modalKart} onPress={(e) => e.stopPropagation?.()}>
+            <Text style={styles.modalBaslik}>{durumBilgi(durumSebepModal).isim}</Text>
+            <Text style={styles.modalAltBaslik}>
+              Bu duruma geçmek için sebep yazmak zorunlu — görev notlarına işlenir.
+            </Text>
+            <TextInput
+              value={durumSebepMetin}
+              onChangeText={setDurumSebepMetin}
+              placeholder={durumSebepModal === 'bilgi_bekleniyor' ? 'Kimden / hangi bilgi bekleniyor?' : durumSebepModal === 'iptal' ? 'İptal gerekçesi…' : 'Bekleme sebebi…'}
+              placeholderTextColor="#94a3b8"
+              multiline
+              style={{
+                minHeight: 70, borderRadius: 10, padding: 10,
+                borderWidth: 1, borderColor: '#cbd5e1', color: '#0f172a',
+                backgroundColor: '#fff', textAlignVertical: 'top',
+              }}
+            />
+            <View style={styles.modalButonSira}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnIptal]} onPress={() => setDurumSebepModal(null)}>
+                <Text style={styles.modalBtnIptalText}>Vazgeç</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnKaydet]}
+                onPress={durumSebepKaydet}
+                disabled={updating}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                  {updating ? 'Kaydediliyor…' : 'Kaydet'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Onay kararı modalı (onayla / revize) */}
+      <Modal visible={!!onayIslemModal} transparent animationType="slide" onRequestClose={() => setOnayIslemModal(null)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setOnayIslemModal(null)} style={styles.modalArkaPlan}>
+          <TouchableOpacity activeOpacity={1} style={styles.modalKart} onPress={(e) => e.stopPropagation?.()}>
+            <Text style={styles.modalBaslik}>
+              {onayIslemModal === 'onayla' ? 'Onayla ve Tamamla' : 'Revize İste'}
+            </Text>
+            <Text style={styles.modalAltBaslik}>
+              {onayIslemModal === 'onayla'
+                ? 'İsteğe bağlı bir not ekleyebilirsin.'
+                : 'Nelerin düzeltilmesi gerektiğini yaz (zorunlu).'}
+            </Text>
+            <TextInput
+              value={onayNotMetin}
+              onChangeText={setOnayNotMetin}
+              placeholder={onayIslemModal === 'onayla' ? 'Not (isteğe bağlı)…' : 'Revize açıklaması…'}
+              placeholderTextColor="#94a3b8"
+              multiline
+              style={{
+                minHeight: 70, borderRadius: 10, padding: 10,
+                borderWidth: 1, borderColor: '#cbd5e1', color: '#0f172a',
+                backgroundColor: '#fff', textAlignVertical: 'top',
+              }}
+            />
+            <View style={styles.modalButonSira}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnIptal]} onPress={() => setOnayIslemModal(null)}>
+                <Text style={styles.modalBtnIptalText}>Vazgeç</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnKaydet]}
+                onPress={onayIslemKaydet}
+                disabled={updating}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                  {updating ? 'Kaydediliyor…' : (onayIslemModal === 'onayla' ? 'Onayla' : 'Gönder')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ALT GÖREV OLUŞTUR modalı (madde 7) */}
+      <Modal visible={altGorevModal} transparent animationType="slide" onRequestClose={() => setAltGorevModal(false)}>
+        <TouchableOpacity activeOpacity={1} onPress={() => setAltGorevModal(false)} style={styles.modalArkaPlan}>
+          <TouchableOpacity activeOpacity={1} style={styles.modalKart} onPress={(e) => e.stopPropagation?.()}>
+            <Text style={styles.modalBaslik}>Alt Görev Oluştur</Text>
+            <Text style={styles.modalAltBaslik}>
+              Ana görev: {gorev.gorevNo || ''} "{gorev.baslik}" — numara otomatik atanır, ana sorumluluk sende kalır.
+            </Text>
+            <TextInput
+              value={agBaslik}
+              onChangeText={setAgBaslik}
+              placeholder="Alt görev başlığı…"
+              placeholderTextColor="#94a3b8"
+              style={{
+                borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#cbd5e1',
+                color: '#0f172a', backgroundColor: '#fff',
+              }}
+            />
+            <View style={{ marginTop: 10 }}>
+              <SecimPicker
+                deger={agAtanan}
+                onSec={setAgAtanan}
+                secenekler={(personeller || []).map((p) => ({ id: p.id, isim: p.ad }))}
+                placeholder="Atanacak kişiyi seç…"
+              />
+            </View>
+            <View style={{ marginTop: 10 }}>
+              <TarihSec
+                value={agBitis}
+                onChange={setAgBitis}
+                label="Bitiş tarihi (zorunlu)"
+                placeholder="Tarih seçin"
+                gosterTemizle={false}
+              />
+            </View>
+            <View style={{ marginTop: 10 }}>
+              <SecimPicker
+                deger={agOncelik}
+                onSec={setAgOncelik}
+                secenekler={ONCELIK_SECENEKLERI.map((o) => ({ id: o.id, isim: o.isim }))}
+                placeholder="Öncelik…"
+              />
+            </View>
+            <TouchableOpacity
+              onPress={() => setAgZorunlu(!agZorunlu)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}
+            >
+              <Feather name={agZorunlu ? 'check-square' : 'square'} size={18} color={agZorunlu ? '#16a34a' : '#94a3b8'} />
+              <Text style={{ color: '#0f172a', fontSize: 13, fontWeight: '600' }}>
+                Ana görevin tamamlanması için zorunlu
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.modalButonSira}>
+              <TouchableOpacity style={[styles.modalBtn, styles.modalBtnIptal]} onPress={() => setAltGorevModal(false)}>
+                <Text style={styles.modalBtnIptalText}>Vazgeç</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnKaydet]}
+                onPress={altGorevKaydet}
+                disabled={agKaydediliyor}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                  {agKaydediliyor ? 'Oluşturuluyor…' : 'Alt Görevi Oluştur'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
