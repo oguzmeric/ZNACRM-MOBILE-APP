@@ -27,6 +27,8 @@ import {
   malzemePlanGuncelle,
   malzemePlanSil,
   webMalzemeleriGetir,
+  FATURALANDIRMA_SECENEK,
+  malzemeFaturalandirmaIsaretle,
 } from '../services/servisMalzemeService'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -754,6 +756,33 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
                   {m.seriNo ? ` · S/N: ${m.seriNo}` : ''}
                   {m.kullaniciAd ? ` · ${m.kullaniciAd}` : ''}
                 </Text>
+                {/* Faturalandırma işareti (madde 23.10) — Kullanılan Malzemeler
+                    ekranındaki fatura durumu bu seçime göre otomatik atanır */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                  {FATURALANDIRMA_SECENEK.map((s) => {
+                    const secili = m.faturalandirma === s.id
+                    return (
+                      <TouchableOpacity
+                        key={s.id}
+                        onPress={async () => {
+                          const yeni = secili ? null : s.id
+                          const g = await malzemeFaturalandirmaIsaretle(m.id, yeni)
+                          if (g) setWebMalzemeler((prev) => prev.map((x) => x.id === m.id ? { ...x, faturalandirma: yeni } : x))
+                        }}
+                        style={{
+                          paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
+                          backgroundColor: secili ? 'rgba(96,165,250,0.28)' : 'rgba(148,163,184,0.10)',
+                          borderWidth: 1,
+                          borderColor: secili ? '#60a5fa' : 'rgba(148,163,184,0.25)',
+                        }}
+                      >
+                        <Text style={{ fontSize: 11, color: secili ? '#93c5fd' : colors.textMuted, fontWeight: secili ? '700' : '400' }}>
+                          {s.isim}
+                        </Text>
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
               </View>
             ))}
           </>

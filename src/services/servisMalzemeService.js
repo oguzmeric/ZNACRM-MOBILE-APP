@@ -59,6 +59,29 @@ export const webMalzemeleriGetir = async (servisTalepId) => {
   return arrayToCamel(data)
 }
 
+// Madde 23.10 — malzeme faturalandırma işareti (mig 193). Web ile ortak;
+// DB trigger'ı Kullanılan Malzemeler ekranındaki fatura durumunu senkron tutar.
+export const FATURALANDIRMA_SECENEK = [
+  { id: 'ucretli',               isim: '💰 Ücretli' },
+  { id: 'garanti',               isim: '🛡 Garanti' },
+  { id: 'sozlesme',              isim: '📋 Sözleşme' },
+  { id: 'ucretsiz',              isim: '🎁 Ücretsiz' },
+  { id: 'musteriden_alinan',     isim: '↩ Müşteriden' },
+  { id: 'iade',                  isim: '📦 İade' },
+  { id: 'faturalandirilmayacak', isim: '🚫 Faturasız' },
+]
+
+export const malzemeFaturalandirmaIsaretle = async (id, deger) => {
+  const { data, error } = await supabase
+    .from('servis_malzemeleri')
+    .update({ faturalandirma: deger || null })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) { console.warn('[malzemeIsaretle]', error.message); return null }
+  return arrayToCamel([data])[0]
+}
+
 // === Servis kalem kullanımı (S/N bazlı) ===
 
 export const kullanilanKalemleriGetir = async (servisTalepId) => {
