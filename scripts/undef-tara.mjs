@@ -12,6 +12,8 @@ const BILINEN = new Set([
   'undefined', 'NaN', 'Infinity', 'atob', 'btoa', 'fetch', 'FormData',
   'requestAnimationFrame', 'alert', 'globalThis', 'require', 'process', '__DEV__',
   'Intl', 'encodeURIComponent', 'decodeURIComponent', 'Symbol', 'Proxy', 'Reflect',
+  'Uint8Array', 'ArrayBuffer', 'Float32Array', 'Int32Array', 'DataView', 'TextEncoder', 'TextDecoder',
+  'AbortController', 'URL', 'URLSearchParams', 'Blob', 'structuredClone', 'queueMicrotask',
   'WeakMap', 'WeakSet', 'URL', 'AbortController', 'structuredClone', 'queueMicrotask',
 ])
 
