@@ -42,6 +42,7 @@ import {
   kontrolListesiGetir,
   kontrolMaddeIsaretle,
   gorevHareketleriGetir,
+  gorevAyarlariGetir,
 } from '../services/gorevService'
 import { gorevFotosuYukle, gorevFotosuSil } from '../services/gorevFotoService'
 import { ekYukle } from '../services/ekYukleService'
@@ -51,6 +52,7 @@ import { parseMentions } from '../lib/mention'
 import MentionInput, { MentionText } from '../components/MentionInput'
 import TarihSec from '../components/TarihSec'
 import SecimPicker from '../components/SecimPicker'
+import CokluSecimPicker from '../components/CokluSecimPicker'
 import { useTheme } from '../context/ThemeContext'
 import { tarihSaatFormat, tarihFormat } from '../utils/format'
 import {
@@ -64,6 +66,9 @@ import {
   oncelikBilgi,
   ONCELIK_SECENEKLERI,
   ILERLEME_ADIMLARI,
+  gorevYetkisi,
+  altGorevVerebilirMi,
+  bugunStr,
 } from '../lib/gorevSabitleri'
 
 const DURUM_SECENEKLERI = [
@@ -148,11 +153,22 @@ export default function GorevDetayScreen({ route, navigation }) {
   const [onayNotMetin, setOnayNotMetin] = useState('')
   const [altGorevModal, setAltGorevModal] = useState(false)
   const [agBaslik, setAgBaslik] = useState('')
+  const [agAciklama, setAgAciklama] = useState('')
   const [agAtanan, setAgAtanan] = useState(null)   // kullanıcı id
+  const [agBaslama, setAgBaslama] = useState('')   // isteğe bağlı başlangıç
   const [agBitis, setAgBitis] = useState('')
   const [agOncelik, setAgOncelik] = useState('normal')
-  const [agZorunlu, setAgZorunlu] = useState(false)
+  const [agZorunlu, setAgZorunlu] = useState(true)          // web ile aynı varsayılan
+  const [agOnayGerekli, setAgOnayGerekli] = useState(true)  // tamamlanınca oluşturanın onayına düşer
+  const [agBeklenen, setAgBeklenen] = useState('')
+  const [agGozlemciler, setAgGozlemciler] = useState([])
+  const [agBagimli, setAgBagimli] = useState('')   // kardeş alt görev id ('' = yok)
+  const [agTarihGerekce, setAgTarihGerekce] = useState('')
   const [agKaydediliyor, setAgKaydediliyor] = useState(false)
+  const [maxSeviye, setMaxSeviye] = useState(5)
+  useEffect(() => {
+    gorevAyarlariGetir().then(a => setMaxSeviye(a?.maxAltSeviye ?? 5)).catch(() => {})
+  }, [])
   const gorulduRef = useRef(false) // otomatik "görüldü" yalnız 1 kez
   // @mention için personel listesi
   const [personeller, setPersoneller] = useState([])
@@ -487,28 +503,64 @@ export default function GorevDetayScreen({ route, navigation }) {
     }
   }
 
-  // ─── Alt görev oluştur ───
+  // ─── Alt görev oluştur (web AltGorevModal ile birebir kurallar) ───
+  const agAnaSon = gorev?.sonTarih ? String(gorev.sonTarih).slice(0, 10) : null
+  const agTarihAsiyor = !!(agAnaSon && agBitis && agBitis > agAnaSon)
+  const agAsabilir = kullanici?.rol === 'admin' || gorevYetkisi(kullanici).sureDegistir
+  const agKardesler = altGorevler.filter(a => String(a.ustGorevId) === String(gorev?.id))
+  const agSeviyeDolu = (gorev?.seviye ?? 0) + 1 > maxSeviye
+
+  const agSifirla = () => {
+    setAgBaslik(''); setAgAciklama(''); setAgAtanan(null); setAgBaslama(''); setAgBitis('')
+    setAgOncelik('normal'); setAgZorunlu(true); setAgOnayGerekli(true)
+    setAgBeklenen(''); setAgGozlemciler([]); setAgBagimli(''); setAgTarihGerekce('')
+  }
+
   const altGorevKaydet = async () => {
     if (!agBaslik.trim()) { Alert.alert('Eksik', 'Alt görev başlığı gerekli.'); return }
     if (!agAtanan) { Alert.alert('Eksik', 'Alt görevi bir kişiye ata.'); return }
     if (!agBitis) { Alert.alert('Eksik', 'Bitiş tarihi gerekli.'); return }
+    if (agBitis < bugunStr()) { Alert.alert('Geçersiz Tarih', 'Bitiş tarihi geçmişte olamaz.'); return }
+    if (agTarihAsiyor && !agAsabilir) {
+      Alert.alert('Tarih Aşımı', 'Alt görevin tamamlanma tarihi ana görevin tamamlanma tarihinden sonraya ayarlanamaz.')
+      return
+    }
+    if (agTarihAsiyor && agAsabilir && !agTarihGerekce.trim()) {
+      Alert.alert('Gerekçe Gerekli', 'Ana görev tarihini aşıyorsun — gerekçe yazman zorunlu.')
+      return
+    }
     const atananK = (personeller || []).find(p => String(p.id) === String(agAtanan))
     setAgKaydediliyor(true)
     const yeni = await gorevEkle({
       ustGorevId: gorev.id,           // gorev_no'yu (üstno-01) DB trigger atar
       baslik: agBaslik.trim(),
+      aciklama: [agAciklama.trim(), agTarihAsiyor ? `\n[Tarih aşım gerekçesi: ${agTarihGerekce.trim()}]` : '']
+        .join('').trim() || null,
+      atanan: String(atananK?.id ?? agAtanan),
       atananId: atananK?.id ?? agAtanan,
       atananAd: atananK?.ad ?? '',
+      baslamaTarih: agBaslama || null,
       oncelik: agOncelik,
-      zorunlu: agZorunlu,
+      zorunlu: !!agZorunlu,
+      beklenenCikti: agBeklenen.trim() || null,
+      onayGerekli: !!agOnayGerekli,
+      // Alt görev onayı, alt görevi OLUŞTURANA düşer (madde 14)
+      onaylayiciId: agOnayGerekli ? kullanici?.id : null,
+      gozlemciler: agGozlemciler.map(Number),
+      bagimliGorevId: agBagimli ? Number(agBagimli) : null,
+      bagimlilikTuru: agBagimli ? 'once_tamamlanmali' : null,
+      sonTarih: agBitis,
       bitisTarihi: agBitis,
       bitisTarih: `${agBitis}T23:59`,
       durum: 'bekliyor',
       kabulDurumu: 'atandi',
       olusturanAd: kullanici?.ad ?? '',
       olusturanId: kullanici?.id ?? null,
+      // Müşteri bağlamı + gizlilik ana görevden miras
       musteriId: gorev.musteriId ?? null,
+      musteriAdi: gorev.musteriAdi ?? null,
       firmaAdi: gorev.firmaAdi ?? null,
+      gizlilik: gorev.gizlilik || 'standart',
     })
     setAgKaydediliyor(false)
     if (!yeni) {
@@ -516,16 +568,28 @@ export default function GorevDetayScreen({ route, navigation }) {
       return
     }
     setAltGorevModal(false)
-    setAgBaslik(''); setAgAtanan(null); setAgBitis(''); setAgOncelik('normal'); setAgZorunlu(false)
+    agSifirla()
     if (gorev?.gorevNo) gorevAgaciGetir(gorev.gorevNo).then(setAltGorevler).catch(() => {})
-    // Atanana bildirim
+    // Atanana bildirim (web ile aynı biçim)
     if (atananK?.id && String(atananK.id) !== String(kullanici?.id)) {
       bildirimEkleDb({
         aliciId: Number(atananK.id),
         gonderenId: kullanici?.id,
         tip: 'gorev',
-        baslik: 'Yeni Alt Görev Atandı',
-        mesaj: `${kullanici?.ad || 'Bir arkadaşınız'}, "${gorev.baslik}" kapsamında size "${yeni.baslik}" alt görevini atadı. Son tarih: ${trTarih(agBitis)}`,
+        baslik: '📋 Yeni alt görev atandı',
+        mesaj: `${kullanici?.ad || 'Bir arkadaşınız'}, "${gorev.baslik}" ana görevi kapsamında size "${yeni.baslik}" alt görevini atadı. Son tarih: ${trTarih(agBitis)}.`,
+        link: `/gorevler/${yeni.id}`,
+      }).catch(() => {})
+    }
+    // Gözlemcilere bildirim
+    for (const gid of agGozlemciler) {
+      if (String(gid) === String(kullanici?.id)) continue
+      bildirimEkleDb({
+        aliciId: Number(gid),
+        gonderenId: kullanici?.id,
+        tip: 'gorev',
+        baslik: '👀 Bir göreve gözlemci eklendiniz',
+        mesaj: `"${yeni.baslik}" alt görevini takip listenize ${kullanici?.ad || 'bir arkadaşınız'} ekledi.`,
         link: `/gorevler/${yeni.id}`,
       }).catch(() => {})
     }
@@ -1026,13 +1090,13 @@ export default function GorevDetayScreen({ route, navigation }) {
       </View>
 
       {/* ALT GÖREVLER (madde 3, 6.3) — ağaç + oluşturma */}
-      {(altGorevler.length > 0 || ((benSorumlu || benimMi || kullanici?.rol === 'admin') && acikMi)) && (
+      {(altGorevler.length > 0 || (altGorevVerebilirMi(kullanici) && (benSorumlu || benimMi || kullanici?.rol === 'admin') && acikMi)) && (
         <View style={{ marginTop: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={styles.sectionLabel}>
               Alt Görevler{altGorevler.length > 0 ? ` (${altGorevler.filter(a => a.durum === 'tamamlandi').length}/${altGorevler.length})` : ''}
             </Text>
-            {(benSorumlu || benimMi || kullanici?.rol === 'admin') && acikMi && (
+            {altGorevVerebilirMi(kullanici) && (benSorumlu || benimMi || kullanici?.rol === 'admin') && acikMi && !agSeviyeDolu && (
               <TouchableOpacity
                 onPress={() => setAltGorevModal(true)}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.primary }}
@@ -1042,6 +1106,11 @@ export default function GorevDetayScreen({ route, navigation }) {
               </TouchableOpacity>
             )}
           </View>
+          {agSeviyeDolu && (
+            <Text style={{ color: colors.textMuted, fontSize: 11, fontStyle: 'italic', marginTop: 4 }}>
+              Maksimum alt görev seviyesine ({maxSeviye}) ulaşıldı — bu görevin altına yeni görev açılamaz.
+            </Text>
+          )}
           {altGorevler.length === 0 ? (
             <Text style={{ color: colors.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: 6 }}>
               Alt görev yok — işi bölmek için alt görev oluşturabilirsin; ana sorumluluk sende kalır.
@@ -1065,12 +1134,16 @@ export default function GorevDetayScreen({ route, navigation }) {
                   >
                     <Feather name="corner-down-right" size={13} color={colors.textMuted} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.textMuted, fontSize: 10, fontWeight: '700' }}>{a.gorevNo}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: oncelikBilgi(a.oncelik).renk }} />
+                        <Text style={{ color: colors.textMuted, fontSize: 10, fontWeight: '700' }}>{a.gorevNo}</Text>
+                      </View>
                       <Text style={{ color: colors.textPrimary, fontSize: 13.5, fontWeight: '700', marginTop: 1 }} numberOfLines={1}>
                         {a.baslik}
                       </Text>
                       <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
                         {a.atananAd || '—'}{a.sonTarih ? ` · ${String(a.sonTarih).slice(0, 10).split('-').reverse().join('.')}` : ''}
+                        {` · %${a.durum === 'tamamlandi' ? 100 : (a.ilerleme || 0)}`}
                         {a.zorunlu !== false ? ' · zorunlu' : ''}
                       </Text>
                     </View>
@@ -1363,55 +1436,143 @@ export default function GorevDetayScreen({ route, navigation }) {
       {/* ALT GÖREV OLUŞTUR modalı (madde 7) */}
       <Modal visible={altGorevModal} transparent animationType="slide" onRequestClose={() => setAltGorevModal(false)}>
         <TouchableOpacity activeOpacity={1} onPress={() => setAltGorevModal(false)} style={styles.modalArkaPlan}>
-          <TouchableOpacity activeOpacity={1} style={styles.modalKart} onPress={(e) => e.stopPropagation?.()}>
+          <TouchableOpacity activeOpacity={1} style={[styles.modalKart, { maxHeight: '88%' }]} onPress={(e) => e.stopPropagation?.()}>
             <Text style={styles.modalBaslik}>Alt Görev Oluştur</Text>
             <Text style={styles.modalAltBaslik}>
-              Ana görev: {gorev.gorevNo || ''} "{gorev.baslik}" — numara otomatik atanır, ana sorumluluk sende kalır.
+              Ana görev: {gorev.gorevNo || ''} "{gorev.baslik}" · Sorumlu: {gorev.atananAd || '—'} · Son tarih: {gorev.sonTarih ? trTarih(gorev.sonTarih) : '—'}{'\n'}
+              Numara otomatik atanır, ana sorumluluk sende kalır.
             </Text>
-            <TextInput
-              value={agBaslik}
-              onChangeText={setAgBaslik}
-              placeholder="Alt görev başlığı…"
-              placeholderTextColor="#94a3b8"
-              style={{
-                borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#cbd5e1',
-                color: '#0f172a', backgroundColor: '#fff',
-              }}
-            />
-            <View style={{ marginTop: 10 }}>
-              <SecimPicker
-                deger={agAtanan}
-                onSec={setAgAtanan}
-                secenekler={(personeller || []).map((p) => ({ id: p.id, isim: p.ad }))}
-                placeholder="Atanacak kişiyi seç…"
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <TextInput
+                value={agBaslik}
+                onChangeText={setAgBaslik}
+                placeholder="Alt görev başlığı…"
+                placeholderTextColor="#94a3b8"
+                style={{
+                  borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#cbd5e1',
+                  color: '#0f172a', backgroundColor: '#fff',
+                }}
               />
-            </View>
-            <View style={{ marginTop: 10 }}>
-              <TarihSec
-                value={agBitis}
-                onChange={setAgBitis}
-                label="Bitiş tarihi (zorunlu)"
-                placeholder="Tarih seçin"
-                gosterTemizle={false}
+              <TextInput
+                value={agAciklama}
+                onChangeText={setAgAciklama}
+                placeholder="Açıklama — ne yapılmasını bekliyorsun?"
+                placeholderTextColor="#94a3b8"
+                multiline
+                style={{
+                  marginTop: 10, minHeight: 54, borderRadius: 10, padding: 10, borderWidth: 1,
+                  borderColor: '#cbd5e1', color: '#0f172a', backgroundColor: '#fff', textAlignVertical: 'top',
+                }}
               />
-            </View>
-            <View style={{ marginTop: 10 }}>
-              <SecimPicker
-                deger={agOncelik}
-                onSec={setAgOncelik}
-                secenekler={ONCELIK_SECENEKLERI.map((o) => ({ id: o.id, isim: o.isim }))}
-                placeholder="Öncelik…"
+              <View style={{ marginTop: 10 }}>
+                <SecimPicker
+                  deger={agAtanan}
+                  onSec={setAgAtanan}
+                  secenekler={(personeller || []).map((p) => ({ id: p.id, isim: p.ad }))}
+                  placeholder="Atanacak kişiyi seç…"
+                />
+              </View>
+              <View style={{ marginTop: 10 }}>
+                <SecimPicker
+                  deger={agOncelik}
+                  onSec={setAgOncelik}
+                  secenekler={ONCELIK_SECENEKLERI.map((o) => ({ id: o.id, isim: o.isim }))}
+                  placeholder="Öncelik…"
+                />
+              </View>
+              <View style={{ marginTop: 10 }}>
+                <TarihSec
+                  value={agBaslama}
+                  onChange={setAgBaslama}
+                  label="Başlangıç tarihi (isteğe bağlı)"
+                  placeholder="Tarih seçin"
+                />
+              </View>
+              <View style={{ marginTop: 10 }}>
+                <TarihSec
+                  value={agBitis}
+                  onChange={setAgBitis}
+                  label="Bitiş tarihi (zorunlu)"
+                  placeholder="Tarih seçin"
+                  gosterTemizle={false}
+                />
+              </View>
+              {agTarihAsiyor && (
+                <View style={{
+                  marginTop: 10, padding: 10, borderRadius: 10,
+                  backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 1, borderColor: '#f59e0b',
+                }}>
+                  <Text style={{ color: '#b45309', fontSize: 12, fontWeight: '700' }}>
+                    ⚠️ Alt görevin tamamlanma tarihi ana görevin tamamlanma tarihinden ({trTarih(agAnaSon)}) sonra.
+                  </Text>
+                  {agAsabilir ? (
+                    <TextInput
+                      value={agTarihGerekce}
+                      onChangeText={setAgTarihGerekce}
+                      placeholder="Aşım gerekçesi (zorunlu)…"
+                      placeholderTextColor="#94a3b8"
+                      style={{
+                        marginTop: 8, borderRadius: 8, padding: 8, borderWidth: 1,
+                        borderColor: '#cbd5e1', color: '#0f172a', backgroundColor: '#fff',
+                      }}
+                    />
+                  ) : (
+                    <Text style={{ color: '#64748b', fontSize: 11, marginTop: 6 }}>
+                      Tarih aşma yetkin yok — ana görev tarihinden önce bir tarih seç.
+                    </Text>
+                  )}
+                </View>
+              )}
+              <TextInput
+                value={agBeklenen}
+                onChangeText={setAgBeklenen}
+                placeholder="Beklenen çıktı — örn. güncel bayi listesi Excel dosyası"
+                placeholderTextColor="#94a3b8"
+                style={{
+                  marginTop: 10, borderRadius: 10, padding: 10, borderWidth: 1,
+                  borderColor: '#cbd5e1', color: '#0f172a', backgroundColor: '#fff',
+                }}
               />
-            </View>
-            <TouchableOpacity
-              onPress={() => setAgZorunlu(!agZorunlu)}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}
-            >
-              <Feather name={agZorunlu ? 'check-square' : 'square'} size={18} color={agZorunlu ? '#16a34a' : '#94a3b8'} />
-              <Text style={{ color: '#0f172a', fontSize: 13, fontWeight: '600' }}>
-                Ana görevin tamamlanması için zorunlu
-              </Text>
-            </TouchableOpacity>
+              <View style={{ marginTop: 10 }}>
+                <CokluSecimPicker
+                  degerler={agGozlemciler}
+                  onChange={setAgGozlemciler}
+                  secenekler={(personeller || []).map((p) => ({ id: p.id, isim: p.ad }))}
+                  placeholder="Gözlemciler (isteğe bağlı)…"
+                />
+              </View>
+              {agKardesler.length > 0 && (
+                <View style={{ marginTop: 10 }}>
+                  <SecimPicker
+                    deger={agBagimli}
+                    onSec={setAgBagimli}
+                    secenekler={[
+                      { id: '', isim: '— Bağımlılık yok —' },
+                      ...agKardesler.map((k) => ({ id: String(k.id), isim: `${k.gorevNo || ''} ${k.baslik}`.trim() })),
+                    ]}
+                    placeholder="Bağımlı olduğu alt görev…"
+                  />
+                </View>
+              )}
+              <TouchableOpacity
+                onPress={() => setAgZorunlu(!agZorunlu)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}
+              >
+                <Feather name={agZorunlu ? 'check-square' : 'square'} size={18} color={agZorunlu ? '#16a34a' : '#94a3b8'} />
+                <Text style={{ color: '#0f172a', fontSize: 13, fontWeight: '600' }}>
+                  Ana görevin tamamlanması için zorunlu
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setAgOnayGerekli(!agOnayGerekli)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}
+              >
+                <Feather name={agOnayGerekli ? 'check-square' : 'square'} size={18} color={agOnayGerekli ? '#16a34a' : '#94a3b8'} />
+                <Text style={{ color: '#0f172a', fontSize: 13, fontWeight: '600' }}>
+                  Tamamlanınca onayıma düşsün
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
             <View style={styles.modalButonSira}>
               <TouchableOpacity style={[styles.modalBtn, styles.modalBtnIptal]} onPress={() => setAltGorevModal(false)}>
                 <Text style={styles.modalBtnIptalText}>Vazgeç</Text>

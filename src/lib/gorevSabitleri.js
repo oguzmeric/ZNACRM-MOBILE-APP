@@ -108,3 +108,11 @@ export const ONCELIK_SECENEKLERI = GOREV_ONCELIKLERI.filter(o => o.id !== 'orta'
 
 // ─── İlerleme ───────────────────────────────────────────────────────────────
 export const ILERLEME_ADIMLARI = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+
+// ─── Yetki (madde 9) — kullanicilar.gorev_yetki jsonb (web ile birebir) ─────
+export const VARSAYILAN_GOREV_YETKI = { altGorev: 'herkes', devir: true, cokluAtama: true, sureDegistir: true, altIptal: true }
+export const gorevYetkisi = (kullanici) => ({ ...VARSAYILAN_GOREV_YETKI, ...(kullanici?.gorevYetki || {}) })
+export const altGorevVerebilirMi = (kullanici) => {
+  if (kullanici?.rol === 'admin') return true
+  return gorevYetkisi(kullanici).altGorev !== 'yok'
+}

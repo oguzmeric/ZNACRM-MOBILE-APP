@@ -159,6 +159,12 @@ export const gorevAgaciGetir = async (gorevNo) => {
   return arrayToCamel(data || [])
 }
 
+// Görev ayarları (max alt görev seviyesi vb.) — web ile aynı kaynak
+export const gorevAyarlariGetir = async () => {
+  const { data } = await supabase.from('gorev_ayarlar').select('*').eq('id', 1).maybeSingle()
+  return toCamel(data) || { maxAltSeviye: 5 }
+}
+
 // Kabul akışı — hareket geçmişini DB trigger'ı yazar
 export const gorevGoruldu = (id) => gorevGuncelle(id, { kabulDurumu: 'goruldu' })
 
