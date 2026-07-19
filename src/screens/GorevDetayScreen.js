@@ -822,7 +822,7 @@ export default function GorevDetayScreen({ route, navigation }) {
 
       <View style={styles.row}>
         <Badge text={etkin.isim} renk={etkin.renk} />
-        <Badge text={etiketOncelik(gorev.oncelik)} renk={renkOncelik(gorev.oncelik)} />
+        <Badge text={oncelikBilgi(gorev.oncelik).isim} renk={oncelikBilgi(gorev.oncelik).renk} />
         {kabulRozet && gorev.kabulDurumu !== 'kabul_edildi' && gorev.durum !== 'tamamlandi' && (
           <Badge text={kabulRozet.isim} renk={kabulRozet.renk} />
         )}
@@ -1012,7 +1012,7 @@ export default function GorevDetayScreen({ route, navigation }) {
               key={d.id}
               style={[
                 styles.durumBtn,
-                aktif && { backgroundColor: renkDurum(d.id), borderColor: renkDurum(d.id) },
+                aktif && { backgroundColor: durumBilgi(d.id).renk, borderColor: durumBilgi(d.id).renk },
               ]}
               onPress={() => durumDegistir(d.id)}
               disabled={updating}
