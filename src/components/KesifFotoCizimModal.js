@@ -13,10 +13,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons'
 import {
   Canvas, Path, Group, Circle, useCanvasRef, useImage,
-  Image as SkiaImage, Text as SkiaText, matchFont, Fill, DashPathEffect,
+  Image as SkiaImage, Text as SkiaText, matchFont, Fill, DashPathEffect, Skia,
 } from '@shopify/react-native-skia'
 import SecimPicker from './SecimPicker'
-import { KROKI_SEMBOLLERI, krokiSembolBilgi } from '../services/kesifService'
+import { KROKI_SEMBOLLERI, krokiSembolBilgi, KROKI_SEMBOL_PATH } from '../services/kesifService'
+
+// Sembol path'lerini bir kez Skia Path'e çevir
+const SEMBOL_SKIA_PATH = Object.fromEntries(
+  Object.entries(KROKI_SEMBOL_PATH).map(([k, d]) => [k, Skia.Path.MakeFromSVGString(d)]).filter(([, p]) => p),
+)
 
 const RENKLER = ['#dc2626', '#2563eb', '#16a34a', '#f59e0b', '#0f172a', '#ffffff']
 const KALINLIKLAR = [2, 4, 6, 10]
@@ -93,15 +98,27 @@ function sekilIcindeMi(s, x, y) {
 function SekilGoster({ s }) {
   if (s.tip === 'sembol') {
     const b = krokiSembolBilgi(s.sembol)
-    const r = s.boyut || 26
-    const etiket = `${b.kod}${s.no}`
-    const font = fontAl(r * 0.78)
-    const genislik = font.measureText ? font.measureText(etiket).width : etiket.length * r * 0.5
+    const r = s.boyut || 28
+    const ikonPath = SEMBOL_SKIA_PATH[s.sembol]
+    const sc = (r * 1.35) / 24
+    // numara rozeti (sağ-alt) — ikon tip, numara sıra
+    const nr = r * 0.6
+    const nx = s.x + r * 0.72, ny = s.y + r * 0.72
+    const nfont = fontAl(nr * 1.15)
+    const noStr = String(s.no)
+    const nw = nfont.measureText ? nfont.measureText(noStr).width : noStr.length * nr * 0.5
     return (
       <>
         <Circle cx={s.x} cy={s.y} r={r} color={b.renk} />
         <Circle cx={s.x} cy={s.y} r={r} color={s.kalemId ? '#facc15' : '#ffffff'} style="stroke" strokeWidth={2.5} />
-        <SkiaText x={s.x - genislik / 2} y={s.y + r * 0.28} text={etiket} font={font} color="#ffffff" />
+        {ikonPath && (
+          <Group transform={[{ translateX: s.x - r * 0.675 }, { translateY: s.y - r * 0.675 }, { scale: sc }]}>
+            <Path path={ikonPath} color="#ffffff" style="stroke" strokeWidth={2 / sc} strokeCap="round" strokeJoin="round" />
+          </Group>
+        )}
+        <Circle cx={nx} cy={ny} r={nr} color="#0f172a" />
+        <Circle cx={nx} cy={ny} r={nr} color="#ffffff" style="stroke" strokeWidth={1.5} />
+        <SkiaText x={nx - nw / 2} y={ny + nr * 0.35} text={noStr} font={nfont} color="#ffffff" />
       </>
     )
   }
@@ -239,7 +256,7 @@ export default function KesifFotoCizimModal({
         }
       }
       const no = sekiller.filter(s => s.tip === 'sembol' && s.sembol === secSembol).length + 1
-      degistir([...sekiller, { tip: 'sembol', sembol: secSembol, x, y, no, boyut: 26 }])
+      degistir([...sekiller, { tip: 'sembol', sembol: secSembol, x, y, no, boyut: 28 }])
       return
     }
     if (arac === 'kalem' || arac === 'kablo') setTaslak({ tip: arac, noktalar: [{ x, y }], renk, kalinlik })
