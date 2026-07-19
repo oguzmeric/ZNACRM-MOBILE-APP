@@ -5,16 +5,25 @@ import { useFocusEffect } from '@react-navigation/native'
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
 import ScreenContainer from '../components/ScreenContainer'
-import { BOLGELER, ZAMANLAR, bugunkuKayitlariGetir, fotoKaydet, imzaliUrl, fotoKaydiSil } from '../services/aracFotoService'
+import {
+  BOLGELER, ZAMANLAR, bugunkuKayitlariGetir, fotoKaydet, imzaliUrl, fotoKaydiSil,
+  referansDurumu, referansKaydet, referansYetkiliMi, FERDI_ID,
+} from '../services/aracFotoService'
+import { bildirimEkleDb } from '../services/bildirimService'
 
 const ekranGen = Dimensions.get('window').width
 
 export default function AracFotoDetayScreen({ route, navigation }) {
   const { aracId, plaka } = route.params
   const { colors } = useTheme()
-  const [zaman, setZaman] = useState('sabah')
+  const { kullanici } = useAuth()
+  const refYetkili = referansYetkiliMi(kullanici)
+  const [zaman, setZaman] = useState('sabah')  // 'sabah' | 'aksam' | 'referans'
   const [kayitlar, setKayitlar] = useState([])
+  const [referans, setReferans] = useState(null)  // referansDurumu() sonucu
+  const [bildirGonderildi, setBildirGonderildi] = useState(false)
   const [imzaMap, setImzaMap] = useState({})   // foto_url → signed URL
   const [yukleniyor, setYukleniyor] = useState(true)
   const [tazele, setTazele] = useState(false)
@@ -30,11 +39,16 @@ export default function AracFotoDetayScreen({ route, navigation }) {
   const yukle = useCallback(async () => {
     setYukleniyor(true)
     try {
-      const veri = await bugunkuKayitlariGetir(aracId)
+      const [veri, ref] = await Promise.all([
+        bugunkuKayitlariGetir(aracId),
+        referansDurumu(aracId).catch(() => null),
+      ])
       setKayitlar(veri)
-      // Signed URL'leri çek
+      setReferans(ref)
+      // Signed URL'leri çek (günlük + referans fotoları)
       const imzalar = {}
-      await Promise.all(veri.filter(k => k.foto_url).map(async k => {
+      const hepsi = [...veri, ...(ref?.liste ?? [])]
+      await Promise.all(hepsi.filter(k => k.foto_url).map(async k => {
         imzalar[k.foto_url] = await imzaliUrl(k.foto_url, 3600)
       }))
       setImzaMap(imzalar)
@@ -46,12 +60,31 @@ export default function AracFotoDetayScreen({ route, navigation }) {
 
   const onTazele = async () => { setTazele(true); await yukle(); setTazele(false) }
 
-  const zamanKayitlari = useMemo(
-    () => Object.fromEntries(kayitlar.filter(k => k.zaman === zaman).map(k => [k.bolge, k])),
-    [kayitlar, zaman]
-  )
+  const referansModu = zaman === 'referans'
+  const zamanKayitlari = useMemo(() => {
+    if (referansModu) {
+      // Referans kayıtlarını günlük kayıt biçimine benzet (cekim_zamani alanı)
+      return Object.fromEntries((referans?.liste ?? []).map(r =>
+        [r.bolge, { ...r, cekim_zamani: r.olusturma_tarih }]))
+    }
+    return Object.fromEntries(kayitlar.filter(k => k.zaman === zaman).map(k => [k.bolge, k]))
+  }, [kayitlar, zaman, referansModu, referans])
 
   const tamamSayisi = Object.keys(zamanKayitlari).length
+  const kilitli = !referansModu && referans && !referans.tamam
+
+  // Referansı eksik araçta Teknik Müdür'e tek tıkla haber ver
+  const teknikMudureBildir = async () => {
+    if (bildirGonderildi) return
+    const r = await bildirimEkleDb({
+      aliciId: FERDI_ID,
+      baslik: '🚗 Referans foto bekleniyor',
+      mesaj: `${plaka} aracının referans fotoğrafları eksik (${referans?.eksikSayi ?? 6} bölge) — ${kullanici?.ad || 'araç sorumlusu'} günlük çekim yapamıyor.`,
+      tip: 'bilgi',
+    })
+    if (r) { setBildirGonderildi(true); Alert.alert('İletildi', 'Teknik Müdür bilgilendirildi.') }
+    else Alert.alert('Hata', 'Bildirim gönderilemedi.')
+  }
 
   const kamerayaGit = async (bolge) => {
     setSeciliBolge(bolge)
@@ -95,7 +128,9 @@ export default function AracFotoDetayScreen({ route, navigation }) {
     setKaydediliyor(true)
     try {
       const foto = await kameraRef.current.takePictureAsync({ quality: 0.7, exif: false, skipProcessing: false })
-      const r = await fotoKaydet({ aracId, zaman, bolge: seciliBolge.id, dosyaUri: foto.uri })
+      const r = referansModu
+        ? await referansKaydet({ aracId, bolge: seciliBolge.id, dosyaUri: foto.uri, kullanici })
+        : await fotoKaydet({ aracId, zaman, bolge: seciliBolge.id, dosyaUri: foto.uri })
       if (r.ok) {
         setKameraAcik(false)
         setSeciliBolge(null)
@@ -120,12 +155,14 @@ export default function AracFotoDetayScreen({ route, navigation }) {
       >
         <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: '800', letterSpacing: 0.5 }}>{plaka}</Text>
         <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
-          Bugün {tamamSayisi}/{BOLGELER.length} bölge · {ZAMANLAR.find(z => z.id === zaman).ad}
+          {referansModu
+            ? `Referans ${tamamSayisi}/${BOLGELER.length} bölge · baz fotoğraflar`
+            : `Bugün ${tamamSayisi}/${BOLGELER.length} bölge · ${ZAMANLAR.find(z => z.id === zaman).ad}`}
         </Text>
 
-        {/* Sabah / Akşam toggle */}
+        {/* Sabah / Akşam (+ yetkiliye Referans) toggle */}
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 16, marginBottom: 16 }}>
-          {ZAMANLAR.map(z => {
+          {[...ZAMANLAR, ...(refYetkili ? [{ id: 'referans', ad: '📌 Referans' }] : [])].map(z => {
             const aktif = zaman === z.id
             return (
               <TouchableOpacity key={z.id} onPress={() => setZaman(z.id)} activeOpacity={0.8}
@@ -141,10 +178,46 @@ export default function AracFotoDetayScreen({ route, navigation }) {
           })}
         </View>
 
+        {/* TAM KİLİT (mig 198): referans tamamlanmadan günlük çekim yok */}
+        {kilitli && (
+          <View style={{
+            backgroundColor: colors.surface, borderRadius: 14, padding: 18, marginBottom: 16,
+            borderWidth: 1, borderColor: colors.warning,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Feather name="lock" size={18} color={colors.warning} />
+              <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '800', flex: 1 }}>
+                Referans fotoğraflar bekleniyor
+              </Text>
+            </View>
+            <Text style={{ color: colors.textMuted, fontSize: 12.5, marginTop: 8, lineHeight: 18 }}>
+              Bu aracın {referans?.eksikSayi ?? 6} bölge referans (baz) fotoğrafı henüz Teknik Müdür
+              tarafından çekilmedi. Referanslar tamamlanmadan sabah/akşam çekimi yapılamaz —
+              böylece her günkü fotoğraflar başlangıç durumuyla mukayese edilebilir.
+            </Text>
+            {!refYetkili ? (
+              <TouchableOpacity onPress={teknikMudureBildir} disabled={bildirGonderildi}
+                style={{
+                  marginTop: 12, padding: 12, borderRadius: 10, alignItems: 'center',
+                  backgroundColor: bildirGonderildi ? colors.surfaceDark : colors.warning,
+                }}>
+                <Text style={{ color: bildirGonderildi ? colors.textMuted : '#0f172a', fontWeight: '700', fontSize: 13 }}>
+                  {bildirGonderildi ? '✓ Teknik Müdür bilgilendirildi' : 'Teknik Müdüre Bildir'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => setZaman('referans')}
+                style={{ marginTop: 12, padding: 12, borderRadius: 10, alignItems: 'center', backgroundColor: colors.primary }}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>📌 Referans Çekimine Başla</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* 6 bölge kartı — tek sütun, geniş */}
         {yukleniyor ? (
           <View style={{ padding: 40, alignItems: 'center' }}><ActivityIndicator color={colors.primary} /></View>
-        ) : (
+        ) : kilitli ? null : (
           <View style={{ gap: 10 }}>
             {BOLGELER.map(b => (
               <BolgeKart
@@ -169,7 +242,8 @@ export default function AracFotoDetayScreen({ route, navigation }) {
                 <View>
                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>{onIzleme.bolge.ad}</Text>
                   <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 2 }}>
-                    {ZAMANLAR.find(z => z.id === zaman).ad} · {new Date(onIzleme.kayit.cekim_zamani).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                    {referansModu ? `Referans v${onIzleme.kayit.versiyon ?? 1}` : ZAMANLAR.find(z => z.id === zaman)?.ad}
+                    {' · '}{new Date(onIzleme.kayit.cekim_zamani).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => setOnIzleme(null)} style={{ padding: 8 }}>
@@ -186,6 +260,8 @@ export default function AracFotoDetayScreen({ route, navigation }) {
               )}
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                {/* Referans SİLİNMEZ — yalnız yeni versiyon çekilir (arşiv ispattır) */}
+                {!referansModu && (
                 <TouchableOpacity
                   onPress={silmeOnay ? kaydiSil : () => setSilmeOnay(true)}
                   disabled={siliniyor}
@@ -205,6 +281,7 @@ export default function AracFotoDetayScreen({ route, navigation }) {
                         </Text>
                       </>}
                 </TouchableOpacity>
+                )}
                 <TouchableOpacity onPress={() => yenidenCek(onIzleme.bolge)}
                   style={{
                     flex: 1, padding: 14, borderRadius: 12,
@@ -228,7 +305,7 @@ export default function AracFotoDetayScreen({ route, navigation }) {
           <View style={{ position: 'absolute', top: 40, left: 16, right: 16 }}>
             <View style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View>
-                <Text style={{ color: '#fff', fontSize: 12 }}>{plaka} · {ZAMANLAR.find(z => z.id === zaman).ad}</Text>
+                <Text style={{ color: '#fff', fontSize: 12 }}>{plaka} · {referansModu ? '📌 Referans' : ZAMANLAR.find(z => z.id === zaman)?.ad}</Text>
                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 2 }}>{seciliBolge?.ad}</Text>
               </View>
               <TouchableOpacity onPress={kameraKapat} style={{ padding: 8 }}>
