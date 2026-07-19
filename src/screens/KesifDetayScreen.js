@@ -27,7 +27,7 @@ import {
   KESIF_FOTO_ETIKETLERI,
 } from '../services/kesifService'
 import KesifFotoCizimModal from '../components/KesifFotoCizimModal'
-import { kesifPdfUretVePaylas } from '../lib/kesifPdf'
+import KesifOnizleModal from '../components/KesifOnizleModal'
 
 const BOS_FOTO_META = { baslik: '', aciklama: '', montajNotu: '', mahal: '', katBolum: '', etiket: '', kalemId: '' }
 
@@ -58,7 +58,7 @@ export default function KesifDetayScreen({ route, navigation }) {
   const [krokiBaslik, setKrokiBaslik] = useState('')
   const [krokiDuzenlenen, setKrokiDuzenlenen] = useState(null) // { id?, baslik, veri, gorselYolu }
   const [krokiKaydediliyor, setKrokiKaydediliyor] = useState(false)
-  const [pdfUretiliyor, setPdfUretiliyor] = useState(false)
+  const [raporOnizle, setRaporOnizle] = useState(false)
 
   // Yeni kalem formu
   const [kKategori, setKKategori] = useState('kamera')
@@ -277,15 +277,6 @@ export default function KesifDetayScreen({ route, navigation }) {
       },
       { text: 'Vazgeç', style: 'cancel' },
     ])
-  }
-
-  const pdfGonder = async () => {
-    setPdfUretiliyor(true)
-    try {
-      await kesifPdfUretVePaylas({ kesif, kalemler, krokiler, fotolar, fotoUrls })
-    } finally {
-      setPdfUretiliyor(false)
-    }
   }
 
   const krokiSembolOzet = (k) => {
@@ -604,20 +595,18 @@ export default function KesifDetayScreen({ route, navigation }) {
               : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Keşfi Kaydet</Text>}
           </TouchableOpacity>
 
-          {/* Raporu PDF olarak paylaş (WhatsApp/mail/AirDrop) */}
+          {/* Raporu önizle → PDF paylaş (WhatsApp/mail/AirDrop) */}
           <TouchableOpacity
-            onPress={pdfGonder}
-            disabled={pdfUretiliyor}
+            onPress={() => setRaporOnizle(true)}
             activeOpacity={0.85}
             style={{
               marginTop: 12, height: 50, borderRadius: 12, flexDirection: 'row', gap: 8,
               borderWidth: 1.5, borderColor: colors.primary,
-              alignItems: 'center', justifyContent: 'center', opacity: pdfUretiliyor ? 0.6 : 1,
+              alignItems: 'center', justifyContent: 'center',
             }}
           >
-            {pdfUretiliyor
-              ? <ActivityIndicator color={colors.primary} />
-              : <><Feather name="share-2" size={17} color={colors.primary} /><Text style={{ color: colors.primary, fontWeight: '700', fontSize: 15 }}>Raporu PDF Gönder</Text></>}
+            <Feather name="file-text" size={17} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 15 }}>Raporu Önizle & Gönder</Text>
           </TouchableOpacity>
 
           <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 14, textAlign: 'center' }}>
@@ -823,6 +812,17 @@ export default function KesifDetayScreen({ route, navigation }) {
         onKapat={() => setKrokiDuzenlenen(null)}
         onKaydet={krokiKaydetHandler}
         kaydediliyor={krokiKaydediliyor}
+      />
+
+      {/* RAPOR ÖNİZLEME — WebView + PDF paylaş */}
+      <KesifOnizleModal
+        visible={raporOnizle}
+        onClose={() => setRaporOnizle(false)}
+        kesif={kesif}
+        kalemler={kalemler}
+        krokiler={krokiler}
+        fotolar={fotolar}
+        fotoUrls={fotoUrls}
       />
     </ScreenContainer>
   )

@@ -5,6 +5,7 @@ import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system/legacy'
 import { Alert, Platform } from 'react-native'
 import { krokiSembolBilgi, kesifFotoEtiketBilgi, KESIF_TURLERI, KESIF_ONCELIKLERI, KESIF_DURUMLARI } from '../services/kesifService'
+import { ZNA_LOGO_B64 } from './znaLogo'
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const trTarih = (t) => (t ? String(t).slice(0, 10).split('-').reverse().join('.') : '—')
@@ -21,8 +22,8 @@ const url2base64 = async (url) => {
   } catch { return null }
 }
 
-export async function kesifPdfUretVePaylas({ kesif, kalemler = [], krokiler = [], fotolar = [], fotoUrls = {} }) {
-  try {
+// Rapor HTML üreticisi — hem WebView önizleme hem PDF için (görseller base64 gömülü)
+export async function kesifRaporHtml({ kesif, kalemler = [], krokiler = [], fotolar = [], fotoUrls = {} }) {
     // Görselleri paralel base64'e çevir
     const [krokiB64, fotoB64] = await Promise.all([
       Promise.all(krokiler.map(k => url2base64(fotoUrls[k.gorselYolu]))),
@@ -72,75 +73,96 @@ export async function kesifPdfUretVePaylas({ kesif, kalemler = [], krokiler = []
     }).join('')
 
     const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=794">
 <style>
   *{box-sizing:border-box;margin:0}
-  body{font:12px/1.5 -apple-system,system-ui,sans-serif;color:#111;padding:22px}
-  .antet{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #014486;padding-bottom:10px;margin-bottom:4px}
-  .marka{font-size:19px;font-weight:800;color:#014486;letter-spacing:.5px}
-  .marka small{display:block;font-size:9px;font-weight:600;color:#555;letter-spacing:2px}
-  .rt{text-align:right;font-size:11px;color:#555}.rt b{display:block;font-size:14px;color:#111}
-  h1{font-size:16px;margin:12px 0 1px}
-  h2{font-size:13px;margin:16px 0 6px;border-bottom:2px solid #014486;padding-bottom:3px;color:#014486}
-  .mut{color:#555}
-  .bilgi{display:grid;grid-template-columns:1fr 1fr;gap:3px 20px;margin-top:8px}
-  .bilgi>div{border-bottom:1px dotted #ddd;padding-bottom:2px}
-  .metin{white-space:pre-wrap;padding:8px 10px;background:#f7f9fb;border:1px solid #e5e9ef;border-radius:5px}
-  .tur{margin-bottom:5px}
-  table{width:100%;border-collapse:collapse;margin-top:4px}
-  th,td{border:1px solid #bbb;padding:5px 7px;text-align:left;vertical-align:top}
-  th{background:#eef3f8;font-size:11px}.sag{text-align:right;white-space:nowrap}
-  .blk{break-inside:avoid;margin-bottom:12px}
-  .blk img,.foto img{width:100%;max-height:430px;object-fit:contain;border:1px solid #ccc;border-radius:6px;margin-top:4px;background:#fff}
-  .ljs{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:11px}
-  .lj{display:inline-flex;align-items:center;gap:5px}
-  .lj b{color:#fff;font-size:9px;padding:2px 6px;border-radius:9px}
-  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .foto{border:1px solid #ccc;border-radius:6px;overflow:hidden;break-inside:avoid}
-  .foto img{border:0;border-radius:0;margin:0;max-height:280px}
-  .fm{padding:6px 8px;font-size:11px}.ciz{color:#16a34a;font-weight:700}
-  .imza{display:flex;justify-content:space-between;gap:40px;margin-top:38px;break-inside:avoid}
-  .imza>div{flex:1;border-top:1px solid #333;padding-top:5px;font-size:11px;color:#555;text-align:center}
-  .foot{margin-top:22px;padding-top:8px;border-top:1px solid #ddd;font-size:10px;color:#888;text-align:center}
+  body{font:12px/1.55 -apple-system,system-ui,sans-serif;color:#1a2332;padding:22px 24px}
+  .antet{display:flex;align-items:center;gap:12px;border-bottom:3px solid #014486;padding-bottom:11px}
+  .antet img{height:42px;width:auto}
+  .marka{flex:1}.marka b{display:block;font-size:17px;font-weight:800;color:#014486;letter-spacing:.3px}
+  .marka span{font-size:10px;font-weight:700;color:#64748b;letter-spacing:2.5px}
+  .rt{text-align:right;font-size:10.5px;color:#64748b}.rt b{display:block;font-size:14px;color:#1a2332;font-weight:800}
+  h1{font-size:15px;margin:13px 0 1px;color:#1a2332}
+  .alt{color:#64748b;font-size:11px}
+  h2{font-size:12px;margin:16px 0 7px;padding:5px 9px;background:#eef3f8;border-left:4px solid #014486;color:#014486;font-weight:800}
+  .mut{color:#64748b}
+  .bilgi{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px}
+  .bilgi>div{border-bottom:1px dotted #dbe2ea;padding:2px 0;font-size:11px}
+  .bilgi b{color:#475569}
+  .metin{white-space:pre-wrap;padding:9px 11px;background:#f8fafc;border:1px solid #e5e9ef;border-radius:6px;font-size:11px}
+  .tur{margin-bottom:5px;font-size:11px}
+  table{width:100%;border-collapse:collapse;margin-top:2px;font-size:11px}
+  th,td{border:1px solid #cbd5e1;padding:5px 7px;text-align:left;vertical-align:top}
+  th{background:#eef3f8;color:#334155;font-weight:700}.sag{text-align:right;white-space:nowrap}
+  .blk{margin-bottom:13px;break-inside:avoid;page-break-inside:avoid}
+  .blk>b{font-size:12px}
+  .blk img{width:100%;max-height:400px;object-fit:contain;border:1px solid #d5dde6;border-radius:7px;margin-top:4px;background:#fff}
+  .ljs{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:10.5px}
+  .lj{display:inline-flex;align-items:center;gap:5px}.lj b{color:#fff;font-size:9px;padding:2px 6px;border-radius:9px}
+  .fgrid{margin-top:2px}
+  .foto{display:inline-block;width:49%;vertical-align:top;margin:0 0 10px;border:1px solid #d5dde6;border-radius:7px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+  .foto:nth-child(odd){margin-right:1.4%}
+  .foto img{width:100%;max-height:210px;object-fit:contain;background:#f6f8fb;display:block}
+  .fm{padding:6px 8px;font-size:10.5px}.fm b{font-size:11px}.ciz{color:#16a34a;font-weight:700}
+  .imza{display:flex;justify-content:space-between;gap:48px;margin-top:40px;break-inside:avoid;page-break-inside:avoid}
+  .imza>div{flex:1;border-top:1.5px solid #334155;padding-top:6px;font-size:11px;color:#64748b;text-align:center}
+  .foot{margin-top:20px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;line-height:1.5}
+  .foot b{color:#014486}
 </style></head><body>
 <div class="antet">
-  <div class="marka">ZNA TEKNOLOJİ<small>SAHA KEŞİF RAPORU</small></div>
+  <img src="${ZNA_LOGO_B64}" alt="ZNA">
+  <div class="marka"><b>ZNA TEKNOLOJİ</b><span>SAHA KEŞİF RAPORU</span></div>
   <div class="rt"><b>${esc(kesif.kesifNo || '')}</b>${kesif.kesifTarihi ? `Keşif: ${esc(trTarih(kesif.kesifTarihi))}` : ''}</div>
 </div>
 <h1>${esc(kesif.kesifBasligi || kesif.firmaAdi || 'Keşif')}</h1>
-<h2>Müşteri ve Proje Bilgileri</h2>
+${kesif.kesifBasligi && kesif.firmaAdi ? `<div class="alt">${esc(kesif.firmaAdi)}</div>` : ''}
+<h2>MÜŞTERİ VE PROJE BİLGİLERİ</h2>
 <div class="bilgi">${bilgi.map(([a, v]) => `<div><b>${esc(a)}:</b> ${esc(v)}</div>`).join('')}</div>
-${turBlok ? `<h2>Keşif Türleri ve Teknik Detaylar</h2>${turBlok}` : ''}
-${kesif.genelNot ? `<h2>Keşif Açıklaması</h2><div class="metin">${esc(kesif.genelNot)}</div>` : ''}
-${kesif.ozelTalepler ? `<h2>Müşteri Özel Talepleri</h2><div class="metin">${esc(kesif.ozelTalepler)}</div>` : ''}
-${kesif.mevcutSistem ? `<h2>Mevcut Sistem Bilgisi</h2><div class="metin">${esc(kesif.mevcutSistem)}</div>` : ''}
-${kalemler.length ? `<h2>Malzeme Listesi (${kalemler.length})</h2><table><tr><th>Ürün</th><th>Miktar</th><th>Not</th></tr>${kalemSatir}</table>` : ''}
-${krokiBlok ? `<h2>Krokiler (${krokiler.length})</h2>${krokiBlok}` : ''}
-${fotoBlok ? `<h2>Fotoğraflar (${fotolar.length})</h2><div class="fgrid">${fotoBlok}</div>` : ''}
+${turBlok ? `<h2>KEŞİF TÜRLERİ VE TEKNİK DETAYLAR</h2>${turBlok}` : ''}
+${kesif.genelNot ? `<h2>KEŞİF AÇIKLAMASI</h2><div class="metin">${esc(kesif.genelNot)}</div>` : ''}
+${kesif.ozelTalepler ? `<h2>MÜŞTERİ ÖZEL TALEPLERİ</h2><div class="metin">${esc(kesif.ozelTalepler)}</div>` : ''}
+${kesif.mevcutSistem ? `<h2>MEVCUT SİSTEM BİLGİSİ</h2><div class="metin">${esc(kesif.mevcutSistem)}</div>` : ''}
+${kalemler.length ? `<h2>MALZEME LİSTESİ (${kalemler.length})</h2><table><tr><th>Ürün</th><th>Miktar</th><th>Not</th></tr>${kalemSatir}</table>` : ''}
+${krokiBlok ? `<h2>KROKİLER (${krokiler.length})</h2>${krokiBlok}` : ''}
+${fotoBlok ? `<h2>FOTOĞRAFLAR (${fotolar.length})</h2><div class="fgrid">${fotoBlok}</div>` : ''}
 <div class="imza">
-  <div>Keşfi Yapan${kesif.kesfiYapan ? `<br><b style="color:#111">${esc(kesif.kesfiYapan)}</b>` : ''}</div>
-  <div>Müşteri Yetkilisi${kesif.musteriYetkilisi ? `<br><b style="color:#111">${esc(kesif.musteriYetkilisi)}</b>` : ''}</div>
+  <div>Keşfi Yapan${kesif.kesfiYapan ? `<br><b style="color:#1a2332">${esc(kesif.kesfiYapan)}</b>` : ''}</div>
+  <div>Müşteri Yetkilisi${kesif.musteriYetkilisi ? `<br><b style="color:#1a2332">${esc(kesif.musteriYetkilisi)}</b>` : ''}</div>
 </div>
-<div class="foot">Bu rapor ZNA Teknoloji CRM sistemi üzerinden oluşturulmuştur.</div>
+<div class="foot"><b>ZNA TEKNOLOJİ BİLİŞİM HİZ. SAN. VE TİC. LTD. ŞTİ.</b> · znateknoloji.com<br>Bu rapor ZNA Teknoloji CRM sistemi üzerinden oluşturulmuştur.</div>
 </body></html>`
+    return html
+}
 
+// Hazır HTML'i PDF'e çevir + cihaz paylaş menüsü (önizleme modalı bu HTML'i verir)
+export async function htmlPdfPaylas(html, kesif) {
+  try {
     const { uri } = await Print.printToFileAsync({ html, base64: false, width: 595, height: 842 })
-
-    // Anlamlı dosya adı
-    const ad = `${String(kesif.kesifNo || 'kesif').replace(/[^\w-]+/g, '')}-ZNA.pdf`
+    const ad = `${String(kesif?.kesifNo || 'kesif').replace(/[^\w-]+/g, '')}-ZNA.pdf`
     const yeniUri = `${FileSystem.cacheDirectory}${ad}`
     try {
       await FileSystem.deleteAsync(yeniUri, { idempotent: true })
       await FileSystem.copyAsync({ from: uri, to: yeniUri })
-    } catch { /* kopyalama başarısızsa orijinal uri paylaşılır */ }
+    } catch { /* orijinal uri kullanılır */ }
     const paylasUri = (await FileSystem.getInfoAsync(yeniUri)).exists ? yeniUri : uri
-
     if (Platform.OS === 'web') { Alert.alert('PDF', 'PDF oluşturuldu.'); return { ok: true, uri: paylasUri } }
     if (!(await Sharing.isAvailableAsync())) { Alert.alert('Paylaşım', 'Cihazda paylaşım modülü yok.'); return { ok: true, uri: paylasUri } }
-
     await Sharing.shareAsync(paylasUri, {
       mimeType: 'application/pdf', dialogTitle: 'Keşif Raporunu Paylaş', UTI: 'com.adobe.pdf',
     })
     return { ok: true, uri: paylasUri }
+  } catch (err) {
+    console.error('[kesifPdf] paylaş hata:', err)
+    Alert.alert('PDF oluşturulamadı', String(err?.message ?? err))
+    return { ok: false, hata: err }
+  }
+}
+
+// Geriye uyumlu: HTML üret + doğrudan paylaş (önizleme kullanmayan çağrı)
+export async function kesifPdfUretVePaylas(params) {
+  try {
+    const html = await kesifRaporHtml(params)
+    return await htmlPdfPaylas(html, params.kesif)
   } catch (err) {
     console.error('[kesifPdf] hata:', err)
     Alert.alert('PDF oluşturulamadı', String(err?.message ?? err))
