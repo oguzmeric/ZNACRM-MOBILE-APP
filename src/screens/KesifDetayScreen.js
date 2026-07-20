@@ -505,7 +505,7 @@ export default function KesifDetayScreen({ route, navigation }) {
             const toplam = [...toplamM.values()].reduce((a, b) => a + b, 0)
             return (
               <>
-                <Text style={bolumBaslik}>🔢 Sembol Özeti ({toplam} adet)</Text>
+                <Text style={bolumBaslik}>🔢 Cihaz Yerleşim Dökümü ({toplam} adet)</Text>
                 {[...kaynaklar, { anahtar: 'genel', baslik: 'GENEL TOPLAM', semboller: listele(toplamM), toplam }].map(ka => (
                   <View key={ka.anahtar} style={{ marginTop: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 10, overflow: 'hidden' }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8, backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 7 }}>

@@ -99,7 +99,7 @@ export async function kesifRaporHtml({ kesif, kalemler = [], krokiler = [], foto
     const sToplamM = sembolleriSay(krokiler, fotolar)
     const sToplam = [...sToplamM.values()].reduce((a, b) => a + b, 0)
     const katAd = (id) => KROKI_KATEGORILER.find(x => x.id === id)?.ad || ''
-    const sembolOzetBlok = sToplam ? `<h2>SEMBOL ÖZETİ — KROKİ + FOTOĞRAF (${sToplam} ADET)</h2><table><tr><th>Konum</th><th>Ürün</th><th>Sistem</th><th>Adet</th></tr>${
+    const sembolOzetBlok = sToplam ? `<h2>CİHAZ YERLEŞİM DÖKÜMÜ (${sToplam} ADET)</h2><table><tr><th>Konum</th><th>Ürün</th><th>Sistem</th><th>Adet</th></tr>${
       sKaynak.map(ka =>
         `<tr><td rowspan="${ka.semboller.length}"><b>${esc(ka.baslik)}</b><div class="mut">${ka.toplam} adet</div></td><td>${esc(ka.semboller[0].ad)}</td><td>${esc(katAd(ka.semboller[0].kategori))}</td><td class="sag">${ka.semboller[0].adet}</td></tr>` +
         ka.semboller.slice(1).map(s => `<tr><td>${esc(s.ad)}</td><td>${esc(katAd(s.kategori))}</td><td class="sag">${s.adet}</td></tr>`).join('')
