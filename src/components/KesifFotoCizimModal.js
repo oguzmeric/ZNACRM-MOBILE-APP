@@ -485,13 +485,16 @@ export default function KesifFotoCizimModal({
           ) : null}
         </View>
 
-        {/* Sembol paneli — kaleme bağla / sil (alt sayfa) */}
+        {/* Sembol paneli — kaleme bağla / sil (alt sayfa)
+            zIndex/elevation ŞART: renk-kalınlık çubuğu da altta, panelin üstüne biniyordu
+            ("Sembolü Sil" tıklanamıyordu — 2026-07-20 saha geri bildirimi) */}
         {sembolPanel !== null && sekiller[sembolPanel] && (
           <View style={{
-            position: 'absolute', left: 0, right: 0, bottom: 0,
+            position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 50, elevation: 20,
             backgroundColor: '#1e293b', borderTopLeftRadius: 16, borderTopRightRadius: 16,
             padding: 16, paddingBottom: 16 + (insets.bottom || 0),
             borderTopWidth: 1, borderTopColor: '#334155',
+            shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.35, shadowRadius: 10,
           }}>
             {(() => {
               const s = sekiller[sembolPanel]
