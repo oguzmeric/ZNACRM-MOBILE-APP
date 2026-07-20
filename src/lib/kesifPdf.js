@@ -4,7 +4,10 @@ import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system/legacy'
 import { Alert, Platform } from 'react-native'
-import { krokiSembolBilgi, kesifFotoEtiketBilgi, KESIF_TURLERI, KESIF_ONCELIKLERI, KESIF_DURUMLARI } from '../services/kesifService'
+import {
+  krokiSembolBilgi, kesifFotoEtiketBilgi, KESIF_TURLERI, KESIF_ONCELIKLERI, KESIF_DURUMLARI,
+  KROKI_KATEGORILER, KROKI_SEMBOLLERI, sembolleriSay,
+} from '../services/kesifService'
 import { ZNA_LOGO_B64 } from './znaLogo'
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -69,8 +72,41 @@ export async function kesifRaporHtml({ kesif, kalemler = [], krokiler = [], foto
         [f.mahal, f.katBolum].filter(Boolean).length && `Yer: ${esc([f.mahal, f.katBolum].filter(Boolean).join(' / '))}`,
         kesifFotoEtiketBilgi(f.etiket) && `Etiket: ${esc(kesifFotoEtiketBilgi(f.etiket).ad)}`,
       ].filter(Boolean).join(' · ')
-      return `<div class="foto"><img src="${fotoB64[i]}"><div class="fm"><b>${esc(f.baslik || 'Fotoğraf')}</b>${f.cizimYolu ? ' <span class="ciz">✏ çizimli</span>' : ''}${alt ? `<div>${alt}</div>` : ''}</div></div>`
+      // Fotoya yerleştirilen semboller — kroki gibi lejant
+      const fLejant = (f.cizimVeri?.sekiller || []).filter(s => s.tip === 'sembol').map(s => {
+        const b = krokiSembolBilgi(s.sembol)
+        return `<span class="lj"><b style="background:${b.renk}">${b.kod}${s.no}</b>${esc(b.ad)}</span>`
+      }).join('')
+      return `<div class="foto"><img src="${fotoB64[i]}"><div class="fm"><b>${esc(f.baslik || 'Fotoğraf')}</b>${f.cizimYolu ? ' <span class="ciz">✏ çizimli</span>' : ''}${alt ? `<div>${alt}</div>` : ''}${fLejant ? `<div class="ljs">${fLejant}</div>` : ''}</div></div>`
     }).join('')
+
+    // Sembol Özeti — kroki + foto ikonları kaynak bazlı + genel toplam (web raporuyla aynı)
+    const sSay = (sk) => {
+      const m = new Map()
+      for (const s of (sk || [])) if (s.tip === 'sembol' && s.sembol) m.set(s.sembol, (m.get(s.sembol) || 0) + 1)
+      return m
+    }
+    const sListe = (m) => KROKI_SEMBOLLERI.filter(s => m.has(s.id)).map(s => ({ ...s, adet: m.get(s.id) }))
+    const sKaynak = []
+    krokiler.forEach((k, i) => {
+      const m = sSay(k.veri?.sekiller)
+      if (m.size) sKaynak.push({ baslik: `Kroki — ${k.baslik || `Kroki ${i + 1}`}`, semboller: sListe(m), toplam: [...m.values()].reduce((a, b) => a + b, 0) })
+    })
+    fotolar.forEach((f, i) => {
+      const m = sSay(f.cizimVeri?.sekiller)
+      if (m.size) sKaynak.push({ baslik: `Foto — ${f.baslik || f.mahal || `Fotoğraf ${i + 1}`}`, semboller: sListe(m), toplam: [...m.values()].reduce((a, b) => a + b, 0) })
+    })
+    const sToplamM = sembolleriSay(krokiler, fotolar)
+    const sToplam = [...sToplamM.values()].reduce((a, b) => a + b, 0)
+    const katAd = (id) => KROKI_KATEGORILER.find(x => x.id === id)?.ad || ''
+    const sembolOzetBlok = sToplam ? `<h2>SEMBOL ÖZETİ — KROKİ + FOTOĞRAF (${sToplam} ADET)</h2><table><tr><th>Konum</th><th>Ürün</th><th>Sistem</th><th>Adet</th></tr>${
+      sKaynak.map(ka =>
+        `<tr><td rowspan="${ka.semboller.length}"><b>${esc(ka.baslik)}</b><div class="mut">${ka.toplam} adet</div></td><td>${esc(ka.semboller[0].ad)}</td><td>${esc(katAd(ka.semboller[0].kategori))}</td><td class="sag">${ka.semboller[0].adet}</td></tr>` +
+        ka.semboller.slice(1).map(s => `<tr><td>${esc(s.ad)}</td><td>${esc(katAd(s.kategori))}</td><td class="sag">${s.adet}</td></tr>`).join('')
+      ).join('')
+    }<tr><td colspan="4" style="background:#eef3f8;font-weight:800;color:#014486">GENEL TOPLAM · ${sToplam} ADET</td></tr>${
+      sListe(sToplamM).map(s => `<tr><td></td><td>${esc(s.ad)}</td><td>${esc(katAd(s.kategori))}</td><td class="sag"><b>${s.adet}</b></td></tr>`).join('')
+    }</table>` : ''
 
     const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=794">
@@ -137,6 +173,7 @@ ${kesif.genelNot ? `<h2>KEŞİF AÇIKLAMASI</h2><div class="metin">${esc(kesif.g
 ${kesif.ozelTalepler ? `<h2>MÜŞTERİ ÖZEL TALEPLERİ</h2><div class="metin">${esc(kesif.ozelTalepler)}</div>` : ''}
 ${kesif.mevcutSistem ? `<h2>MEVCUT SİSTEM BİLGİSİ</h2><div class="metin">${esc(kesif.mevcutSistem)}</div>` : ''}
 ${kalemler.length ? `<h2>MALZEME LİSTESİ (${kalemler.length})</h2><table><tr><th>Ürün</th><th>Miktar</th><th>Not</th></tr>${kalemSatir}</table>` : ''}
+${sembolOzetBlok}
 ${krokiBlok ? `<h2>KROKİLER (${krokiler.length})</h2>${krokiBlok}` : ''}
 ${fotoBlok ? `<h2>FOTOĞRAFLAR (${fotolar.length})</h2><div class="fgrid">${fotoBlok}</div>` : ''}
 <div class="imza">

@@ -23,6 +23,7 @@ import {
   kesifFotolariGetir, kesifFotoYukle, kesifFotoSil, kesifFotoUrlleri,
   kesifFotoGuncelle, kesifFotoCizimKaydet, kesifFotoEtiketBilgi,
   kesifKrokileriGetir, kesifKrokiKaydet, kesifKrokiSil, krokiSembolBilgi,
+  KROKI_KATEGORILER, KROKI_SEMBOLLERI, sembolleriSay,
   KESIF_KATEGORILERI, KESIF_TURLERI, KESIF_DURUMLARI, KESIF_ONCELIKLERI,
   KESIF_FOTO_ETIKETLERI,
 } from '../services/kesifService'
@@ -481,6 +482,53 @@ export default function KesifDetayScreen({ route, navigation }) {
               })}
             </View>
           )}
+
+          {/* Sembol Özeti — kroki + foto ikonlarının kaynak bazlı otomatik sayımı (2026-07-20) */}
+          {(() => {
+            const sayim = (sk) => {
+              const m = new Map()
+              for (const s of (sk || [])) if (s.tip === 'sembol' && s.sembol) m.set(s.sembol, (m.get(s.sembol) || 0) + 1)
+              return m
+            }
+            const listele = (m) => KROKI_SEMBOLLERI.filter(s => m.has(s.id)).map(s => ({ ...s, adet: m.get(s.id) }))
+            const kaynaklar = []
+            krokiler.forEach((k, i) => {
+              const m = sayim(k.veri?.sekiller)
+              if (m.size) kaynaklar.push({ anahtar: `k${k.id}`, baslik: `Kroki — ${k.baslik || `Kroki ${i + 1}`}`, semboller: listele(m), toplam: [...m.values()].reduce((a, b) => a + b, 0) })
+            })
+            fotolar.forEach((f, i) => {
+              const m = sayim(f.cizimVeri?.sekiller)
+              if (m.size) kaynaklar.push({ anahtar: `f${f.id}`, baslik: `Foto — ${f.baslik || f.mahal || `Fotoğraf ${i + 1}`}`, semboller: listele(m), toplam: [...m.values()].reduce((a, b) => a + b, 0) })
+            })
+            if (!kaynaklar.length) return null
+            const toplamM = sembolleriSay(krokiler, fotolar)
+            const toplam = [...toplamM.values()].reduce((a, b) => a + b, 0)
+            return (
+              <>
+                <Text style={bolumBaslik}>🔢 Sembol Özeti ({toplam} adet)</Text>
+                {[...kaynaklar, { anahtar: 'genel', baslik: 'GENEL TOPLAM', semboller: listele(toplamM), toplam }].map(ka => (
+                  <View key={ka.anahtar} style={{ marginTop: 8, borderWidth: 1, borderColor: colors.border, borderRadius: 10, overflow: 'hidden' }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8, backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 7 }}>
+                      <Text style={{ color: colors.textPrimary, fontSize: 12, fontWeight: '800', flex: 1 }} numberOfLines={1}>{ka.baslik}</Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>{ka.toplam} adet</Text>
+                    </View>
+                    {ka.semboller.map((s, si) => (
+                      <View key={`${ka.anahtar}-${s.id}`} style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 8,
+                        paddingVertical: 6, paddingHorizontal: 10,
+                        borderTopWidth: si === 0 ? 0 : 1, borderTopColor: colors.border,
+                      }}>
+                        <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: s.renk }} />
+                        <Text style={{ color: colors.textPrimary, fontSize: 12.5, fontWeight: '600', flex: 1 }} numberOfLines={1}>{s.ad}</Text>
+                        <Text style={{ color: colors.textMuted, fontSize: 11 }}>{KROKI_KATEGORILER.find(x => x.id === s.kategori)?.ad || ''}</Text>
+                        <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: '800', minWidth: 26, textAlign: 'right' }}>{s.adet}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </>
+            )
+          })()}
 
           {/* Keşif türleri — çoklu seçim dropdown */}
           <Text style={bolumBaslik}>Keşif Türleri</Text>

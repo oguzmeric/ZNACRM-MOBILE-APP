@@ -16,12 +16,28 @@ import {
   Image as SkiaImage, Text as SkiaText, matchFont, Fill, DashPathEffect, Skia,
 } from '@shopify/react-native-skia'
 import SecimPicker from './SecimPicker'
-import { KROKI_SEMBOLLERI, krokiSembolBilgi, KROKI_SEMBOL_PATH } from '../services/kesifService'
+import { KROKI_SEMBOLLERI, KROKI_KATEGORILER, krokiSembolBilgi, KROKI_SEMBOL_PATH } from '../services/kesifService'
 
 // Sembol path'lerini bir kez Skia Path'e çevir
 const SEMBOL_SKIA_PATH = Object.fromEntries(
   Object.entries(KROKI_SEMBOL_PATH).map(([k, d]) => [k, Skia.Path.MakeFromSVGString(d)]).filter(([, p]) => p),
 )
+
+// Palet çipi ikonu — tuvalle AYNI kaynak (Skia path, minik canvas)
+function SembolCipIkon({ id, renk }) {
+  const p = SEMBOL_SKIA_PATH[id]
+  return (
+    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: renk, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      {p ? (
+        <Canvas style={{ width: 15, height: 15 }}>
+          <Group transform={[{ scale: 15 / 24 }]}>
+            <Path path={p} color="#ffffff" style="stroke" strokeWidth={2.6} strokeCap="round" strokeJoin="round" />
+          </Group>
+        </Canvas>
+      ) : null}
+    </View>
+  )
+}
 
 const RENKLER = ['#dc2626', '#2563eb', '#16a34a', '#f59e0b', '#0f172a', '#ffffff']
 const KALINLIKLAR = [2, 4, 6, 10]
@@ -84,10 +100,10 @@ function sekilPath(s) {
 }
 
 // Silgi hit-testi — web sekilIcindeMi ile aynı mantık
-function sekilIcindeMi(s, x, y) {
+function sekilIcindeMi(s, x, y, minSembol = 0) {
   const PAY = 18
   if (s.tip === 'kalem' || s.tip === 'kablo') return (s.noktalar || []).some(n => Math.abs(n.x - x) < PAY && Math.abs(n.y - y) < PAY)
-  if (s.tip === 'sembol') return Math.hypot(s.x - x, s.y - y) < (s.boyut || 26) + PAY
+  if (s.tip === 'sembol') return Math.hypot(s.x - x, s.y - y) < Math.max(s.boyut || 26, minSembol) + PAY
   if (s.tip === 'metin') return x > s.x - PAY && x < s.x + (s.metin?.length || 1) * (s.boyut || 28) * 0.6 + PAY && y > s.y - (s.boyut || 28) - PAY && y < s.y + PAY
   if (s.tip === 'balon') return Math.hypot(s.x - x, s.y - y) < (s.yaricap || 22) + PAY
   const minX = Math.min(s.x1, s.x2) - PAY, maxX = Math.max(s.x1, s.x2) + PAY
@@ -95,10 +111,10 @@ function sekilIcindeMi(s, x, y) {
   return x >= minX && x <= maxX && y >= minY && y <= maxY
 }
 
-function SekilGoster({ s }) {
+function SekilGoster({ s, minSembol = 0 }) {
   if (s.tip === 'sembol') {
     const b = krokiSembolBilgi(s.sembol)
-    const r = s.boyut || 28
+    const r = Math.max(s.boyut || 28, minSembol)
     const ikonPath = SEMBOL_SKIA_PATH[s.sembol]
     const sc = (r * 1.35) / 24
     // numara rozeti (sağ-alt) — ikon tip, numara sıra
@@ -184,7 +200,8 @@ export default function KesifFotoCizimModal({
   const [taslak, setTaslak] = useState(null)
   const [metinDeger, setMetinDeger] = useState('')
   const [alan, setAlan] = useState({ w: 0, h: 0 })
-  const [secSembol, setSecSembol] = useState('kamera')  // aktif sembol tipi (kroki)
+  const [secSembol, setSecSembol] = useState('dome')      // aktif sembol tipi
+  const [secKategori, setSecKategori] = useState('kamera') // sembol paleti aktif kategori
   const [sembolPanel, setSembolPanel] = useState(null)  // index — kaleme bağla / sil paneli
   const ilkSekillerRef = useRef(baslangicSekilleri)
 
@@ -198,6 +215,10 @@ export default function KesifFotoCizimModal({
 
   const imgW = krokiModu ? tuval.w : (skImage?.width() || 0)
   const imgH = krokiModu ? tuval.h : (skImage?.height() || 0)
+  // İşaret ölçeği — web ile aynı: fotoğrafta sembol/metin/balon çözünürlüğe oranlı,
+  // sembol yarıçapı uzun kenarın ~1/26'sı (yoksa 4000px fotoda görünmez kalıyor)
+  const isaretOlcek = Math.max(1, Math.max(imgW, imgH) / 1600)
+  const minSembol = krokiModu ? 34 : Math.max(34, Math.round(Math.max(imgW, imgH) / 26))
   const olcek = useMemo(() => {
     if (!imgW || !imgH || !alan.w || !alan.h) return 0
     return Math.min(alan.w / imgW, alan.h / imgH)
@@ -230,7 +251,7 @@ export default function KesifFotoCizimModal({
     const { x, y } = konum(e)
     if (arac === 'silgi') {
       for (let i = sekiller.length - 1; i >= 0; i--) {
-        if (sekilIcindeMi(sekiller[i], x, y)) {
+        if (sekilIcindeMi(sekiller[i], x, y, minSembol)) {
           degistir(sekiller.filter((_, j) => j !== i))
           return
         }
@@ -239,24 +260,24 @@ export default function KesifFotoCizimModal({
     }
     if (arac === 'metin') {
       if (!metinDeger.trim()) { Alert.alert('Metin', 'Önce üstteki kutuya metni yaz, sonra fotoğrafa dokun.'); return }
-      degistir([...sekiller, { tip: 'metin', x, y, metin: metinDeger.trim(), renk, boyut: 22 + kalinlik * 3 }])
+      degistir([...sekiller, { tip: 'metin', x, y, metin: metinDeger.trim(), renk, boyut: Math.round((22 + kalinlik * 3) * isaretOlcek) }])
       return
     }
     if (arac === 'balon') {
       const no = sekiller.filter(s => s.tip === 'balon').length + 1
-      degistir([...sekiller, { tip: 'balon', x, y, no, renk, yaricap: 22 + kalinlik * 2 }])
+      degistir([...sekiller, { tip: 'balon', x, y, no, renk, yaricap: Math.round((22 + kalinlik * 2) * isaretOlcek) }])
       return
     }
     if (arac === 'sembol') {
       // Mevcut sembole dokunma: kaleme bağla / sil paneli
       for (let i = sekiller.length - 1; i >= 0; i--) {
-        if (sekiller[i].tip === 'sembol' && sekilIcindeMi(sekiller[i], x, y)) {
+        if (sekiller[i].tip === 'sembol' && sekilIcindeMi(sekiller[i], x, y, minSembol)) {
           setSembolPanel(i)
           return
         }
       }
       const no = sekiller.filter(s => s.tip === 'sembol' && s.sembol === secSembol).length + 1
-      degistir([...sekiller, { tip: 'sembol', sembol: secSembol, x, y, no, boyut: 28 }])
+      degistir([...sekiller, { tip: 'sembol', sembol: secSembol, x, y, no, boyut: minSembol }])
       return
     }
     if (arac === 'kalem' || arac === 'kablo') setTaslak({ tip: arac, noktalar: [{ x, y }], renk, kalinlik })
@@ -361,7 +382,7 @@ export default function KesifFotoCizimModal({
         {/* Araçlar */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center' }}>
-          {(krokiModu ? [...KROKI_ARACLAR, ...ARACLAR] : ARACLAR).map(a => {
+          {[...KROKI_ARACLAR, ...ARACLAR].map(a => {
             const aktif = arac === a.id
             return (
               <TouchableOpacity key={a.id} onPress={() => setArac(a.id)}
@@ -373,26 +394,50 @@ export default function KesifFotoCizimModal({
           })}
         </ScrollView>
 
-        {/* Sembol paleti — sembol aracı seçiliyken */}
-        {krokiModu && arac === 'sembol' && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}
-            style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 10, paddingBottom: 6, alignItems: 'center' }}>
-            {KROKI_SEMBOLLERI.map(s => (
-              <TouchableOpacity key={s.id} onPress={() => setSecSembol(s.id)}
-                style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 6,
-                  paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
-                  borderWidth: secSembol === s.id ? 2 : 1,
-                  borderColor: secSembol === s.id ? '#60a5fa' : 'rgba(255,255,255,0.18)',
-                  backgroundColor: secSembol === s.id ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.05)',
-                }}>
-                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: s.renk, alignItems: 'center', justifyContent: 'center' }}>
-                  <Feather name={s.ikon} size={11} color="#fff" />
-                </View>
-                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{s.ad}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        {/* Sembol paleti — sembol aracı seçiliyken; kategori sekmeleri + kategorinin sembolleri */}
+        {arac === 'sembol' && (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 5, paddingHorizontal: 10, paddingBottom: 5, alignItems: 'center' }}>
+              {KROKI_KATEGORILER.map(k => {
+                const aktif = secKategori === k.id
+                return (
+                  <TouchableOpacity key={k.id}
+                    onPress={() => {
+                      setSecKategori(k.id)
+                      const ilk = KROKI_SEMBOLLERI.find(s => !s.eski && s.kategori === k.id)
+                      if (ilk && krokiSembolBilgi(secSembol).kategori !== k.id) setSecSembol(ilk.id)
+                    }}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 5,
+                      paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14,
+                      borderWidth: aktif ? 2 : 1,
+                      borderColor: aktif ? k.renk : 'rgba(255,255,255,0.18)',
+                      backgroundColor: aktif ? `${k.renk}33` : 'rgba(255,255,255,0.05)',
+                    }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 3, backgroundColor: k.renk }} />
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{k.ad}</Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 10, paddingBottom: 6, alignItems: 'center' }}>
+              {KROKI_SEMBOLLERI.filter(s => !s.eski && s.kategori === secKategori).map(s => (
+                <TouchableOpacity key={s.id} onPress={() => setSecSembol(s.id)}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 6,
+                    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
+                    borderWidth: secSembol === s.id ? 2 : 1,
+                    borderColor: secSembol === s.id ? '#60a5fa' : 'rgba(255,255,255,0.18)',
+                    backgroundColor: secSembol === s.id ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.05)',
+                  }}>
+                  <SembolCipIkon id={s.id} renk={s.renk} />
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{s.ad}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
         )}
 
         {arac === 'metin' && (
@@ -432,8 +477,8 @@ export default function KesifFotoCizimModal({
                   {krokiModu
                     ? (izgaraPath ? <Path path={izgaraPath} color="#e8edf3" style="stroke" strokeWidth={1.5} /> : null)
                     : <SkiaImage image={skImage} x={0} y={0} width={imgW} height={imgH} fit="fill" />}
-                  {sekiller.map((s, i) => <SekilGoster key={i} s={s} />)}
-                  {taslak && <SekilGoster s={taslak} />}
+                  {sekiller.map((s, i) => <SekilGoster key={i} s={s} minSembol={minSembol} />)}
+                  {taslak && <SekilGoster s={taslak} minSembol={minSembol} />}
                 </Group>
               </Canvas>
             </View>
