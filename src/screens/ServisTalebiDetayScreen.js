@@ -27,9 +27,16 @@ import {
   malzemePlanGuncelle,
   malzemePlanSil,
   webMalzemeleriGetir,
+  formEnvanterKalemleri,
   FATURALANDIRMA_SECENEK,
   malzemeFaturalandirmaIsaretle,
 } from '../services/servisMalzemeService'
+import {
+  cihazGetirSeriNo,
+  cihazEkle,
+  cihazGuncelle,
+  musteriCihazlariGetir,
+} from '../services/musteriCihazService'
 import SecimPicker from '../components/SecimPicker'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -85,6 +92,16 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [webMalzemeler, setWebMalzemeler] = useState([])  // web'den girilen kullanımlar (mig 153)
   const [malzemeModalOpen, setMalzemeModalOpen] = useState(false)
   const [duzenlenenPlan, setDuzenlenenPlan] = useState(null)
+
+  // Cihaz bilgileri (MAC/IP/kullanıcı/şifre) — müşteri cihaz envanterine köprü
+  const [kullanilanCihazlar, setKullanilanCihazlar] = useState([])   // seriNo'lu kullanılan kalemler
+  const [kayitliSnSet, setKayitliSnSet] = useState(new Set())
+  const [cihazRow, setCihazRow] = useState(null)
+  const [cihazForm, setCihazForm] = useState(null)
+  const [cihazMevcutId, setCihazMevcutId] = useState(null)
+  const [cihazModalYukleniyor, setCihazModalYukleniyor] = useState(false)
+  const [cihazKaydediliyor, setCihazKaydediliyor] = useState(false)
+  const [sifreGoster, setSifreGoster] = useState(false)
 
   // İmza
   const [imzaModalOpen, setImzaModalOpen] = useState(false)
@@ -157,8 +174,83 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     setTespit(t?.kokSebep ?? '')
     setYapilanMudahale(t?.yapilanMudahale ?? '')
     servisFaturaTalebiGetir(id).then(setFaturaTalebi).catch(() => {})
+    cihazlariYukle(id, t?.musteriId)
     setLoading(false)
   }, [id])
+
+  // Kullanılan S/N cihazları + hangisinin envanterde kayıtlı olduğunu getir
+  const cihazlariYukle = useCallback(async (servisId, musteriId) => {
+    try {
+      const kalemler = await formEnvanterKalemleri(servisId)
+      const snli = (kalemler ?? []).filter((k) => k.seriNo)
+      setKullanilanCihazlar(snli)
+      if (musteriId) {
+        const list = await musteriCihazlariGetir(musteriId)
+        const s = new Set((list ?? []).map((c) => (c.seriNo || '').trim().toLocaleLowerCase('tr')).filter(Boolean))
+        setKayitliSnSet(s)
+      } else {
+        setKayitliSnSet(new Set())
+      }
+    } catch (_) { /* sessiz */ }
+  }, [])
+
+  const snKayitli = (sn) => sn && kayitliSnSet.has(String(sn).trim().toLocaleLowerCase('tr'))
+
+  // Cihaz satırına dokun → MAC/IP/kullanıcı/şifre gir (müşteri cihaz envanteri, SN anahtar)
+  const cihazAc = async (item) => {
+    if (!talep?.musteriId) { Alert.alert('Müşteri yok', 'Bu servise müşteri bağlı değil — cihaz bilgisi kaydedilemez.'); return }
+    if (!item.seriNo) { Alert.alert('S/N yok', 'Cihaz bilgisi yalnız seri numaralı ürünlerde girilebilir.'); return }
+    setCihazRow(item)
+    setSifreGoster(false)
+    setCihazMevcutId(null)
+    setCihazForm({ cihazAdi: item.urunAdi || '', lokasyon: '', ipAdresi: '', macAdresi: '', kullaniciAdi: '', sifre: '', notlar: '' })
+    setCihazModalYukleniyor(true)
+    try {
+      const mevcut = await cihazGetirSeriNo(item.seriNo)
+      if (mevcut) {
+        if (mevcut.musteriId && String(mevcut.musteriId) !== String(talep.musteriId)) {
+          Alert.alert('Dikkat', 'Bu seri no başka bir müşteride kayıtlı.')
+        }
+        setCihazMevcutId(mevcut.id)
+        setCihazForm({
+          cihazAdi: mevcut.cihazAdi || item.urunAdi || '',
+          lokasyon: mevcut.lokasyon || '',
+          ipAdresi: mevcut.ipAdresi || '',
+          macAdresi: mevcut.macAdresi || '',
+          kullaniciAdi: mevcut.kullaniciAdi || '',
+          sifre: mevcut.sifre || '',
+          notlar: mevcut.notlar || '',
+        })
+      }
+    } catch (_) { /* yeni kayıt */ }
+    finally { setCihazModalYukleniyor(false) }
+  }
+
+  const cihazAlan = (alan, deger) => setCihazForm((f) => ({ ...f, [alan]: deger }))
+
+  const cihazKapat = () => { setCihazRow(null); setCihazForm(null); setCihazMevcutId(null) }
+
+  const cihazKaydet = async () => {
+    if (!cihazRow || !cihazForm) return
+    setCihazKaydediliyor(true)
+    try {
+      if (cihazMevcutId) {
+        const g = await cihazGuncelle(cihazMevcutId, { ...cihazForm }, kullanici, 'Servis sırasında güncellendi')
+        if (!g) { Alert.alert('Hata', 'Cihaz güncellenemedi.'); return }
+      } else {
+        const sonuc = await cihazEkle(
+          { ...cihazForm, musteriId: talep.musteriId, seriNo: cihazRow.seriNo, model: cihazRow.urunAdi || '', durum: 'aktif' },
+          kullanici,
+        )
+        if (sonuc?.hata) { Alert.alert('Hata', sonuc.hata); return }
+      }
+      setKayitliSnSet((prev) => new Set(prev).add(String(cihazRow.seriNo).trim().toLocaleLowerCase('tr')))
+      cihazKapat()
+      Alert.alert('Kaydedildi', 'Cihaz bilgileri müşteri cihaz envanterine kaydedildi.')
+    } catch (e) {
+      Alert.alert('Hata', e?.message || 'Kaydedilemedi.')
+    } finally { setCihazKaydediliyor(false) }
+  }
 
   // "Fatura Kesilecek" — proforma açar (muhasebe tutar/PDF/ödemeyi keserken girer)
   const faturaKesilecek = () => {
@@ -800,6 +892,46 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
           </>
         )}
 
+        {/* Cihaz Bilgileri — kullanılan S/N cihazların MAC/IP/kullanıcı/şifresi.
+            Dokununca müşteri cihaz envanterine kaydeder (SN anahtar). */}
+        {kullanilanCihazlar.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted, marginTop: 20 }]}>
+              🔧 Cihaz Bilgileri ({kullanilanCihazlar.length})
+            </Text>
+            <Text style={{ color: colors.textFaded, fontSize: 11, marginBottom: 8 }}>
+              Kullanılan cihaza dokun → MAC / IP / kullanıcı adı / şifre gir. Müşteri cihaz envanterine kaydedilir.
+            </Text>
+            {kullanilanCihazlar.map((c) => {
+              const kayitli = snKayitli(c.seriNo)
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  onPress={() => cihazAc(c)}
+                  activeOpacity={0.85}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 10,
+                    backgroundColor: colors.surface, borderWidth: 1,
+                    borderColor: kayitli ? 'rgba(34,197,94,0.4)' : colors.border,
+                    borderRadius: 12, padding: 12, marginBottom: 8,
+                  }}
+                >
+                  <Feather name="hard-drive" size={18} color={kayitli ? '#22c55e' : colors.textMuted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>
+                      {c.urunAdi}
+                    </Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                      S/N: {c.seriNo}{kayitli ? '  ·  ✓ Bilgiler kayıtlı' : '  ·  Bilgi girilmedi'}
+                    </Text>
+                  </View>
+                  <Feather name={kayitli ? 'edit-2' : 'plus-circle'} size={18} color={colors.primary} />
+                </TouchableOpacity>
+              )
+            })}
+          </>
+        )}
+
         {/* Tespit (PDF'te "Tespit" başlığı altında görünür) */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 8 }}>
           <Text style={[styles.sectionLabel, { color: colors.textMuted, marginBottom: 0 }]}>
@@ -1360,6 +1492,107 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
             <Feather name="x" size={24} color="#fff" />
           </TouchableOpacity>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Cihaz Bilgileri modalı — müşteri cihaz envanterine yazar (SN anahtar) */}
+      <Modal visible={!!cihazRow} transparent animationType="slide" onRequestClose={cihazKapat}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}
+        >
+          <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '90%' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderColor: colors.border }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '800' }}>Cihaz Bilgileri</Text>
+              <TouchableOpacity onPress={cihazKapat} hitSlop={10}>
+                <Feather name="x" size={22} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {cihazRow && cihazForm && (
+              <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
+                <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 }}>
+                  <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{cihazRow.urunAdi}</Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                    S/N: {cihazRow.seriNo}{cihazMevcutId ? '  ·  Envanterde kayıtlı' : ''}
+                  </Text>
+                </View>
+                <Text style={{ color: colors.textFaded, fontSize: 11 }}>
+                  {(talep?.firmaAdi || talep?.musteriAd || 'Müşteri')} cihaz envanterine kaydedilir — aynı cihaz sonraki servislerde de bu bilgilerle görünür.
+                </Text>
+
+                {cihazModalYukleniyor ? (
+                  <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+                ) : (
+                  <>
+                    {[
+                      { alan: 'cihazAdi', etiket: 'Cihaz Adı', ph: 'Ör. Giriş Kamerası' },
+                      { alan: 'lokasyon', etiket: 'Lokasyon', ph: 'Ör. Ana giriş / Depo' },
+                      { alan: 'ipAdresi', etiket: 'IP Adresi', ph: '192.168.1.108', kb: 'default' },
+                      { alan: 'macAdresi', etiket: 'MAC Adresi', ph: 'AA:BB:CC:DD:EE:FF' },
+                      { alan: 'kullaniciAdi', etiket: 'Kullanıcı Adı', ph: 'admin' },
+                    ].map((f) => (
+                      <View key={f.alan}>
+                        <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 4 }}>{f.etiket}</Text>
+                        <TextInput
+                          value={cihazForm[f.alan]}
+                          onChangeText={(v) => cihazAlan(f.alan, v)}
+                          placeholder={f.ph}
+                          placeholderTextColor={colors.textFaded}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: colors.textPrimary, fontSize: 14 }}
+                        />
+                      </View>
+                    ))}
+
+                    {/* Şifre — göster/gizle */}
+                    <View>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 4 }}>Şifre</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10 }}>
+                        <TextInput
+                          value={cihazForm.sifre}
+                          onChangeText={(v) => cihazAlan('sifre', v)}
+                          placeholder="••••••"
+                          placeholderTextColor={colors.textFaded}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          secureTextEntry={!sifreGoster}
+                          style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 10, color: colors.textPrimary, fontSize: 14 }}
+                        />
+                        <TouchableOpacity onPress={() => setSifreGoster((v) => !v)} hitSlop={10} style={{ paddingHorizontal: 12 }}>
+                          <Feather name={sifreGoster ? 'eye-off' : 'eye'} size={18} color={colors.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 4 }}>Notlar</Text>
+                      <TextInput
+                        value={cihazForm.notlar}
+                        onChangeText={(v) => cihazAlan('notlar', v)}
+                        placeholder="Ör. RTSP portu 554, web arayüz adresi"
+                        placeholderTextColor={colors.textFaded}
+                        multiline
+                        textAlignVertical="top"
+                        style={{ minHeight: 64, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: colors.textPrimary, fontSize: 14 }}
+                      />
+                    </View>
+
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, marginBottom: 8 }}>
+                      <TouchableOpacity onPress={cihazKapat} activeOpacity={0.85} style={{ flex: 1, alignItems: 'center', paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: colors.border }}>
+                        <Text style={{ color: colors.textMuted, fontWeight: '700' }}>Vazgeç</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={cihazKaydet} disabled={cihazKaydediliyor} activeOpacity={0.85} style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: 13, borderRadius: 12, backgroundColor: colors.primary, opacity: cihazKaydediliyor ? 0.6 : 1 }}>
+                        <Feather name="check" size={16} color="#fff" />
+                        <Text style={{ color: '#fff', fontWeight: '800' }}>{cihazKaydediliyor ? 'Kaydediliyor…' : (cihazMevcutId ? 'Güncelle' : 'Kaydet')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </KeyboardAvoidingView>
   )
