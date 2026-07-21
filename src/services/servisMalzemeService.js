@@ -135,11 +135,14 @@ export const kullanilanKalemleriGetir = async (servisTalepId) => {
   return arrayToCamel(data)
 }
 
+// UPSERT — cihaz başına (servis_talep_id, kalem_id) TEK satır (mig 218 unique
+// index). teslim_alindi satırı sonra kullanildi ile GÜNCELLENİR; her dokunuşta
+// yeni satır eklenmez (eski hata: aynı cihaz 5× teslim + 5× kullanildi birikti).
 export const kalemKullanimEkle = async (kayit) => {
   const { id, tarih, ...rest } = kayit
   const { data, error } = await supabase
     .from('servis_kalem_kullanimi')
-    .insert(toSnake(rest))
+    .upsert(toSnake(rest), { onConflict: 'servis_talep_id,kalem_id' })
     .select()
     .single()
   if (error) {

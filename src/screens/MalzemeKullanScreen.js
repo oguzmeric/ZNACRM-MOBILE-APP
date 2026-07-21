@@ -120,6 +120,12 @@ export default function MalzemeKullanScreen({ route, navigation }) {
       Alert.alert('Hata', 'Servis talebinde müşteri yok.')
       return
     }
+    // MÜKERRER ENGEL: bu cihaz bu servise zaten takıldıysa tekrar işleme
+    // (eski hata: her dokunuşta yeni 'kullanildi' satırı + sayaç şişmesi).
+    if (kayitlar.some((k) => k.kalemId === kalem.id && k.durum === 'kullanildi')) {
+      Alert.alert('Zaten takıldı', 'Bu cihaz bu servise zaten takılmış.')
+      return
+    }
     // Lokasyon OPSIYONEL (2026-07-20): müşteride lokasyon kaydı yoksa malzeme
     // kullanımı engellenmez — cihaz lokasyonsuz takılır, sonradan atanabilir.
 
@@ -140,31 +146,10 @@ export default function MalzemeKullanScreen({ route, navigation }) {
     }
 
     const plan_id = (plan.find((p) => p.stokKodu === kalem.stokKodu))?.id ?? null
+    const oncedenTeslim = kayitlar.some((k) => k.kalemId === kalem.id && k.durum === 'teslim_alindi')
 
-    // 2a) Bu servis için teslim_alindi kaydı yoksa oluştur — teknisyen envanterinden
-    // direkt kullanıldıysa 'malzeme teslim al' adımı atlanmıştır, planın sayaçları
-    // yine de doğru güncellensin diye burada arka planda eklenir.
-    const teslimVarMi = kayitlar.some(
-      (k) => k.kalemId === kalem.id && k.durum === 'teslim_alindi',
-    )
-    if (!teslimVarMi) {
-      await kalemKullanimEkle({
-        servisTalepId,
-        kalemId: kalem.id,
-        planId: plan_id,
-        durum: 'teslim_alindi',
-        kullaniciId: kullanici?.id,
-        kullaniciAd: kullanici?.ad,
-      })
-      if (plan_id) {
-        const p = plan.find((x) => x.id === plan_id)
-        await malzemePlanGuncelle(plan_id, {
-          teslimAlinanMiktar: (p.teslimAlinanMiktar ?? 0) + 1,
-        })
-      }
-    }
-
-    // 2b) Kullanım kaydı (kullanildi)
+    // 2) Kullanım kaydı — UPSERT ile cihaz başına TEK satır (mig 218). Varsa
+    // teslim_alindi satırı 'kullanildi'ye güncellenir; yeni satır eklenmez.
     await kalemKullanimEkle({
       servisTalepId,
       kalemId: kalem.id,
@@ -174,10 +159,12 @@ export default function MalzemeKullanScreen({ route, navigation }) {
       kullaniciAd: kullanici?.ad,
     })
 
-    // 3) Plan satırı → kullanılan miktar +1
+    // 3) Plan sayaçları — teslim daha ÖNCE sayılmadıysa teslim +1 (envanterden
+    // direkt kullanım), her koşulda kullanılan +1.
     if (plan_id) {
       const p = plan.find((x) => x.id === plan_id)
       await malzemePlanGuncelle(plan_id, {
+        ...(oncedenTeslim ? {} : { teslimAlinanMiktar: (p.teslimAlinanMiktar ?? 0) + 1 }),
         kullanilanMiktar: (p.kullanilanMiktar ?? 0) + 1,
       })
     }
