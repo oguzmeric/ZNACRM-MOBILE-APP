@@ -4,7 +4,7 @@ import * as MailComposer from 'expo-mail-composer'
 import * as FileSystem from 'expo-file-system/legacy'
 import { Asset } from 'expo-asset'
 import { servisFormuHtml } from '../templates/servisFormuHtml'
-import { malzemePlaniGetir, webMalzemeleriGetir } from './servisMalzemeService'
+import { malzemePlaniGetir, formEnvanterKalemleri } from './servisMalzemeService'
 
 let logoBase64Cache = null
 
@@ -78,10 +78,10 @@ async function formHtmlOlustur(talep, sirket = 'zna') {
   const bannerBase64 = await bannerBase64Getir(sirket)
   const fotoBase64 = await gorselleriBase64Getir(talep.dosyalar)
   const fotograflar = fotoBase64.map((f) => ({ url: f.dataUri, ad: f.ad }))
-  // Envanterden kullanılan malzeme/cihazlar (servis_malzemeleri, durum=kullanildi)
+  // Envanterden kullanılan malzeme/cihazlar (web + mobil S/N akışı birleşik)
   let malzemeler = []
   try {
-    malzemeler = (await webMalzemeleriGetir(talep.id) ?? []).filter((m) => m.durum === 'kullanildi')
+    malzemeler = await formEnvanterKalemleri(talep.id) ?? []
   } catch (e) {
     console.warn('form malzemeleri yüklenemedi:', e?.message)
   }

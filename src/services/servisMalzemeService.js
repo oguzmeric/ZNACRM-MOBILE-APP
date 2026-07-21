@@ -71,6 +71,48 @@ export const FATURALANDIRMA_SECENEK = [
   { id: 'faturalandirilmayacak', isim: '🚫 Faturasız' },
 ]
 
+// Servis formu "Kullanılan Malzeme/Cihaz (Envanter)" — web + mobil S/N akışı birleşik
+// (web servisMalzemeService.formEnvanterKalemleri ile aynı mantık; KRL-2026-0001 olayı:
+//  mobil kullanım servis_malzemeleri'ne yazmadığı için formda görünmüyordu)
+export const formEnvanterKalemleri = async (servisTalepId) => {
+  const [webM, snM] = await Promise.all([
+    supabase.from('servis_malzemeleri')
+      .select('id, urun_adi, stok_kodu, seri_no, miktar, birim, durum')
+      .eq('servis_id', servisTalepId).eq('durum', 'kullanildi'),
+    supabase.from('servis_kalem_kullanimi')
+      .select('id, durum, stok_kalemleri (seri_no, stok_kodu)')
+      .eq('servis_talep_id', servisTalepId).eq('durum', 'kullanildi'),
+  ])
+  const webListe = (webM.data ?? []).map((m) => ({
+    id: `w-${m.id}`, urunAdi: m.urun_adi, stokKodu: m.stok_kodu,
+    seriNo: m.seri_no, miktar: m.miktar, birim: m.birim,
+  }))
+  const snSatir = snM.data ?? []
+  const kodlar = [...new Set(snSatir.map((r) => r.stok_kalemleri?.stok_kodu).filter(Boolean))]
+  let uMap = new Map()
+  if (kodlar.length) {
+    const { data: urunler } = await supabase
+      .from('stok_urunler').select('stok_kodu, stok_adi, marka').in('stok_kodu', kodlar)
+    uMap = new Map((urunler ?? []).map((u) => [u.stok_kodu, u]))
+  }
+  const snListe = snSatir.map((r) => {
+    const kod = r.stok_kalemleri?.stok_kodu ?? ''
+    const u = uMap.get(kod)
+    return {
+      id: `s-${r.id}`,
+      urunAdi: u ? `${u.stok_adi}${u.marka ? ` — ${u.marka}` : ''}` : (kod || 'Envanter kalemi'),
+      stokKodu: kod, seriNo: r.stok_kalemleri?.seri_no ?? '', miktar: 1, birim: 'Adet',
+    }
+  })
+  const gorulen = new Set()
+  return [...webListe, ...snListe].filter((m) => {
+    const k = m.seriNo || m.id
+    if (gorulen.has(k)) return false
+    gorulen.add(k)
+    return true
+  })
+}
+
 export const malzemeFaturalandirmaIsaretle = async (id, deger) => {
   const { data, error } = await supabase
     .from('servis_malzemeleri')
