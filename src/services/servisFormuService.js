@@ -4,7 +4,7 @@ import * as MailComposer from 'expo-mail-composer'
 import * as FileSystem from 'expo-file-system/legacy'
 import { Asset } from 'expo-asset'
 import { servisFormuHtml } from '../templates/servisFormuHtml'
-import { malzemePlaniGetir } from './servisMalzemeService'
+import { malzemePlaniGetir, webMalzemeleriGetir } from './servisMalzemeService'
 
 let logoBase64Cache = null
 
@@ -73,13 +73,19 @@ async function bannerBase64Getir(sirket = 'zna') {
   }
 }
 
-// Form HTML'ini üretmek için ortak hazırlık — banner + fotoğraflar
-// (web ServisFormu ile ayni duzen; malzeme yerine talep.yedekParcalar kullanilir)
+// Form HTML'ini üretmek için ortak hazırlık — banner + fotoğraflar + kullanılan malzemeler
 async function formHtmlOlustur(talep, sirket = 'zna') {
   const bannerBase64 = await bannerBase64Getir(sirket)
   const fotoBase64 = await gorselleriBase64Getir(talep.dosyalar)
   const fotograflar = fotoBase64.map((f) => ({ url: f.dataUri, ad: f.ad }))
-  return servisFormuHtml({ talep, bannerBase64, fotograflar, sirket })
+  // Envanterden kullanılan malzeme/cihazlar (servis_malzemeleri, durum=kullanildi)
+  let malzemeler = []
+  try {
+    malzemeler = (await webMalzemeleriGetir(talep.id) ?? []).filter((m) => m.durum === 'kullanildi')
+  } catch (e) {
+    console.warn('form malzemeleri yüklenemedi:', e?.message)
+  }
+  return servisFormuHtml({ talep, bannerBase64, fotograflar, sirket, malzemeler })
 }
 
 // Sadece GERÇEKTEN teslim alınmış / kullanılmış malzemeleri forma dahil et.

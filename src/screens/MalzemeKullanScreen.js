@@ -120,19 +120,14 @@ export default function MalzemeKullanScreen({ route, navigation }) {
       Alert.alert('Hata', 'Servis talebinde müşteri yok.')
       return
     }
-    if (!lokasyon) {
-      Alert.alert(
-        'Lokasyon yok',
-        'Müşteride aktif lokasyon yok. Müşteri detayından lokasyon ekleyin.',
-      )
-      return
-    }
+    // Lokasyon OPSIYONEL (2026-07-20): müşteride lokasyon kaydı yoksa malzeme
+    // kullanımı engellenmez — cihaz lokasyonsuz takılır, sonradan atanabilir.
 
     // 1) Cihazı müşteriye tak (sahada)
     const guncel = await cihazTak({
       kalemId: kalem.id,
       musteriId: talep.musteriId,
-      musteriLokasyonId: lokasyon.id,
+      musteriLokasyonId: lokasyon?.id ?? null,
       kullaniciId: kullanici?.id,
       kullaniciAd: kullanici?.ad,
       servisTalepId,

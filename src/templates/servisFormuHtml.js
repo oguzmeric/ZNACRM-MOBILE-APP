@@ -53,7 +53,7 @@ export function formProfiliBelirle() {
   return { tip: 'servis', baslik: 'SERVİS RAPORU' }
 }
 
-export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar = [], sirket = 'zna' }) {
+export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar = [], sirket = 'zna', malzemeler = [] }) {
   const cfg = SIRKET_BILGI[sirket] || SIRKET_BILGI.zna
   const ACCENT = cfg.accent
   const ACCENT_BG = cfg.accentBg
@@ -209,6 +209,26 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
         <tr><td colspan="4" style="${cell}text-align:right;font-weight:700;color:${ACCENT};">Genel Toplam</td><td style="${cell}text-align:right;font-weight:700;color:${ACCENT};">${genelToplam.toFixed(2)} ₺</td></tr>
       </tbody>
     </table>
+
+    ${malzemeler.length > 0 ? `
+    <!-- KULLANILAN MALZEMELER (ENVANTER) — servis_malzemeleri 'kullanildi' -->
+    <table class="f">
+      <thead><tr>
+        <th class="sec" style="width:28px;text-align:center;">#</th>
+        <th class="sec">Kullanılan Malzeme / Cihaz (Envanter)</th>
+        <th class="sec" style="width:140px;">Seri No</th>
+        <th class="sec" style="width:70px;text-align:right;">Miktar</th>
+      </tr></thead>
+      <tbody>
+        ${malzemeler.map((m, i) => `
+        <tr>
+          <td style="${cell}text-align:center;">${i + 1}</td>
+          <td style="${cell}">${escapeHtml(m.urunAdi ?? '')}${m.stokKodu ? ` (${escapeHtml(m.stokKodu)})` : ''}</td>
+          <td style="${cell}">${escapeHtml(m.seriNo ?? '—')}</td>
+          <td style="${cell}text-align:right;">${m.miktar ?? 1} ${escapeHtml(m.birim ?? 'Adet')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>` : ''}
 
     <!-- SERVİS KOŞULLARI -->
     <table class="f"><tbody>

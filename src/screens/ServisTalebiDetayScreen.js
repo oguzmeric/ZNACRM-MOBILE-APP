@@ -47,6 +47,7 @@ import {
   durumBul,
 } from '../utils/servisConstants'
 import { tarihFormat, tarihSaatFormat } from '../utils/format'
+import { servisOnaylayabilir } from '../utils/yetki'
 import ServisFormuOnizleModal from '../components/ServisFormuOnizleModal'
 import BelgePaylasModal from '../components/BelgePaylasModal'
 import { eksikCihazKayitlariGetir } from '../services/cihazKayitService'
@@ -1193,8 +1194,8 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Admin onay aksiyonları — sadece admin modda ve tamamlandi durumunda */}
-        {adminModu && talep.durum === 'tamamlandi' && (
+        {/* Onay aksiyonları — admin modu VEYA servis onay yetkilisi (depocular: Salih 34, Mahmut 45) */}
+        {(adminModu || servisOnaylayabilir(kullanici)) && talep.durum === 'tamamlandi' && (
           <View style={styles.onayRow}>
             <TouchableOpacity
               style={[styles.onayBtn, { backgroundColor: '#059669' }]}

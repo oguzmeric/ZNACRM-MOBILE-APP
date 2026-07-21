@@ -24,4 +24,13 @@ export const yonetimPaneliErisimi = (kullanici) => {
   )
 }
 
+// Servis onaylama/kapatma yetkisi — yönetim unvanları + depo sorumluları
+// (Salih Çakmaklı id 34, Mahmut Sarı id 45 — 2026-07-20 karar; web servisOnaylayabilirMi ile aynı)
+const SERVIS_ONAY_KULLANICI_IDLERI = [34, 45]
+
+export const servisOnaylayabilir = (kullanici) => {
+  if (!kullanici) return false
+  return yonetimPaneliErisimi(kullanici) || SERVIS_ONAY_KULLANICI_IDLERI.includes(Number(kullanici.id))
+}
+
 // İleride: cihazSilebilir, teklifHazirlayabilir, faturaOlusturabilir vs.
