@@ -79,13 +79,6 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [notKaydediliyor, setNotKaydediliyor] = useState(false)
   const [fotoYukleniyor, setFotoYukleniyor] = useState(false)
 
-  // Tespit + Yapılan Müdahale (PDF formundaki ayrı alanlar)
-  const [tespit, setTespit] = useState('')
-  const [yapilanMudahale, setYapilanMudahale] = useState('')
-  const [tespitKaydediliyor, setTespitKaydediliyor] = useState(false)
-  const [mudahaleKaydediliyor, setMudahaleKaydediliyor] = useState(false)
-  const [tespitDuzenle, setTespitDuzenle] = useState(false)
-  const [mudahaleDuzenle, setMudahaleDuzenle] = useState(false)
 
   // Malzeme planı
   const [malzemePlani, setMalzemePlani] = useState([])
@@ -171,8 +164,6 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     setTalep(t)
     setMalzemePlani(mp ?? [])
     setWebMalzemeler(wm ?? [])
-    setTespit(t?.kokSebep ?? '')
-    setYapilanMudahale(t?.yapilanMudahale ?? '')
     servisFaturaTalebiGetir(id).then(setFaturaTalebi).catch(() => {})
     cihazlariYukle(id, t?.musteriId)
     setLoading(false)
@@ -276,41 +267,6 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         },
       ],
     )
-  }
-
-  const tespitKaydet = async () => {
-    setTespitKaydediliyor(true)
-    const guncel = await servisTalepGuncelle(id, { kokSebep: tespit.trim() || null })
-    setTespitKaydediliyor(false)
-    if (guncel) {
-      setTalep(guncel)
-      setTespit(guncel.kokSebep ?? '')
-      setTespitDuzenle(false)
-    } else {
-      Alert.alert('Hata', 'Kaydedilemedi.')
-    }
-  }
-
-  const mudahaleKaydet = async () => {
-    setMudahaleKaydediliyor(true)
-    const guncel = await servisTalepGuncelle(id, { yapilanMudahale: yapilanMudahale.trim() || null })
-    setMudahaleKaydediliyor(false)
-    if (guncel) {
-      setTalep(guncel)
-      setYapilanMudahale(guncel.yapilanMudahale ?? '')
-      setMudahaleDuzenle(false)
-    } else {
-      Alert.alert('Hata', 'Kaydedilemedi.')
-    }
-  }
-
-  const tespitVazgec = () => {
-    setTespit(talep?.kokSebep ?? '')
-    setTespitDuzenle(false)
-  }
-  const mudahaleVazgec = () => {
-    setYapilanMudahale(talep?.yapilanMudahale ?? '')
-    setMudahaleDuzenle(false)
   }
 
   const malzemeKaydet = async (plan) => {
@@ -651,6 +607,8 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const tur = turBul(talep.anaTur)
   const aciliyet = aciliyetBul(talep.aciliyet)
   const durum = durumBul(talep.durum)
+  // Müşteri imzası alındıysa teknisyen forma müdahale edemez (yalnız yönetici düzeltebilir)
+  const imzaKilitli = !!talep.musteriImza && !adminModu
 
   return (
     <KeyboardAvoidingView
@@ -932,90 +890,6 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
           </>
         )}
 
-        {/* Tespit (PDF'te "Tespit" başlığı altında görünür) */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 8 }}>
-          <Text style={[styles.sectionLabel, { color: colors.textMuted, marginBottom: 0 }]}>
-            🔎 Tespit
-          </Text>
-          {!tespitDuzenle && (
-            <TouchableOpacity onPress={() => setTespitDuzenle(true)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Feather name="edit-2" size={12} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Düzenle</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 }}>
-          {tespitDuzenle ? (
-            <>
-              <TextInput
-                value={tespit}
-                onChangeText={setTespit}
-                placeholder="Tespit edilen durum / sorunun sebebi"
-                placeholderTextColor={colors.textFaded}
-                multiline
-                autoFocus
-                textAlignVertical="top"
-                style={{ minHeight: 80, color: colors.textPrimary, fontSize: 13 }}
-              />
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-                <TouchableOpacity onPress={tespitVazgec} disabled={tespitKaydediliyor} activeOpacity={0.85} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ color: colors.textMuted, fontWeight: '700', fontSize: 12 }}>Vazgeç</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={tespitKaydet} disabled={tespitKaydediliyor} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: colors.primary, opacity: tespitKaydediliyor ? 0.6 : 1 }}>
-                  <Feather name="check" size={14} color="#fff" />
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{tespitKaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <Text style={{ color: talep.kokSebep ? colors.textPrimary : colors.textFaded, fontSize: 13, lineHeight: 18, fontStyle: talep.kokSebep ? 'normal' : 'italic' }}>
-              {talep.kokSebep || 'Henüz tespit girilmedi. Düzenle ile ekleyebilirsin.'}
-            </Text>
-          )}
-        </View>
-
-        {/* Yapılan Müdahale */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Text style={[styles.sectionLabel, { color: colors.textMuted, marginBottom: 0 }]}>
-            🛠 Yapılan Müdahale
-          </Text>
-          {!mudahaleDuzenle && (
-            <TouchableOpacity onPress={() => setMudahaleDuzenle(true)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Feather name="edit-2" size={12} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Düzenle</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 }}>
-          {mudahaleDuzenle ? (
-            <>
-              <TextInput
-                value={yapilanMudahale}
-                onChangeText={setYapilanMudahale}
-                placeholder="Yapılan işlem / müdahale detayı"
-                placeholderTextColor={colors.textFaded}
-                multiline
-                autoFocus
-                textAlignVertical="top"
-                style={{ minHeight: 80, color: colors.textPrimary, fontSize: 13 }}
-              />
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-                <TouchableOpacity onPress={mudahaleVazgec} disabled={mudahaleKaydediliyor} activeOpacity={0.85} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ color: colors.textMuted, fontWeight: '700', fontSize: 12 }}>Vazgeç</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={mudahaleKaydet} disabled={mudahaleKaydediliyor} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: colors.primary, opacity: mudahaleKaydediliyor ? 0.6 : 1 }}>
-                  <Feather name="check" size={14} color="#fff" />
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 12 }}>{mudahaleKaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <Text style={{ color: talep.yapilanMudahale ? colors.textPrimary : colors.textFaded, fontSize: 13, lineHeight: 18, fontStyle: talep.yapilanMudahale ? 'normal' : 'italic' }}>
-              {talep.yapilanMudahale || 'Henüz müdahale girilmedi. Düzenle ile ekleyebilirsin.'}
-            </Text>
-          )}
-        </View>
-
         {/* Durum değiştir — role göre filtre */}
         <Text style={[styles.sectionLabel, { marginTop: 20, color: colors.textMuted }]}>Durumu Değiştir</Text>
         <View style={styles.durumGrid}>
@@ -1050,23 +924,32 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
           Notlar ({(talep.notlar ?? []).length})
         </Text>
 
-        <View style={styles.notInputRow}>
-          <TextInput
-            style={[styles.notInput, { backgroundColor: colors.surface, color: colors.textPrimary }]}
-            placeholder="Yeni not..."
-            placeholderTextColor={colors.textFaded}
-            value={yeniNot}
-            onChangeText={setYeniNot}
-            multiline
-          />
-          <TouchableOpacity
-            style={[styles.notKaydetBtn, { backgroundColor: colors.success }, (!yeniNot.trim() || notKaydediliyor) && { opacity: 0.4 }]}
-            onPress={notKaydet}
-            disabled={!yeniNot.trim() || notKaydediliyor}
-          >
-            <Text style={styles.notKaydetText}>{notKaydediliyor ? '...' : 'Ekle'}</Text>
-          </TouchableOpacity>
-        </View>
+        {imzaKilitli ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, marginBottom: 8 }}>
+            <Feather name="lock" size={15} color={colors.textMuted} />
+            <Text style={{ color: colors.textMuted, fontSize: 12, flex: 1 }}>
+              Müşteri imzası alındı — servis formu kilitli. Değişiklik için yöneticiye başvurun.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.notInputRow}>
+            <TextInput
+              style={[styles.notInput, { backgroundColor: colors.surface, color: colors.textPrimary }]}
+              placeholder="Yeni not..."
+              placeholderTextColor={colors.textFaded}
+              value={yeniNot}
+              onChangeText={setYeniNot}
+              multiline
+            />
+            <TouchableOpacity
+              style={[styles.notKaydetBtn, { backgroundColor: colors.success }, (!yeniNot.trim() || notKaydediliyor) && { opacity: 0.4 }]}
+              onPress={notKaydet}
+              disabled={!yeniNot.trim() || notKaydediliyor}
+            >
+              <Text style={styles.notKaydetText}>{notKaydediliyor ? '...' : 'Ekle'}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {(talep.notlar ?? []).length === 0 ? (
           <Text style={[styles.bos, { color: colors.textFaded }]}>Henüz not yok.</Text>
