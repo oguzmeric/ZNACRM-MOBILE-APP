@@ -449,19 +449,7 @@ export default function GorevDetayScreen({ route, navigation }) {
     setGorev(guncel)
     setRedModal(false)
     gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
-    // Oluşturana bildirim
-    const olusturanK = (personeller || []).find(p => p.ad === guncel.olusturanAd)
-    const aliciId = olusturanK?.id ?? guncel.olusturanId
-    if (aliciId && String(aliciId) !== String(kullanici?.id)) {
-      bildirimEkleDb({
-        aliciId: Number(aliciId),
-        gonderenId: kullanici?.id,
-        tip: 'gorev',
-        baslik: 'Görev Reddedildi',
-        mesaj: `${kullanici?.ad || 'Atanan kişi'} "${guncel.baslik || 'Görev'}" görevini reddetti. Sebep: ${sebepTam}`,
-        link: `/gorevler/${id}`,
-      }).catch(() => {})
-    }
+    // Red bildirimi mig 212 DB trigger'ında (oluşturan + ekip, red sebepli)
   }
 
   // ─── Onay / Revize (onaylayıcı aksiyonları) ───
@@ -484,20 +472,7 @@ export default function GorevDetayScreen({ route, navigation }) {
     setOnayIslemModal(null)
     setOnayNotMetin('')
     gorevHareketleriGetir(id).then(setHareketler).catch(() => {})
-    // Sorumluya bildirim
-    const aliciId = guncel.atananId
-    if (aliciId && String(aliciId) !== String(kullanici?.id)) {
-      bildirimEkleDb({
-        aliciId: Number(aliciId),
-        gonderenId: kullanici?.id,
-        tip: 'gorev',
-        baslik: onayIslemModal === 'onayla' ? 'Göreviniz Onaylandı' : 'Görevde Revize İstendi',
-        mesaj: onayIslemModal === 'onayla'
-          ? `"${guncel.baslik || 'Görev'}" görevi onaylandı ve tamamlandı.${not_ ? ` Not: ${not_}` : ''}`
-          : `"${guncel.baslik || 'Görev'}" görevinde revize istendi: ${not_}`,
-        link: `/gorevler/${id}`,
-      }).catch(() => {})
-    }
+    // Onay/revize bildirimi mig 212 DB trigger'ında (atanan + ekip + oluşturan)
   }
 
   // ─── İlerleme ───
