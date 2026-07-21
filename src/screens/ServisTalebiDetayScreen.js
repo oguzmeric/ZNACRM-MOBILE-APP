@@ -604,6 +604,28 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
           <Field label="Açıklama" deger={talep.aciklama} multi />
         )}
 
+        {/* Kullanılacak Malzemeler (İç Not) — teknisyen envanter hazırlığı.
+            Sarı vurgulu; müşteri servis formunda görünmez. */}
+        {!!(talep.kullanilacakMalzemeler && String(talep.kullanilacakMalzemeler).trim()) && (
+          <View style={{
+            marginTop: 4, marginBottom: 8, padding: 12, borderRadius: 10,
+            borderWidth: 1, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)',
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <Feather name="package" size={14} color="#b45309" />
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: '#b45309' }}>
+                🔒 Kullanılacak Malzemeler (İç Not)
+              </Text>
+            </View>
+            <Text style={{ fontSize: 13.5, lineHeight: 21, color: colors.textPrimary }}>
+              {String(talep.kullanilacakMalzemeler)}
+            </Text>
+            <Text style={{ fontSize: 10.5, fontStyle: 'italic', color: '#b45309', marginTop: 6 }}>
+              Envanterine bu malzemeleri al. Müşteri formunda görünmez.
+            </Text>
+          </View>
+        )}
+
         <View style={styles.row2}>
           <Field label="Lokasyon" deger={talep.lokasyon} flex onPress={talep.lokasyon ? () => harita(talep.lokasyon, talep.firmaAdi) : null} ikon="📍" />
           <Field label="Cihaz" deger={talep.cihazTuru} flex />

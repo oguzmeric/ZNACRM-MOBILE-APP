@@ -50,6 +50,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
   const [altKategori, setAltKategori] = useState(duzenle?.altKategori || null)
   const [konu, setKonu] = useState(duzenle?.konu || '')
   const [aciklama, setAciklama] = useState(duzenle?.aciklama || '')
+  const [kullanilacakMalzemeler, setKullanilacakMalzemeler] = useState(duzenle?.kullanilacakMalzemeler || '')
   const [lokasyon, setLokasyon] = useState(duzenle?.lokasyon || '') // serbest metin (müşteri lokasyonu yoksa fallback)
   const [lokasyonSecili, setLokasyonSecili] = useState(null) // müşteri lokasyonu objesi
   const [cihazTuru, setCihazTuru] = useState(duzenle?.cihazTuru || '') // serbest metin fallback
@@ -246,6 +247,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       lokasyon: lokasyonMetni,
       cihazTuru: cihazMetni,
       aciklama: aciklama.trim() || null,
+      kullanilacakMalzemeler: kullanilacakMalzemeler.trim() || null,
       aciliyet,
       ilgiliKisi: ilgiliKisiAd,
       telefon: ilgiliKisiTel,
@@ -449,6 +451,23 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
           placeholder="Detaylı açıklama..."
           placeholderTextColor={colors.textFaded}
         />
+        <Text style={{ fontSize: 11, color: colors.textFaded, marginTop: 4, marginBottom: 4 }}>
+          Bu alan müşteri servis formunda görünür.
+        </Text>
+
+        {/* Kullanılacak Malzemeler (İç Not) — teknisyen envanter hazırlığı */}
+        <Text style={[styles.label, { color: colors.textMuted }]}>🔒 Kullanılacak Malzemeler (İç Not)</Text>
+        <TextInput
+          style={[styles.input, { height: 80, textAlignVertical: 'top', backgroundColor: colors.surface, color: colors.textPrimary }]}
+          value={kullanilacakMalzemeler}
+          onChangeText={setKullanilacakMalzemeler}
+          multiline
+          placeholder="Örn: 2× Dahua dome, 1× NVR, 50m CAT6…"
+          placeholderTextColor={colors.textFaded}
+        />
+        <Text style={{ fontSize: 11, color: colors.textFaded, marginTop: 4, marginBottom: 4 }}>
+          Sadece personele görünür — teknisyen envanterine bu malzemeleri alır. Müşteri formunda görünmez.
+        </Text>
 
         {/* Lokasyon (müşteriye bağlı dropdown + serbest metin fallback) */}
         <Text style={[styles.label, { color: colors.textMuted }]}>Lokasyon</Text>
