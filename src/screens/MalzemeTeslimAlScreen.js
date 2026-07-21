@@ -30,6 +30,7 @@ import {
   kalemAra,
   stokKalemGuncelle,
   hareketEkle,
+  teknisyenStoktariniGetir,
 } from '../services/stokKalemiService'
 
 export default function MalzemeTeslimAlScreen({ route, navigation }) {
@@ -40,6 +41,7 @@ export default function MalzemeTeslimAlScreen({ route, navigation }) {
   const [talep, setTalep] = useState(null)
   const [plan, setPlan] = useState([])
   const [kullanimKayitlari, setKullanimKayitlari] = useState([])
+  const [envanter, setEnvanter] = useState([]) // teknisyenin üzerindeki S/N cihazlar
   const [loading, setLoading] = useState(true)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [sonEklenen, setSonEklenen] = useState(null)
@@ -52,22 +54,62 @@ export default function MalzemeTeslimAlScreen({ route, navigation }) {
   }, [navigation])
 
   const yukle = useCallback(async () => {
-    const [t, p, k] = await Promise.all([
+    const [t, p, k, env] = await Promise.all([
       servisTalepGetir(servisTalepId),
       malzemePlaniGetir(servisTalepId),
       kullanilanKalemleriGetir(servisTalepId),
+      teknisyenStoktariniGetir(kullanici?.id),
     ])
     setTalep(t)
     setPlan(p ?? [])
     setKullanimKayitlari(k ?? [])
+    setEnvanter(env ?? [])
     setLoading(false)
-  }, [servisTalepId])
+  }, [servisTalepId, kullanici?.id])
 
   useEffect(() => { yukle() }, [yukle])
   useFocusEffect(useCallback(() => { yukle() }, [yukle]))
 
   // Teslim alınmış kalemler (S/N listesi, henüz kullanılmamış)
   const teslimAlinanlar = kullanimKayitlari.filter((k) => k.durum === 'teslim_alindi')
+
+  // ENVANTERİMDEN SEÇ — teknisyenin üzerindeki (durum='teknisyende') S/N cihazlar,
+  // bu servise henüz bağlanmamış olanlar. Zaten envanterinde olduğu için TEKRAR
+  // S/N OKUTMAYA GEREK YOK; dokunarak servise bağlanır. Plandaki stok koduyla
+  // eşleşenler üste alınır (kullanıcının işine yarayanlar önce görünsün).
+  const bagliKalemIdler = new Set(kullanimKayitlari.map((k) => k.kalemId))
+  const planStokKodlari = new Set((plan || []).filter((p) => p.tip !== 'bulk').map((p) => p.stokKodu))
+  const envanterSecilebilir = (envanter || [])
+    .filter((k) => !bagliKalemIdler.has(k.id))
+    .sort((a, b) => {
+      const ae = planStokKodlari.has(a.stokKodu) ? 0 : 1
+      const be = planStokKodlari.has(b.stokKodu) ? 0 : 1
+      return ae - be
+    })
+
+  const envanterdenSec = async (kalem) => {
+    const ilgiliPlan = plan.find((p) => p.stokKodu === kalem.stokKodu)
+    // Cihaz zaten teknisyende — stok durumu/hareketi DEĞİŞMEZ; yalnız servise bağla.
+    const kayit = await kalemKullanimEkle({
+      servisTalepId,
+      kalemId: kalem.id,
+      planId: ilgiliPlan?.id ?? null,
+      durum: 'teslim_alindi',
+      kullaniciId: kullanici?.id,
+      kullaniciAd: kullanici?.ad,
+    })
+    if (!kayit) {
+      Alert.alert('Hata', 'Kalem servise bağlanamadı, tekrar dene.')
+      return
+    }
+    if (ilgiliPlan) {
+      await malzemePlanGuncelle(ilgiliPlan.id, {
+        teslimAlinanMiktar: (ilgiliPlan.teslimAlinanMiktar ?? 0) + 1,
+      })
+    }
+    setSonEklenen(kalem)
+    yukle()
+  }
 
   const onScan = async (kod) => {
     if (!kod?.trim()) return
@@ -254,6 +296,41 @@ export default function MalzemeTeslimAlScreen({ route, navigation }) {
           })
         )}
       </View>
+
+      {/* ENVANTERİMDEN SEÇ — üzerindeki cihazları tekrar S/N okutmadan bağla */}
+      {envanterSecilebilir.length > 0 && (
+        <View style={[styles.envanterBox, { backgroundColor: colors.surface, borderColor: '#a855f7' }]}>
+          <Text style={styles.envanterBaslik}>
+            🚚 Envanterimden Seç ({envanterSecilebilir.length})
+          </Text>
+          <Text style={[styles.envanterHint, { color: colors.textMuted }]}>
+            Üzerinde olan cihazları TEKRAR S/N okutmadan, dokunarak servise bağla.
+          </Text>
+          {envanterSecilebilir.slice(0, 12).map((k) => {
+            const planli = planStokKodlari.has(k.stokKodu)
+            return (
+              <TouchableOpacity
+                key={k.id}
+                style={[styles.envanterSatir, { borderTopColor: colors.border }]}
+                onPress={() => envanterdenSec(k)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.envanterAd, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {k.marka ? `${k.marka} ` : ''}{k.model ?? k.stokKodu}
+                    {planli && <Text style={styles.envanterPlanEtiket}> · PLANDA</Text>}
+                  </Text>
+                  <Text style={styles.envanterSeri}>S/N: {k.seriNo ?? '—'} · {k.stokKodu}</Text>
+                </View>
+                <View style={styles.envanterEkle}>
+                  <Feather name="plus" size={16} color="#a855f7" />
+                  <Text style={styles.envanterEkleText}>Bağla</Text>
+                </View>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      )}
 
       {/* Teslim alınanlar listesi */}
       <View style={styles.headerRow}>
@@ -453,6 +530,41 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   bos: { color: '#64748b', fontStyle: 'italic', fontSize: 12 },
+
+  envanterBox: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#a855f7',
+    backgroundColor: 'rgba(168, 85, 247, 0.06)',
+  },
+  envanterBaslik: { color: '#a855f7', fontSize: 13, fontWeight: '800' },
+  envanterHint: { fontSize: 11, marginTop: 2, marginBottom: 4 },
+  envanterSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 9,
+    borderTopWidth: 1,
+    gap: 10,
+  },
+  envanterAd: { fontSize: 13, fontWeight: '600' },
+  envanterPlanEtiket: { color: '#22c55e', fontSize: 10, fontWeight: '800' },
+  envanterSeri: { color: '#94a3b8', fontSize: 10.5, marginTop: 1, fontFamily: 'monospace' },
+  envanterEkle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#a855f7',
+    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+  },
+  envanterEkleText: { color: '#a855f7', fontSize: 12, fontWeight: '700' },
 
   taraFab: {
     position: 'absolute',
