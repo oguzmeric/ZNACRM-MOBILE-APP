@@ -37,6 +37,11 @@ import {
   cihazGuncelle,
   musteriCihazlariGetir,
 } from '../services/musteriCihazService'
+import {
+  bagimsizSnUret,
+  bagimsizSnCihazBagla,
+  servisBagimsizSnleriGetir,
+} from '../services/bagimsizSnService'
 import SecimPicker from '../components/SecimPicker'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -95,6 +100,8 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [cihazModalYukleniyor, setCihazModalYukleniyor] = useState(false)
   const [cihazKaydediliyor, setCihazKaydediliyor] = useState(false)
   const [sifreGoster, setSifreGoster] = useState(false)
+  const [yeniSnKaydi, setYeniSnKaydi] = useState(null)  // bağımsız SN üretim kaydı
+  const [snUretiliyor, setSnUretiliyor] = useState(false)
 
   // İmza
   const [imzaModalOpen, setImzaModalOpen] = useState(false)
@@ -172,9 +179,17 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   // Kullanılan S/N cihazları + hangisinin envanterde kayıtlı olduğunu getir
   const cihazlariYukle = useCallback(async (servisId, musteriId) => {
     try {
-      const kalemler = await formEnvanterKalemleri(servisId)
+      const [kalemler, uretilen] = await Promise.all([
+        formEnvanterKalemleri(servisId),
+        servisBagimsizSnleriGetir(servisId),
+      ])
       const snli = (kalemler ?? []).filter((k) => k.seriNo)
-      setKullanilanCihazlar(snli)
+      // Sahada üretilen bağımsız SN cihazları da listeye kat (dedup: seriNo)
+      const gorulen = new Set(snli.map((k) => (k.seriNo || '').trim().toLocaleLowerCase('tr')))
+      const uretilenler = (uretilen ?? [])
+        .filter((r) => r.seriNo && !gorulen.has(String(r.seriNo).trim().toLocaleLowerCase('tr')))
+        .map((r) => ({ id: `g-${r.id}`, urunAdi: r.urunAdi || r.stokKodu || 'Bağımsız SN cihaz', seriNo: r.seriNo, stokKodu: r.stokKodu || '', __bagimsiz: true }))
+      setKullanilanCihazlar([...snli, ...uretilenler])
       if (musteriId) {
         const list = await musteriCihazlariGetir(musteriId)
         const s = new Set((list ?? []).map((c) => (c.seriNo || '').trim().toLocaleLowerCase('tr')).filter(Boolean))
@@ -219,10 +234,36 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
 
   const cihazAlan = (alan, deger) => setCihazForm((f) => ({ ...f, [alan]: deger }))
 
-  const cihazKapat = () => { setCihazRow(null); setCihazForm(null); setCihazMevcutId(null) }
+  const cihazKapat = () => { setCihazRow(null); setCihazForm(null); setCihazMevcutId(null); setYeniSnKaydi(null) }
+
+  // SN'siz ürün → yeni cihaz: önce SN üret, sonra bilgileri gir
+  const cihazYeniAc = () => {
+    if (!talep?.musteriId) { Alert.alert('Müşteri yok', 'Bu servise müşteri bağlı değil — SN üretilemez.'); return }
+    setCihazRow({ __yeni: true, seriNo: null, urunAdi: '' })
+    setCihazForm({ cihazAdi: '', lokasyon: '', ipAdresi: '', macAdresi: '', kullaniciAdi: '', sifre: '', notlar: '' })
+    setCihazMevcutId(null)
+    setYeniSnKaydi(null)
+    setSifreGoster(false)
+  }
+
+  const snUret = async () => {
+    setSnUretiliyor(true)
+    try {
+      const sonuc = await bagimsizSnUret({
+        urunAdi: cihazForm?.cihazAdi || null,
+        musteriId: talep.musteriId,
+        servisTalepId: talep.id,
+        kullanici,
+      })
+      if (sonuc?.hata) { Alert.alert('Hata', sonuc.hata); return }
+      setYeniSnKaydi(sonuc.kayit)
+      setCihazRow((r) => ({ ...r, seriNo: sonuc.kayit.seriNo }))
+    } finally { setSnUretiliyor(false) }
+  }
 
   const cihazKaydet = async () => {
     if (!cihazRow || !cihazForm) return
+    if (cihazRow.__yeni && !cihazRow.seriNo) { Alert.alert('Önce SN üret', 'Kaydetmeden önce SN üretmelisiniz.'); return }
     setCihazKaydediliyor(true)
     try {
       if (cihazMevcutId) {
@@ -230,13 +271,17 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         if (!g) { Alert.alert('Hata', 'Cihaz güncellenemedi.'); return }
       } else {
         const sonuc = await cihazEkle(
-          { ...cihazForm, musteriId: talep.musteriId, seriNo: cihazRow.seriNo, model: cihazRow.urunAdi || '', durum: 'aktif' },
+          { ...cihazForm, musteriId: talep.musteriId, seriNo: cihazRow.seriNo, model: cihazRow.urunAdi || cihazForm.cihazAdi || '', durum: 'aktif' },
           kullanici,
         )
         if (sonuc?.hata) { Alert.alert('Hata', sonuc.hata); return }
+        if (cihazRow.__yeni && yeniSnKaydi?.id && sonuc?.cihaz?.id) {
+          await bagimsizSnCihazBagla(yeniSnKaydi.id, sonuc.cihaz.id)
+        }
       }
       setKayitliSnSet((prev) => new Set(prev).add(String(cihazRow.seriNo).trim().toLocaleLowerCase('tr')))
       cihazKapat()
+      await cihazlariYukle(talep.id, talep.musteriId)
       Alert.alert('Kaydedildi', 'Cihaz bilgileri müşteri cihaz envanterine kaydedildi.')
     } catch (e) {
       Alert.alert('Hata', e?.message || 'Kaydedilemedi.')
@@ -851,43 +896,49 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         )}
 
         {/* Cihaz Bilgileri — kullanılan S/N cihazların MAC/IP/kullanıcı/şifresi.
-            Dokununca müşteri cihaz envanterine kaydeder (SN anahtar). */}
-        {kullanilanCihazlar.length > 0 && (
-          <>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted, marginTop: 20 }]}>
-              🔧 Cihaz Bilgileri ({kullanilanCihazlar.length})
-            </Text>
-            <Text style={{ color: colors.textFaded, fontSize: 11, marginBottom: 8 }}>
-              Kullanılan cihaza dokun → MAC / IP / kullanıcı adı / şifre gir. Müşteri cihaz envanterine kaydedilir.
-            </Text>
-            {kullanilanCihazlar.map((c) => {
-              const kayitli = snKayitli(c.seriNo)
-              return (
-                <TouchableOpacity
-                  key={c.id}
-                  onPress={() => cihazAc(c)}
-                  activeOpacity={0.85}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 10,
-                    backgroundColor: colors.surface, borderWidth: 1,
-                    borderColor: kayitli ? 'rgba(34,197,94,0.4)' : colors.border,
-                    borderRadius: 12, padding: 12, marginBottom: 8,
-                  }}
-                >
-                  <Feather name="hard-drive" size={18} color={kayitli ? '#22c55e' : colors.textMuted} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>
-                      {c.urunAdi}
-                    </Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
-                      S/N: {c.seriNo}{kayitli ? '  ·  ✓ Bilgiler kayıtlı' : '  ·  Bilgi girilmedi'}
-                    </Text>
-                  </View>
-                  <Feather name={kayitli ? 'edit-2' : 'plus-circle'} size={18} color={colors.primary} />
-                </TouchableOpacity>
-              )
-            })}
-          </>
+            SN'siz ürünlere buradan bağımsız SN üretilir (etiket ofiste basılır). */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 20, marginBottom: 6 }}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted, marginBottom: 0 }]}>
+            🔧 Cihaz Bilgileri{kullanilanCihazlar.length > 0 ? ` (${kullanilanCihazlar.length})` : ''}
+          </Text>
+          <TouchableOpacity onPress={cihazYeniAc} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Feather name="plus-circle" size={14} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>SN'siz Cihaz Ekle</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={{ color: colors.textFaded, fontSize: 11, marginBottom: 8 }}>
+          Cihaza dokun → MAC / IP / kullanıcı adı / şifre gir. SN'si olmayan ürün için "SN'siz Cihaz Ekle" ile SN üret; etiket ofiste basılır.
+        </Text>
+        {kullanilanCihazlar.length === 0 ? (
+          <Text style={[styles.bos, { color: colors.textFaded }]}>Henüz cihaz yok. Kullanılan S/N'li cihazlar burada listelenir; SN'siz ürün için yeni SN üretebilirsin.</Text>
+        ) : (
+          kullanilanCihazlar.map((c) => {
+            const kayitli = snKayitli(c.seriNo)
+            return (
+              <TouchableOpacity
+                key={c.id}
+                onPress={() => cihazAc(c)}
+                activeOpacity={0.85}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 10,
+                  backgroundColor: colors.surface, borderWidth: 1,
+                  borderColor: kayitli ? 'rgba(34,197,94,0.4)' : colors.border,
+                  borderRadius: 12, padding: 12, marginBottom: 8,
+                }}
+              >
+                <Feather name="hard-drive" size={18} color={kayitli ? '#22c55e' : colors.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>
+                    {c.urunAdi}{c.__bagimsiz ? '  🏷️' : ''}
+                  </Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                    S/N: {c.seriNo}{kayitli ? '  ·  ✓ Bilgiler kayıtlı' : '  ·  Bilgi girilmedi'}
+                  </Text>
+                </View>
+                <Feather name={kayitli ? 'edit-2' : 'plus-circle'} size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )
+          })
         )}
 
         {/* Durum değiştir — role göre filtre */}
@@ -1385,7 +1436,9 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         >
           <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '90%' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderColor: colors.border }}>
-              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '800' }}>Cihaz Bilgileri</Text>
+              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '800' }}>
+                {cihazRow?.__yeni ? 'SN’siz Cihaz — SN Üret' : 'Cihaz Bilgileri'}
+              </Text>
               <TouchableOpacity onPress={cihazKapat} hitSlop={10}>
                 <Feather name="x" size={22} color={colors.textMuted} />
               </TouchableOpacity>
@@ -1393,17 +1446,45 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
 
             {cihazRow && cihazForm && (
               <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
-                <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 }}>
-                  <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{cihazRow.urunAdi}</Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
-                    S/N: {cihazRow.seriNo}{cihazMevcutId ? '  ·  Envanterde kayıtlı' : ''}
-                  </Text>
-                </View>
-                <Text style={{ color: colors.textFaded, fontSize: 11 }}>
-                  {(talep?.firmaAdi || talep?.musteriAd || 'Müşteri')} cihaz envanterine kaydedilir — aynı cihaz sonraki servislerde de bu bilgilerle görünür.
-                </Text>
+                {!(cihazRow.__yeni && !cihazRow.seriNo) && (
+                  <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 10 }}>
+                    <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{cihazRow.urunAdi || cihazForm.cihazAdi || 'Cihaz'}</Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>
+                      S/N: {cihazRow.seriNo}{cihazRow.__yeni ? '  ·  🏷️ üretildi, etiket ofiste basılacak' : (cihazMevcutId ? '  ·  Envanterde kayıtlı' : '')}
+                    </Text>
+                  </View>
+                )}
 
-                {cihazModalYukleniyor ? (
+                {/* SN'siz ürün — önce SN üret */}
+                {cihazRow.__yeni && !cihazRow.seriNo && (
+                  <View style={{ backgroundColor: 'rgba(1,118,211,0.08)', borderWidth: 1, borderColor: 'rgba(1,118,211,0.3)', borderRadius: 12, padding: 14, gap: 10 }}>
+                    <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: '700' }}>Bu ürünün seri numarası yok</Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                      Ürün adını yaz, "SN Üret"e bas — sisteme ZNA- ön ekli benzersiz bir SN eklenir. Etiketi ofiste barkod sayfasından basıp cihaza yapıştırırsın.
+                    </Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>Ürün / Cihaz Adı</Text>
+                    <TextInput
+                      value={cihazForm.cihazAdi}
+                      onChangeText={(v) => cihazAlan('cihazAdi', v)}
+                      placeholder="Ör. 4 Portlu Switch"
+                      placeholderTextColor={colors.textFaded}
+                      style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: colors.textPrimary, fontSize: 14 }}
+                    />
+                    <TouchableOpacity onPress={snUret} disabled={snUretiliyor} activeOpacity={0.85}
+                      style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12, backgroundColor: colors.primary, opacity: snUretiliyor ? 0.6 : 1 }}>
+                      <Feather name="tag" size={16} color="#fff" />
+                      <Text style={{ color: '#fff', fontWeight: '800' }}>{snUretiliyor ? 'Üretiliyor…' : 'SN Üret'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {!(cihazRow.__yeni && !cihazRow.seriNo) && (
+                  <Text style={{ color: colors.textFaded, fontSize: 11 }}>
+                    {(talep?.firmaAdi || talep?.musteriAd || 'Müşteri')} cihaz envanterine kaydedilir — aynı cihaz sonraki servislerde de bu bilgilerle görünür.
+                  </Text>
+                )}
+
+                {(cihazRow.__yeni && !cihazRow.seriNo) ? null : cihazModalYukleniyor ? (
                   <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
                 ) : (
                   <>
