@@ -13,6 +13,9 @@ import { useAuth } from '../context/AuthContext'
 import { gorusmeGetir, gorusmeGuncelle } from '../services/gorusmeService'
 import { gorusmeYorumlariGetir, gorusmeYorumEkle, gorusmeYorumSil, yorumEkiYukle } from '../services/gorusmeYorumService'
 import { musterileriGetir } from '../services/musteriService'
+import { bildirimEkleDb } from '../services/bildirimService'
+import { parseMentions } from '../lib/mention'
+import MentionInput, { MentionText } from '../components/MentionInput'
 
 const trIcerir = (haystack, q) => {
   if (!q) return true
@@ -118,6 +121,19 @@ export default function GorusmeDetayScreen({ route, navigation }) {
         dosyalar,
       })
       setYorumlar(prev => [...prev, eklenen])
+      // @mention edilenlere push bildirimi (kendini etiketleyen hariç)
+      const metin = yeniYorum.trim()
+      const mentionIdler = parseMentions(metin, kullanicilar || []).filter(mid => mid !== kullanici?.id)
+      for (const mid of mentionIdler) {
+        bildirimEkleDb({
+          aliciId: mid,
+          gonderenId: kullanici?.id,
+          tip: 'bilgi',
+          baslik: `💬 ${kullanici?.ad || 'Bir arkadaşın'} bir görüşmede seni etiketledi`,
+          mesaj: `"${metin.slice(0, 90)}" — ${g?.firmaAdi || g?.gorusmeNo || 'Görüşme'}`,
+          link: `/gorusmeler/${g.id}`,
+        }).catch(() => {})
+      }
       setYeniYorum('')
       setYorumEkler([])
     } catch (e) {
@@ -598,7 +614,13 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                         </View>
                       </View>
                       {!!y.icerik && (
-                        <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4, lineHeight: 19 }}>{y.icerik}</Text>
+                        <View style={{ marginTop: 4 }}>
+                          <MentionText
+                            metin={y.icerik}
+                            kullanicilar={kullanicilar || []}
+                            stil={{ color: colors.textSecondary, fontSize: 13, lineHeight: 19 }}
+                          />
+                        </View>
                       )}
                       {resimler.length > 0 && (
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
@@ -628,12 +650,11 @@ export default function GorusmeDetayScreen({ route, navigation }) {
 
                 {/* Yeni yorum */}
                 <View style={{ marginTop: 4 }}>
-                  <TextInput
+                  <MentionInput
                     value={yeniYorum}
                     onChangeText={setYeniYorum}
-                    placeholder="Yorum yaz…"
-                    placeholderTextColor={colors.textMuted}
-                    multiline
+                    kullanicilar={kullanicilar || []}
+                    placeholder="Yorum yaz… (@ ile etiketle)"
                     style={{
                       borderWidth: 1, borderColor: colors.border, borderRadius: 10,
                       paddingHorizontal: 12, paddingVertical: 10, minHeight: 64,
