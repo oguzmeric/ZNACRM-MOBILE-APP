@@ -309,7 +309,7 @@ export default function ArizaliCihazScreen({ navigation, route }) {
 
         {/* Müşteri */}
         {etiket('Müşteri', true)}
-        {input(firmaAdi, (v) => { setFirmaAdi(v); setMusteriId(null); setOneriGoster(true) }, 'Firma adı yaz…', {
+        {input(firmaAdi, (v) => { setFirmaAdi(v); setMusteriId(null); setOneriGoster(true) }, 'Müşteri adı yaz…', {
           onFocus: () => setOneriGoster(true),
           editable: !mevcutCihaz,
           autoCapitalize: 'characters',

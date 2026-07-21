@@ -104,7 +104,7 @@ export default function TekliflerScreen({ navigation }) {
       <View style={[styles.searchWrap, { borderBottomColor: colors.border }]}>
         <TextInput
           style={[styles.search, { backgroundColor: colors.surface, color: colors.textPrimary }]}
-          placeholder="Ara: teklif no, firma, konu..."
+          placeholder="Ara: teklif no, müşteri adı, konu..."
           placeholderTextColor={colors.textFaded}
           value={arama}
           onChangeText={setArama}

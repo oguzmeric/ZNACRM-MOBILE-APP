@@ -146,7 +146,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
 
   const kaydet = async () => {
     if (!firmaAdi.trim()) {
-      Alert.alert('Eksik', 'Firma adı gerekli.')
+      Alert.alert('Eksik', 'Müşteri adı gerekli.')
       return
     }
     const sonKonu = manuelKonuAcik ? manuelKonu.trim() : konu
@@ -222,7 +222,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
       >
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 200 }} keyboardShouldPersistTaps="handled">
           {/* Firma seç */}
-          <Text style={[styles.label, { color: colors.textMuted }]}>Firma Adı *</Text>
+          <Text style={[styles.label, { color: colors.textMuted }]}>Müşteri Adı *</Text>
           <TextInput
             value={firmaAdi}
             onChangeText={(t) => { setFirmaAdi(t); setOneriGoster(true); setMusteriId(null) }}
