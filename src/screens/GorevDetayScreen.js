@@ -127,6 +127,7 @@ export default function GorevDetayScreen({ route, navigation }) {
   const headerHeight = useHeaderHeight()
   const { colors } = useTheme()
   const [gorev, setGorev] = useState(null)
+  const [gorusmeOzet, setGorusmeOzet] = useState(null)  // bağlı görüşme etiketi (hafif fetch)
   const [webYorumlar, setWebYorumlar] = useState([]) // web'de yazılan yorumlar (gorev_yorumlari)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
@@ -170,6 +171,18 @@ export default function GorevDetayScreen({ route, navigation }) {
   useEffect(() => {
     gorevAyarlariGetir().then(a => setMaxSeviye(a?.maxAltSeviye ?? 5)).catch(() => {})
   }, [])
+
+  // Bağlı görüşme etiketi — gorevler'de akt_no/konu kolonu yok, hafif fetch
+  useEffect(() => {
+    if (!gorev?.gorusmeId) { setGorusmeOzet(null); return }
+    let iptal = false
+    supabase.from('gorusmeler')
+      .select('id, akt_no, konu, tarih')
+      .eq('id', gorev.gorusmeId)
+      .maybeSingle()
+      .then(({ data }) => { if (!iptal) setGorusmeOzet(data || null) })
+    return () => { iptal = true }
+  }, [gorev?.gorusmeId])
   const gorulduRef = useRef(false) // otomatik "görüldü" yalnız 1 kez
   // @mention için personel listesi
   const [personeller, setPersoneller] = useState([])
@@ -1035,6 +1048,23 @@ export default function GorevDetayScreen({ route, navigation }) {
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Müşteri</Text>
           <Text style={[styles.body, { color: colors.textSecondary }]}>{gorev.firmaAdi}</Text>
+        </View>
+      )}
+
+      {/* Bağlı görüşme — formdan seçilen ya da görüşmeden açılan görevde dolu */}
+      {!!gorev.gorusmeId && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Bağlı Görüşme</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('GorusmeDetay', { id: gorev.gorusmeId })}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.body, { color: colors.primary }]}>
+              {gorusmeOzet
+                ? `${gorusmeOzet.akt_no || `G-${gorev.gorusmeId}`} — ${gorusmeOzet.konu || '—'}${gorusmeOzet.tarih ? ` · ${gorusmeOzet.tarih}` : ''}`
+                : `Görüşme #${gorev.gorusmeId}`}
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
 

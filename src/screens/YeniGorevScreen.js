@@ -29,7 +29,9 @@ import { bildirimEkleDb } from '../services/bildirimService'
 import { smsGonder } from '../services/smsService'
 import { trIcerir } from '../utils/trSearch'
 import LokasyonPicker from '../components/LokasyonPicker'
+import SecimPicker from '../components/SecimPicker'
 import TarihSaatSec from '../components/TarihSaatSec'
+import { supabase } from '../lib/supabase'
 
 const ONCELIKLER = [
   { id: 'dusuk', label: 'Düşük' },
@@ -103,6 +105,13 @@ export default function YeniGorevScreen({ navigation, route }) {
 
   const [musteriLokasyonlari, setMusteriLokasyonlari] = useState([])
   const [lokasyonSecili, setLokasyonSecili] = useState(null)
+
+  // Bağlı görüşme (web Görevler formuyla aynı) — müşteriye göre filtreli
+  const [gorusmeler, setGorusmeler] = useState([])
+  const [gorusmeSecili, setGorusmeSecili] = useState(
+    duzenle?.gorusmeId ? String(duzenle.gorusmeId)
+      : (baslangic?.baslangicGorusmeId ? String(baslangic.baslangicGorusmeId) : null)
+  )
   const [servisTalebiOlustur, setServisTalebiOlustur] = useState(false)
 
   const [kaydediliyor, setKaydediliyor] = useState(false)
@@ -133,6 +142,26 @@ export default function YeniGorevScreen({ navigation, route }) {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Müşteri değişince o müşterinin görüşmelerini yükle (bağlı görüşme seçici).
+  // Seçili görüşme yeni müşteride yoksa temizlenir; varsa korunur (düzenleme/ön-seçim).
+  useEffect(() => {
+    if (!musteri?.id) { setGorusmeler([]); setGorusmeSecili(null); return }
+    let iptal = false
+    supabase.from('gorusmeler')
+      .select('id, akt_no, konu, tarih')
+      .eq('musteri_id', musteri.id)
+      .order('tarih', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (iptal) return
+        const liste = data ?? []
+        setGorusmeler(liste)
+        setGorusmeSecili((onceki) =>
+          onceki && liste.some((g) => String(g.id) === String(onceki)) ? onceki : null)
+      })
+    return () => { iptal = true }
+  }, [musteri?.id])
 
   // Müşteri değişince lokasyonları yükle
   useEffect(() => {
@@ -197,6 +226,8 @@ export default function YeniGorevScreen({ navigation, route }) {
       musteriId: musteri?.id ?? null,
       firmaAdi: musteri ? (musteri.firma || `${musteri.ad ?? ''} ${musteri.soyad ?? ''}`.trim()) : null,
       lokasyonId: lokasyonSecili?.id ?? null,
+      // Bağlı görüşme — hem yeni görevde hem düzenlemede kaydedilir
+      gorusmeId: gorusmeSecili ? Number(gorusmeSecili) : null,
     }
 
     // Edit modu — güncelle ve geri dön
@@ -226,7 +257,6 @@ export default function YeniGorevScreen({ navigation, route }) {
       dosyalar,
       durum: 'bekliyor',
       olusturanAd: kullanici?.ad ?? '',
-      gorusmeId: baslangic.baslangicGorusmeId ?? null,
     })
 
     if (!yeni) {
@@ -405,6 +435,29 @@ export default function YeniGorevScreen({ navigation, route }) {
               secili={lokasyonSecili}
               onSeciliChange={setLokasyonSecili}
             />
+          </>
+        )}
+
+        {/* Bağlı görüşme — sadece müşteri seçildiyse (web Görevler formuyla aynı) */}
+        {musteri?.id && (
+          <>
+            <Text style={[styles.label, { color: colors.textMuted }]}>Bağlı Görüşme (opsiyonel)</Text>
+            {gorusmeler.length > 0 ? (
+              <SecimPicker
+                deger={gorusmeSecili}
+                onSec={(v) => setGorusmeSecili(v || null)}
+                secenekler={gorusmeler.map((g) => ({
+                  id: String(g.id),
+                  isim: `${g.akt_no || `G-${g.id}`} — ${g.konu || '—'}${g.tarih ? ` · ${g.tarih}` : ''}`,
+                }))}
+                placeholder="Görüşme seç…"
+                ekstraSecenek={{ etiket: '✕ Bağlantıyı kaldır', deger: '' }}
+              />
+            ) : (
+              <Text style={{ color: colors.textFaded, fontSize: 12, marginBottom: 8 }}>
+                Bu müşteriye ait kayıtlı görüşme yok.
+              </Text>
+            )}
           </>
         )}
 
