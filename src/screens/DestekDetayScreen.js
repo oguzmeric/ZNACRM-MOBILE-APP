@@ -10,9 +10,13 @@ import {
   Modal,
   Pressable,
   Alert,
+  TextInput,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { destekTalepGetir, destekTalepSil, durumEtiket } from '../services/destekService'
+import {
+  destekTalepGetir, destekTalepSil, durumEtiket,
+  destekMesajlariGetir, destekMesajEkle, DESTEK_YONETICISI_ID,
+} from '../services/destekService'
 import { tarihSaatFormat } from '../utils/format'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
@@ -26,13 +30,34 @@ export default function DestekDetayScreen({ route, navigation }) {
   const [talep, setTalep] = useState(null)
   const [loading, setLoading] = useState(true)
   const [fotoTamEkran, setFotoTamEkran] = useState(null)
+  // Sohbet (mig 222) — tek 'cevap' kolonu her yanıtta öncekini eziyordu
+  const [mesajlar, setMesajlar] = useState([])
+  const [yeniMesaj, setYeniMesaj] = useState('')
+  const [gonderiliyor, setGonderiliyor] = useState(false)
 
   useEffect(() => {
     destekTalepGetir(id).then((t) => {
       setTalep(t)
       setLoading(false)
     })
+    destekMesajlariGetir(id).then(setMesajlar).catch(() => {})
   }, [id])
+
+  const benimTalebimMi = String(talep?.kullaniciId ?? '') === String(kullanici?.id ?? '')
+  const yazabilir = (yoneticiMi || benimTalebimMi) && talep?.durum !== 'kapandi'
+
+  const mesajGonder = async () => {
+    const metin = yeniMesaj.trim()
+    if (!metin) return
+    setGonderiliyor(true)
+    const sonuc = await destekMesajEkle({
+      talep, mesaj: metin, yazarId: kullanici?.id, yazarAd: kullanici?.ad,
+    })
+    setGonderiliyor(false)
+    if (sonuc?.hata) { Alert.alert('Hata', 'Mesaj gönderilemedi.'); return }
+    if (sonuc) setMesajlar((prev) => [...prev, sonuc])
+    setYeniMesaj('')
+  }
 
   if (loading) {
     return (
@@ -73,13 +98,28 @@ export default function DestekDetayScreen({ route, navigation }) {
           )}
         </View>
 
-        {talep.cevap ? (
-          <View style={[styles.cevapBlok, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.blokLabel, { color: colors.textMuted }]}>💬 Destek Ekibi Cevabı</Text>
-            <Text style={[styles.mesaj, { color: colors.textPrimary }]}>{talep.cevap}</Text>
-            {!!talep.cevapTarihi && (
-              <Text style={[styles.cevapTarih, { color: colors.textFaded }]}>{tarihSaatFormat(talep.cevapTarihi)}</Text>
-            )}
+        {/* Sohbet akışı — her yanıt ayrı mesaj (mig 222), üzerine yazılmaz */}
+        {mesajlar.length > 0 ? (
+          <View style={{ gap: 8, marginBottom: 12 }}>
+            {mesajlar.map((m) => {
+              const benim = String(m.yazarId ?? '') === String(kullanici?.id ?? '')
+              const destekten = Number(m.yazarId) === DESTEK_YONETICISI_ID
+              return (
+                <View key={m.id} style={{ alignItems: benim ? 'flex-end' : 'flex-start' }}>
+                  <View style={{
+                    maxWidth: '85%', padding: 10, borderRadius: 12,
+                    backgroundColor: benim ? 'rgba(59,130,246,0.14)' : colors.surface,
+                    borderWidth: 1, borderColor: benim ? 'rgba(59,130,246,0.3)' : colors.border,
+                  }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: destekten ? '#3b82f6' : colors.textMuted, marginBottom: 3 }}>
+                      {destekten ? '🛠 Destek' : (m.yazarAd || 'Kullanıcı')}
+                      {m.olusturmaTarih ? ` · ${tarihSaatFormat(m.olusturmaTarih)}` : ''}
+                    </Text>
+                    <Text style={{ color: colors.textPrimary, fontSize: 14, lineHeight: 20 }}>{m.mesaj}</Text>
+                  </View>
+                </View>
+              )
+            })}
           </View>
         ) : (
           <View style={[styles.bekleniyor, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -88,6 +128,45 @@ export default function DestekDetayScreen({ route, navigation }) {
               Destek ekibi talebini inceliyor. Cevap gelince burada görünecek.
             </Text>
           </View>
+        )}
+
+        {/* Mesaj kutusu — hem talep sahibi hem destek yöneticisi yazar */}
+        {yazabilir && (
+          <View style={{ marginBottom: 12 }}>
+            <TextInput
+              value={yeniMesaj}
+              onChangeText={setYeniMesaj}
+              placeholder={yoneticiMi ? 'Yanıt yaz…' : 'Mesaj yaz…'}
+              placeholderTextColor={colors.textFaded}
+              multiline
+              textAlignVertical="top"
+              style={{
+                minHeight: 72, backgroundColor: colors.surface, borderWidth: 1,
+                borderColor: colors.border, borderRadius: 10, padding: 12,
+                color: colors.textPrimary, fontSize: 14, marginBottom: 8,
+              }}
+            />
+            <TouchableOpacity
+              onPress={mesajGonder}
+              disabled={gonderiliyor || !yeniMesaj.trim()}
+              activeOpacity={0.85}
+              style={{
+                flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6,
+                paddingVertical: 12, borderRadius: 12, backgroundColor: '#3b82f6',
+                opacity: (gonderiliyor || !yeniMesaj.trim()) ? 0.5 : 1,
+              }}
+            >
+              <Feather name="send" size={16} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '800' }}>
+                {gonderiliyor ? 'Gönderiliyor…' : 'Gönder'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {talep.durum === 'kapandi' && (
+          <Text style={{ color: colors.textFaded, fontSize: 12, marginBottom: 12 }}>
+            Bu talep kapatıldı — yeni mesaj yazılamaz.
+          </Text>
         )}
 
         {/* Sil — yalnız destek yöneticisi (web ile senkron, kalıcı silme) */}

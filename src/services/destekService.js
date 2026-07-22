@@ -99,3 +99,37 @@ export const durumEtiket = (durum) => {
   if (durum === 'kapandi') return { ikon: '✅', isim: 'Kapandı', renk: '#22c55e' }
   return { ikon: '⚪', isim: durum, renk: '#94a3b8' }
 }
+
+// ─── Sohbet (mig 222) ────────────────────────────────────────────────────────
+// Tek 'cevap' kolonu her yanıtta öncekini eziyordu; mesajlar artık burada birikir.
+export const DESTEK_YONETICISI_ID = 2
+
+export const destekMesajlariGetir = async (talepId) => {
+  if (!talepId) return []
+  const { data, error } = await supabase
+    .from('destek_mesajlari')
+    .select('*')
+    .eq('talep_id', talepId)
+    .order('olusturma_tarih', { ascending: true })
+  if (error) { console.warn('[destek] mesajlar:', error.message); return [] }
+  return arrayToCamel(data ?? [])
+}
+
+// Talep satırını (cevap/durum) YALNIZ destek yöneticisi günceller — RLS'te
+// destek_talepleri UPDATE yalnız id 2'ye açık (mig 189).
+export const destekMesajEkle = async ({ talep, mesaj, yazarId, yazarAd }) => {
+  const metin = (mesaj ?? '').trim()
+  if (!metin || !talep?.id) return null
+  const { data, error } = await supabase
+    .from('destek_mesajlari')
+    .insert({ talep_id: talep.id, yazar_id: yazarId ?? null, yazar_ad: yazarAd ?? '', mesaj: metin })
+    .select()
+    .single()
+  if (error) { console.warn('[destek] mesaj ekle:', error.message); return { hata: error.message } }
+  if (String(yazarId) === String(DESTEK_YONETICISI_ID)) {
+    await supabase.from('destek_talepleri')
+      .update({ cevap: metin, cevap_tarihi: new Date().toISOString(), durum: 'cevaplandi' })
+      .eq('id', talep.id)
+  }
+  return arrayToCamel([data])[0]
+}
