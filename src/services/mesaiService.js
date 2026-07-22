@@ -10,6 +10,9 @@ async function edgeCagir(yol, body) {
 export const mesaiyeBasla = ({ qr_payload, lat, lng, zorla = false }) =>
   edgeCagir('mesai-giris', { qr_payload, lat, lng, zorla })
 
+// ARTIK UI'DAN ÇAĞRILMIYOR (2026-07-22): "Bitir" butonu kaldırıldı, mesai 18:30'da
+// mesai_otomatik_kapat cron'u ile kapanıyor. Edge fn ve bu sarmalayıcı, ileride
+// yönetici tarafı bir düzeltme ekranı gerekirse diye duruyor.
 export const mesaiyiBitir = ({ lat = null, lng = null } = {}) =>
   edgeCagir('mesai-cikis', { lat, lng })
 
