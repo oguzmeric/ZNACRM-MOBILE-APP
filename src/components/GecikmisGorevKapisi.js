@@ -11,6 +11,7 @@ import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { gorevleriGetir, gorevGuncelle, gorevNotEkle, gorevDurumGuncelle } from '../services/gorevService'
+import { gorevGecikti, gecikmeGunu } from '../lib/gorevSabitleri'
 import { bildirimEkleDb } from '../services/bildirimService'
 
 const SEBEPLER = [
@@ -44,10 +45,6 @@ const benimMi = (g, kullaniciId) => {
   return false
 }
 
-const gecikmeGunu = (sonTarih) => {
-  const fark = Date.now() - new Date(sonTarih + 'T23:59:59').getTime()
-  return Math.max(1, Math.ceil(fark / 86400000))
-}
 
 export default function GecikmisGorevKapisi() {
   const { kullanici } = useAuth()
@@ -69,13 +66,12 @@ export default function GecikmisGorevKapisi() {
       try {
         const liste = await gorevleriGetir()
         if (iptal) return
-        const bugun = bugunStr()
         // Kapıya TAKILMAYAN durumlar: kapalılar + onayda bekleyen + taslak +
         // bilinçli duraklatılmışlar (denetim bulgusu 2026-07-19, web ile aynı)
         const KAPI_DISI = ['tamamlandi', 'iptal', 'reddedildi', 'onay_bekliyor', 'taslak', 'beklemede', 'bilgi_bekleniyor']
         const geciken = (liste || [])
           .filter(g => !KAPI_DISI.includes(g.durum))
-          .filter(g => g.sonTarih && String(g.sonTarih).slice(0, 10) < bugun)
+          .filter(g => gorevGecikti(g))   // saat durdurma + öteleme (mig 221) dahil
           .filter(g => benimMi(g, kullanici.id))
           .sort((a, b) => String(a.sonTarih).localeCompare(String(b.sonTarih)))
         setGecikmisler(geciken)
@@ -105,7 +101,7 @@ export default function GecikmisGorevKapisi() {
 
   if (!aktif) return null
 
-  const gun = gecikmeGunu(String(aktif.sonTarih).slice(0, 10))
+  const gun = gecikmeGunu(aktif)
   const dusur = () => setGecikmisler(prev => prev.filter(g => g.id !== aktif.id))
 
   const ekSureKaydet = async () => {
