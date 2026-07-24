@@ -13,7 +13,10 @@ import { Feather } from '@expo/vector-icons'
 import ScreenContainer from '../components/ScreenContainer'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { kullaniciDestekTalepleriniGetir, durumEtiket } from '../services/destekService'
+import {
+  kullaniciDestekTalepleriniGetir, tumDestekTalepleriGetir,
+  durumEtiket, DESTEK_YONETICISI_ID,
+} from '../services/destekService'
 import { tarihSaatFormat } from '../utils/format'
 
 export default function DestekListeScreen({ navigation }) {
@@ -23,12 +26,18 @@ export default function DestekListeScreen({ navigation }) {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
+  // Destek yöneticisi (Oğuz, id 2) web'deki gibi HERKESİN taleplerini görür;
+  // diğer kullanıcılar yalnız kendininkini. (Web /destek ile hizalı, 2026-07-24.)
+  const yoneticiMi = Number(kullanici?.id) === DESTEK_YONETICISI_ID
+
   const yukle = useCallback(async () => {
     if (!kullanici) return
-    const l = await kullaniciDestekTalepleriniGetir(kullanici.id)
+    const l = yoneticiMi
+      ? await tumDestekTalepleriGetir()
+      : await kullaniciDestekTalepleriniGetir(kullanici.id)
     setTalepler(l ?? [])
     setLoading(false)
-  }, [kullanici])
+  }, [kullanici, yoneticiMi])
 
   useFocusEffect(useCallback(() => { yukle() }, [yukle]))
 
@@ -77,6 +86,11 @@ export default function DestekListeScreen({ navigation }) {
                   <Text style={[styles.durumText, { color: d.renk }]}>{d.ikon} {d.isim}</Text>
                 </View>
               </View>
+              {yoneticiMi && !!item.kullaniciAd && (
+                <Text style={[styles.cardSahip, { color: colors.textSecondary }]} numberOfLines={1}>
+                  👤 {item.kullaniciAd}
+                </Text>
+              )}
               <Text style={[styles.cardTarih, { color: colors.textFaded }]}>{tarihSaatFormat(item.olusturmaTarih)}</Text>
               {!!item.cevap && (
                 <View style={styles.cevapBanner}>
@@ -132,6 +146,7 @@ const styles = StyleSheet.create({
   },
   durumText: { fontSize: 11, fontWeight: '700' },
   cardTarih: { color: '#64748b', fontSize: 11 },
+  cardSahip: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
   cevapBanner: {
     flexDirection: 'row',
     alignItems: 'center',
