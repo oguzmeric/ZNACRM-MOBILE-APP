@@ -75,6 +75,22 @@ export const destekTalepCevapla = async (id, cevap, _cevaplayanAd) => {
   return toCamel(data)
 }
 
+// Genel güncelleme (mesaj düzenleme / durum değiştirme) —
+// RLS gereği yalnız destek yöneticisi (kullanicilar.id=2) başarılı olur (mig 190)
+export const destekTalepGuncelle = async (id, patch) => {
+  const { data, error } = await supabase
+    .from('destek_talepleri')
+    .update(toSnake(patch))
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) {
+    console.error('destekTalepGuncelle hata:', error.message)
+    return null
+  }
+  return toCamel(data)
+}
+
 // Silme — RLS gereği yalnız Oğuz Meriç (kullanicilar.id=2) başarılı olur (mig 190)
 export const destekTalepSil = async (id) => {
   const { error } = await supabase.from('destek_talepleri').delete().eq('id', id)

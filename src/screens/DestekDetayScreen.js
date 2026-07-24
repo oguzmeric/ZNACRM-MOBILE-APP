@@ -14,7 +14,7 @@ import {
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import {
-  destekTalepGetir, destekTalepSil, durumEtiket,
+  destekTalepGetir, destekTalepSil, destekTalepGuncelle, durumEtiket,
   destekMesajlariGetir, destekMesajEkle, DESTEK_YONETICISI_ID,
 } from '../services/destekService'
 import { tarihSaatFormat } from '../utils/format'
@@ -34,6 +34,10 @@ export default function DestekDetayScreen({ route, navigation }) {
   const [mesajlar, setMesajlar] = useState([])
   const [yeniMesaj, setYeniMesaj] = useState('')
   const [gonderiliyor, setGonderiliyor] = useState(false)
+  // Düzenleme (yalnız destek yöneticisi — RLS mig 190 aynı kuralı DB'de uygular)
+  const [duzenleAcik, setDuzenleAcik] = useState(false)
+  const [duzenleMetni, setDuzenleMetni] = useState('')
+  const [kaydediliyor, setKaydediliyor] = useState(false)
 
   useEffect(() => {
     destekTalepGetir(id).then((t) => {
@@ -45,6 +49,24 @@ export default function DestekDetayScreen({ route, navigation }) {
 
   const benimTalebimMi = String(talep?.kullaniciId ?? '') === String(kullanici?.id ?? '')
   const yazabilir = (yoneticiMi || benimTalebimMi) && talep?.durum !== 'kapandi'
+
+  const mesajKaydet = async () => {
+    const metin = duzenleMetni.trim()
+    if (!metin) { Alert.alert('Eksik', 'Mesaj boş olamaz.'); return }
+    setKaydediliyor(true)
+    const g = await destekTalepGuncelle(id, { mesaj: metin })
+    setKaydediliyor(false)
+    if (!g) { Alert.alert('Hata', 'Düzenleme kaydedilemedi.'); return }
+    setTalep((prev) => ({ ...prev, ...g }))
+    setDuzenleAcik(false)
+  }
+
+  const durumDegistir = async () => {
+    const kapaliMi = talep?.durum === 'kapandi'
+    const g = await destekTalepGuncelle(id, { durum: kapaliMi ? 'acik' : 'kapandi' })
+    if (!g) { Alert.alert('Hata', 'Durum değiştirilemedi.'); return }
+    setTalep((prev) => ({ ...prev, ...g }))
+  }
 
   const mesajGonder = async () => {
     const metin = yeniMesaj.trim()
@@ -89,7 +111,19 @@ export default function DestekDetayScreen({ route, navigation }) {
         </Text>
 
         <View style={[styles.blok, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.blokLabel, { color: colors.textMuted }]}>📝 Mesajın</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={[styles.blokLabel, { color: colors.textMuted }]}>
+              📝 {benimTalebimMi ? 'Mesajın' : (talep.kullaniciAd || 'Talep')}
+            </Text>
+            {yoneticiMi && (
+              <TouchableOpacity
+                onPress={() => { setDuzenleMetni(talep.mesaj || ''); setDuzenleAcik(true) }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="edit-2" size={15} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={[styles.mesaj, { color: colors.textPrimary }]}>{talep.mesaj}</Text>
           {!!talep.fotoUrl && (
             <TouchableOpacity onPress={() => setFotoTamEkran(talep.fotoUrl)}>
@@ -169,6 +203,24 @@ export default function DestekDetayScreen({ route, navigation }) {
           </Text>
         )}
 
+        {/* Kapat / Yeniden Aç — yalnız destek yöneticisi */}
+        {yoneticiMi && (
+          <TouchableOpacity
+            style={[styles.kapatBtn, talep.durum === 'kapandi' && styles.acBtn]}
+            activeOpacity={0.8}
+            onPress={durumDegistir}
+          >
+            <Feather
+              name={talep.durum === 'kapandi' ? 'rotate-ccw' : 'check'}
+              size={15}
+              color={talep.durum === 'kapandi' ? '#f59e0b' : '#22c55e'}
+            />
+            <Text style={[styles.kapatBtnText, talep.durum === 'kapandi' && { color: '#f59e0b' }]}>
+              {talep.durum === 'kapandi' ? 'Yeniden Aç' : 'Talebi Kapat'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Sil — yalnız destek yöneticisi (web ile senkron, kalıcı silme) */}
         {yoneticiMi && (
           <TouchableOpacity
@@ -197,6 +249,52 @@ export default function DestekDetayScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      {/* Talep mesajı düzenleme modalı — yalnız destek yöneticisi */}
+      <Modal
+        visible={duzenleAcik}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setDuzenleAcik(false)}
+      >
+        <View style={styles.duzenleBg}>
+          <View style={[styles.duzenleSheet, { backgroundColor: colors.bg }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '700' }}>Talebi Düzenle</Text>
+              <TouchableOpacity onPress={() => setDuzenleAcik(false)}>
+                <Feather name="x" size={22} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              value={duzenleMetni}
+              onChangeText={setDuzenleMetni}
+              multiline
+              textAlignVertical="top"
+              autoFocus
+              style={{
+                minHeight: 120, backgroundColor: colors.surface, borderWidth: 1,
+                borderColor: colors.border, borderRadius: 10, padding: 12,
+                color: colors.textPrimary, fontSize: 14, marginBottom: 12,
+              }}
+            />
+            <TouchableOpacity
+              onPress={mesajKaydet}
+              disabled={kaydediliyor}
+              activeOpacity={0.85}
+              style={{
+                flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6,
+                paddingVertical: 12, borderRadius: 12, backgroundColor: '#3b82f6',
+                opacity: kaydediliyor ? 0.5 : 1,
+              }}
+            >
+              <Feather name="save" size={16} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '800' }}>
+                {kaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={!!fotoTamEkran}
@@ -276,6 +374,36 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(148, 163, 184, 0.2)',
   },
   bekleniyorText: { color: '#94a3b8', fontSize: 13, flex: 1, lineHeight: 18 },
+
+  kapatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 24,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.4)',
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+  },
+  acBtn: {
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+  },
+  kapatBtnText: { color: '#22c55e', fontSize: 13, fontWeight: '700' },
+
+  duzenleBg: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  duzenleSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+    paddingBottom: 34,
+  },
 
   silBtn: {
     flexDirection: 'row',
