@@ -14,9 +14,10 @@ import { Feather } from '@expo/vector-icons'
 import ScreenContainer from '../components/ScreenContainer'
 import ImzaCizModal from '../components/ImzaCizModal'
 import { useTheme } from '../context/ThemeContext'
+import * as ImagePicker from 'expo-image-picker'
 import {
   bakimGetir, yolaCiktim, lokasyonaUlastim, bakimiBaslat,
-  durumGuncelle, kalemKaydet,
+  durumGuncelle, kalemKaydet, bakimFotoYukle,
 } from '../services/topluBakimService'
 import {
   kalemBilgi, kalemDurumBilgi, tbDurumBilgi,
@@ -478,6 +479,16 @@ function KalemForm({ kalem, colors, onKapat, onKaydedildi }) {
         ) : (
           <GenelForm tip={kalem.kalemTip} c={c} set={set} colors={colors} />
         )}
+
+        {/* Fotoğraflar — FİBER HARİÇ tüm kalemlerde (kullanıcı isteği 24.07) */}
+        {!yapilamadi && kalem.kalemTip !== 'fiber' && (
+          <FotoBolumu
+            colors={colors}
+            altNo={kalem.altNo}
+            fotolar={c.fotolar || []}
+            onDegisti={(yeni) => set('fotolar', yeni)}
+          />
+        )}
       </ScrollView>
 
       {/* Alt butonlar */}
@@ -738,6 +749,71 @@ function GenelForm({ tip, c, set, colors }) {
           placeholderTextColor={colors.textFaded}
           style={[styles.input, { minHeight: 70, backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary, marginTop: 6 }]}
         />
+      </View>
+    </View>
+  )
+}
+
+// Foto bölümü — kamera/galeri seçimi, anında yükleme, küçük önizleme + silme.
+function FotoBolumu({ colors, altNo, fotolar, onDegisti }) {
+  const [yukleniyor, setYukleniyor] = useState(false)
+
+  const sec = async (kameradan) => {
+    const secenekler = { quality: 0.6, allowsMultipleSelection: !kameradan }
+    const sonuc = kameradan
+      ? await ImagePicker.launchCameraAsync(secenekler)
+      : await ImagePicker.launchImageLibraryAsync(secenekler)
+    if (sonuc.canceled || !sonuc.assets?.length) return
+    setYukleniyor(true)
+    const yeniUrller = []
+    for (const a of sonuc.assets) {
+      const url = await bakimFotoYukle(altNo, a.uri)
+      if (url) yeniUrller.push(url)
+    }
+    setYukleniyor(false)
+    if (yeniUrller.length) onDegisti([...fotolar, ...yeniUrller])
+    else Alert.alert('Hata', 'Fotoğraf yüklenemedi.')
+  }
+
+  const ekle = () => {
+    Alert.alert('Fotoğraf Ekle', null, [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: '📷 Kamera', onPress: () => sec(true) },
+      { text: '🖼 Galeri', onPress: () => sec(false) },
+    ])
+  }
+
+  return (
+    <View style={{ marginTop: 16 }}>
+      <Text style={[styles.soru, { color: colors.textMuted }]}>Fotoğraflar {fotolar.length > 0 ? `(${fotolar.length})` : ''}</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+        {fotolar.map((url, i) => (
+          <View key={url} style={{ position: 'relative' }}>
+            <Image source={{ uri: url }} style={{ width: 74, height: 74, borderRadius: 8, backgroundColor: colors.surface }} />
+            <TouchableOpacity
+              onPress={() => onDegisti(fotolar.filter((_, x) => x !== i))}
+              style={{
+                position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10,
+                backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Feather name="x" size={12} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        ))}
+        <TouchableOpacity
+          onPress={ekle}
+          disabled={yukleniyor}
+          style={{
+            width: 74, height: 74, borderRadius: 8, borderWidth: 1.5, borderStyle: 'dashed',
+            borderColor: '#3b82f6', alignItems: 'center', justifyContent: 'center',
+            opacity: yukleniyor ? 0.5 : 1,
+          }}
+        >
+          {yukleniyor
+            ? <ActivityIndicator size="small" color="#3b82f6" />
+            : <Feather name="camera" size={20} color="#3b82f6" />}
+        </TouchableOpacity>
       </View>
     </View>
   )

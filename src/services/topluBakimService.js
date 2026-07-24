@@ -5,6 +5,40 @@
 
 import { supabase } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
+import { oturumTokenAl } from '../lib/storageAuth'
+
+// Bakım fotoğrafı yükle — gorevFotoService ile aynı desen (public bucket +
+// personel JWT + FormData). URL'ler kalemin cevaplar.fotolar dizisinde tutulur.
+const FOTO_BUCKET = 'urun-gorselleri'
+const FOTO_KLASOR = 'bakim-fotolar'
+
+export const bakimFotoYukle = async (altNo, uri) => {
+  try {
+    const uzanti = (uri.match(/\.(\w+)(?:\?|$)/)?.[1] || 'jpg').toLowerCase()
+    const mimeType = uzanti === 'png' ? 'image/png' : 'image/jpeg'
+    const dosyaAdi = `${FOTO_KLASOR}/${altNo || 'tb'}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${uzanti}`
+    const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
+    const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+    const token = await oturumTokenAl()
+
+    const formData = new FormData()
+    formData.append('file', { uri, name: dosyaAdi.split('/').pop(), type: mimeType })
+
+    const resp = await fetch(`${SUPABASE_URL}/storage/v1/object/${FOTO_BUCKET}/${dosyaAdi}`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}`, 'x-upsert': 'true' },
+      body: formData,
+    })
+    if (!resp.ok) {
+      console.error('[bakim] foto yukleme:', resp.status, await resp.text())
+      return null
+    }
+    return `${SUPABASE_URL}/storage/v1/object/public/${FOTO_BUCKET}/${dosyaAdi}`
+  } catch (e) {
+    console.error('[bakim] foto yukleme:', e?.message)
+    return null
+  }
+}
 
 // Bana atanan işler: ana görevli VEYA yardımcı ekipte (spec 22).
 export const bakimIslerimGetir = async (kullaniciId) => {
