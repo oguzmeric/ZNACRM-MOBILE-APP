@@ -288,16 +288,18 @@ export default function YeniGorevScreen({ navigation, route }) {
     const baslikSMS = trAsciify(baslik.trim()).slice(0, 60)
     const tarihStr = bitisTarih ? new Date(bitisTarih).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : ''
     const oncStr = oncelik && oncelik !== 'normal' ? ` [${trAsciify(oncelikAd).toUpperCase()}]` : ''
-    if (atanan?.cepTelefon) {
+    // SMS YALNIZ atanana gider; kendine görev açana SMS gitmez (bildirimle aynı kural).
+    // Ekip üyelerine SMS YOK — Ali'nin destek talebi (2026-07-24): Abdullah her
+    // görevine Ali'yi ekip yapınca Ali'ye görev başına SMS yağıyordu.
+    if (atanan?.cepTelefon && String(atanan.id) !== String(kullanici?.id)) {
       const mesajSMS = `ZNA CRM: Size yeni gorev atandi${oncStr}.\n"${baslikSMS}"\nSon tarih: ${tarihStr}\ntalep.znateknoloji.com`
       smsGonder(atanan.cepTelefon, mesajSMS).catch((e) => console.warn('[sms] yeni görev:', e?.message))
     }
 
-    // Ekip üyelerine bildirim + SMS
+    // Ekip üyelerine yalnız uygulama içi bildirim
     for (const uid of ekipIds) {
       const uye = kullanicilar.find((x) => String(x.id) === String(uid))
       if (!uye) continue
-      // Bildirim (kendine gönderme)
       if (String(uye.id) !== String(kullanici?.id)) {
         bildirimEkleDb({
           aliciId: uye.id,
@@ -307,10 +309,6 @@ export default function YeniGorevScreen({ navigation, route }) {
           tip: 'gorev',
           link: `/gorevler/${yeni.id}`,
         }).catch((e) => console.warn('[bildirim] ekip:', e?.message))
-      }
-      if (uye.cepTelefon) {
-        const mesajSMS = `ZNA CRM: Ekip gorevi${oncStr}.\n"${baslikSMS}"\nSon tarih: ${tarihStr}\ntalep.znateknoloji.com`
-        smsGonder(uye.cepTelefon, mesajSMS).catch((e) => console.warn('[sms] ekip:', e?.message))
       }
     }
 
