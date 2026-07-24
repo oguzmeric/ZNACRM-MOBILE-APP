@@ -17,6 +17,13 @@ import {
   kullaniciDestekTalepleriniGetir, tumDestekTalepleriGetir,
   durumEtiket, DESTEK_YONETICISI_ID,
 } from '../services/destekService'
+
+const SEKMELER = [
+  { id: 'acik', label: 'Açık' },
+  { id: 'cevaplandi', label: 'Cevaplandı' },
+  { id: 'kapandi', label: 'Kapandı' },
+  { id: 'tumu', label: 'Tümü' },
+]
 import { tarihSaatFormat } from '../utils/format'
 
 export default function DestekListeScreen({ navigation }) {
@@ -25,6 +32,7 @@ export default function DestekListeScreen({ navigation }) {
   const [talepler, setTalepler] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [aktifSekme, setAktifSekme] = useState('acik')
 
   // Destek yöneticisi (Oğuz, id 2) web'deki gibi HERKESİN taleplerini görür;
   // diğer kullanıcılar yalnız kendininkini. (Web /destek ile hizalı, 2026-07-24.)
@@ -55,21 +63,55 @@ export default function DestekListeScreen({ navigation }) {
     )
   }
 
+  const filtrelenmis = aktifSekme === 'tumu'
+    ? talepler
+    : talepler.filter((t) => t.durum === aktifSekme)
+
   return (
     <ScreenContainer>
+      <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
+        {SEKMELER.map((s) => {
+          const sayi = s.id === 'tumu'
+            ? talepler.length
+            : talepler.filter((t) => t.durum === s.id).length
+          const aktif = aktifSekme === s.id
+          return (
+            <TouchableOpacity
+              key={s.id}
+              style={[
+                styles.tab,
+                { backgroundColor: colors.surface },
+                aktif && { backgroundColor: colors.primary },
+              ]}
+              onPress={() => setAktifSekme(s.id)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.tabText, { color: colors.textMuted }, aktif && { color: '#fff' }]}>
+                {s.label} · {sayi}
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
+      </View>
       <FlatList
-        data={talepler}
+        data={filtrelenmis}
         keyExtractor={(t) => String(t.id)}
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />}
         ListEmptyComponent={
-          <View style={styles.bosWrap}>
-            <Text style={[styles.bosBaslik, { color: colors.textSecondary }]}>Henüz destek talebin yok</Text>
-            <Text style={[styles.bosAciklama, { color: colors.textFaded }]}>
-              Uygulamada bir sorunla karşılaşırsan veya öneri paylaşmak istersen{'\n'}
-              aşağıdaki butonla yeni talep oluşturabilirsin.
-            </Text>
-          </View>
+          talepler.length > 0 ? (
+            <View style={styles.bosWrap}>
+              <Text style={[styles.bosBaslik, { color: colors.textSecondary }]}>Bu sekmede talep yok</Text>
+            </View>
+          ) : (
+            <View style={styles.bosWrap}>
+              <Text style={[styles.bosBaslik, { color: colors.textSecondary }]}>Henüz destek talebin yok</Text>
+              <Text style={[styles.bosAciklama, { color: colors.textFaded }]}>
+                Uygulamada bir sorunla karşılaşırsan veya öneri paylaşmak istersen{'\n'}
+                aşağıdaki butonla yeni talep oluşturabilirsin.
+              </Text>
+            </View>
+          )
         }
         renderItem={({ item }) => {
           const d = durumEtiket(item.durum)
@@ -118,6 +160,22 @@ export default function DestekListeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  tabs: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+  },
+  tab: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
+  },
+  tabText: { fontWeight: '600', fontSize: 11 },
+
   bosWrap: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 },
   bosBaslik: { color: '#e2e8f0', fontSize: 16, fontWeight: '700', marginBottom: 8 },
   bosAciklama: { color: '#64748b', fontSize: 13, textAlign: 'center', lineHeight: 20 },
