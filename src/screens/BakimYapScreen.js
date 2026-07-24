@@ -7,6 +7,7 @@ import { useCallback, useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, TextInput, Alert, Modal, Image,
+  KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
@@ -440,7 +441,12 @@ function KalemForm({ kalem, colors, onKapat, onKaydedildi }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
         {/* Bakım yapılamadı anahtarı (spec 16) */}
         <TouchableOpacity
           style={[styles.yapilamadiSatir, { backgroundColor: yapilamadi ? 'rgba(245,158,11,0.12)' : colors.surface, borderColor: yapilamadi ? '#f59e0b' : colors.border }]}
@@ -488,6 +494,7 @@ function KalemForm({ kalem, colors, onKapat, onKaydedildi }) {
           </Text>
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
     </View>
   )
 }
