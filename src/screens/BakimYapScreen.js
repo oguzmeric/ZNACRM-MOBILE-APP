@@ -3,7 +3,7 @@
 // altta YALNIZ saha sorumlusunun seçtiği kalemler. CCTV tam spec (8),
 // diğer kalemler v1 genel şablon (9-13). Cevaplar anında kaydedilir,
 // sekme geçişinde kaybolmaz. Kalem tamamlanınca sonuç metni OTOMATİK oluşur.
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, TextInput, Alert, Modal, Image,
@@ -40,6 +40,7 @@ export default function BakimYapScreen({ route }) {
   // İmza akışı (F4 — spec 21-22): TEK müşteri imzası + en az bir personel imzası
   const [imzaModal, setImzaModal] = useState(null)   // 'musteri' | 'personel' | null
   const [yetkili, setYetkili] = useState(null)       // {ad, gorev, tel} — tb'den doldurulur
+  const scrollRef = useRef(null)                     // Tümünü Tamamla → imza bölümüne kaydır
 
   const yukle = useCallback(async () => {
     const t = await bakimGetir(id)
@@ -77,7 +78,8 @@ export default function BakimYapScreen({ route }) {
     const g = await durumGuncelle(id, 'imza_bekleniyor', { bitisTarih: new Date().toISOString() })
     if (g) {
       setTb((prev) => ({ ...prev, ...g }))
-      Alert.alert('Hazır', 'Bakım kalemleri tamamlandı. İmza ve tamamlama adımı yakında eklenecek (F4) — iş "İmza Bekleniyor" durumuna alındı.')
+      // İmza bölümü sayfanın en altında — kullanıcıyı doğrudan oraya götür
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 350)
     }
   }
 
@@ -90,6 +92,7 @@ export default function BakimYapScreen({ route }) {
         keyboardVerticalOffset={headerHeight}
       >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
