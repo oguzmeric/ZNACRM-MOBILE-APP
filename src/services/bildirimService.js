@@ -76,6 +76,20 @@ export const bildirimSilDb = async (id) => {
   if (error) console.error('[bildirimSilDb] hata:', error.message)
 }
 
+// Toplu silme — kullanıcının bildirimlerini siler; sadeceOkunan=true ise
+// okunmamışlar korunur. RLS kullanıcıyı zaten kendi satırlarıyla sınırlar.
+export const tumBildirimleriSilDb = async (kullaniciId, { sadeceOkunan = false } = {}) => {
+  if (!kullaniciId) return false
+  let q = supabase.from('bildirimler').delete().eq('alici_id', kullaniciId)
+  if (sadeceOkunan) q = q.eq('okundu', true)
+  const { error } = await q
+  if (error) {
+    console.error('[tumBildirimleriSilDb] hata:', error.message)
+    return false
+  }
+  return true
+}
+
 // Realtime subscribe — yeni bildirim gelince callback
 // Kanal adı her abonelik için unique olmalı, aksi halde Supabase aynı kanalı
 // reuse eder ve ikinci .on() "cannot add callbacks after subscribe()" fırlatır

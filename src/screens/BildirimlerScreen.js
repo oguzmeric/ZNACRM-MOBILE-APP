@@ -16,6 +16,7 @@ import {
   bildirimOkuDb,
   tumBildirimleriOkuDb,
   bildirimSilDb,
+  tumBildirimleriSilDb,
   bildirimleriDinle,
 } from '../services/bildirimService'
 import { badgeAyarla } from '../lib/pushBildirimKayit'
@@ -122,6 +123,33 @@ export default function BildirimlerScreen({ navigation }) {
     }
   }
 
+  const topluSil = () => {
+    const okunanSayi = bildirimler.filter(b => b.okundu).length
+    const secenekler = [{ text: 'Vazgeç', style: 'cancel' }]
+    if (okunanSayi > 0) {
+      secenekler.push({
+        text: `Okunanları Sil (${okunanSayi})`,
+        onPress: () => topluSilCalistir(true),
+      })
+    }
+    secenekler.push({
+      text: `Hepsini Sil (${bildirimler.length})`,
+      style: 'destructive',
+      onPress: () => topluSilCalistir(false),
+    })
+    Alert.alert('Toplu Sil', 'Hangi bildirimler silinsin?', secenekler)
+  }
+
+  const topluSilCalistir = async (sadeceOkunan) => {
+    const oncekiler = bildirimler
+    setBildirimler(prev => (sadeceOkunan ? prev.filter(b => !b.okundu) : []))
+    const ok = await tumBildirimleriSilDb(kullanici.id, { sadeceOkunan })
+    if (!ok) {
+      setBildirimler(oncekiler)  // rollback
+      Alert.alert('Hata', 'Bildirimler silinemedi.')
+    }
+  }
+
   const okunmamisSayisi = bildirimler.filter(b => !b.okundu).length
 
   // iOS badge — okunmamış sayısı her değiştiğinde ikon üstündeki rakamı senkronla
@@ -139,16 +167,33 @@ export default function BildirimlerScreen({ navigation }) {
 
   return (
     <ScreenContainer>
-      {okunmamisSayisi > 0 && (
-        <TouchableOpacity
-          onPress={tumunuOku}
-          style={[styles.tumOkuBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
-        >
-          <Feather name="check-circle" size={14} color={colors.primary} />
-          <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }}>
-            Tümünü okundu işaretle ({okunmamisSayisi})
-          </Text>
-        </TouchableOpacity>
+      {bildirimler.length > 0 && (
+        <View style={{ flexDirection: 'row', gap: 8, margin: 12, marginBottom: 0 }}>
+          {okunmamisSayisi > 0 && (
+            <TouchableOpacity
+              onPress={tumunuOku}
+              style={[styles.tumOkuBtn, { borderColor: colors.border, backgroundColor: colors.surface, flex: 1 }]}
+            >
+              <Feather name="check-circle" size={14} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 13 }} numberOfLines={1}>
+                Tümünü okundu ({okunmamisSayisi})
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={topluSil}
+            style={[styles.tumOkuBtn, {
+              borderColor: 'rgba(239,68,68,0.4)',
+              backgroundColor: 'rgba(239,68,68,0.08)',
+              flex: 1,
+            }]}
+          >
+            <Feather name="trash-2" size={14} color="#ef4444" />
+            <Text style={{ color: '#ef4444', fontWeight: '600', fontSize: 13 }} numberOfLines={1}>
+              Toplu Sil
+            </Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       <FlatList
@@ -226,7 +271,6 @@ export default function BildirimlerScreen({ navigation }) {
 const styles = StyleSheet.create({
   tumOkuBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    margin: 12, marginBottom: 0,
     paddingVertical: 10, paddingHorizontal: 14,
     borderRadius: 10, borderWidth: 1,
     justifyContent: 'center',
