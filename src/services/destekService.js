@@ -126,10 +126,27 @@ export const destekMesajEkle = async ({ talep, mesaj, yazarId, yazarAd }) => {
     .select()
     .single()
   if (error) { console.warn('[destek] mesaj ekle:', error.message); return { hata: error.message } }
-  if (String(yazarId) === String(DESTEK_YONETICISI_ID)) {
+  const yoneticiMi = String(yazarId) === String(DESTEK_YONETICISI_ID)
+  if (yoneticiMi) {
     await supabase.from('destek_talepleri')
       .update({ cevap: metin, cevap_tarihi: new Date().toISOString(), durum: 'cevaplandi' })
       .eq('id', talep.id)
   }
+  // Karşı tarafa bildirim — web destekService ile AYNI davranış. bildirimler
+  // INSERT → DB trigger mobil push'u atar; web açıksa realtime toast çıkar.
+  // (Mobilden yazılan cevaplar sessiz kalıyordu — 2026-07-24 talebi.)
+  try {
+    const hedef = yoneticiMi ? talep.kullaniciId : DESTEK_YONETICISI_ID
+    if (hedef && String(hedef) !== String(yazarId)) {
+      await bildirimEkleDb({
+        aliciId: hedef,
+        gonderenId: yazarId ?? null,
+        baslik: yoneticiMi ? '💬 Destek talebiniz yanıtlandı' : `🆘 Destek — ${yazarAd ?? ''}`,
+        mesaj: metin.slice(0, 90),
+        tip: 'destek',
+        link: '/destek',
+      })
+    }
+  } catch (e) { console.warn('[destek] mesaj bildirimi:', e?.message) }
   return arrayToCamel([data])[0]
 }

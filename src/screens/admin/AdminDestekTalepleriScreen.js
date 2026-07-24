@@ -21,7 +21,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
 import {
   tumDestekTalepleriGetir,
-  destekTalepCevapla,
+  destekMesajEkle,
   destekTalepKapat,
   durumEtiket,
 } from '../../services/destekService'
@@ -67,10 +67,18 @@ export default function AdminDestekTalepleriScreen() {
       return
     }
     setKaydediliyor(true)
-    const sonuc = await destekTalepCevapla(detayTalep.id, cevapMetni.trim(), kullanici?.ad)
+    // Eski destekTalepCevapla yalnız 'cevap' kolonunu eziyordu: mesaj sohbete
+    // düşmüyor, talep sahibine bildirim de gitmiyordu. destekMesajEkle üçünü
+    // birden yapar: sohbet kaydı + talep satırı güncelleme + bildirim/push.
+    const sonuc = await destekMesajEkle({
+      talep: detayTalep,
+      mesaj: cevapMetni.trim(),
+      yazarId: kullanici?.id,
+      yazarAd: kullanici?.ad,
+    })
     setKaydediliyor(false)
-    if (!sonuc) {
-      Alert.alert('Hata', 'Cevap kaydedilemedi.')
+    if (!sonuc || sonuc.hata) {
+      Alert.alert('Hata', 'Cevap kaydedilemedi.' + (sonuc?.hata ? `\n${sonuc.hata}` : ''))
       return
     }
     setDetayTalep(null)
