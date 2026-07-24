@@ -6,11 +6,12 @@
 import { useCallback, useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, TextInput, Alert, Modal,
+  ActivityIndicator, TextInput, Alert, Modal, Image,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import ScreenContainer from '../components/ScreenContainer'
+import ImzaCizModal from '../components/ImzaCizModal'
 import { useTheme } from '../context/ThemeContext'
 import {
   bakimGetir, yolaCiktim, lokasyonaUlastim, bakimiBaslat,
@@ -32,6 +33,9 @@ export default function BakimYapScreen({ route }) {
   const [loading, setLoading] = useState(true)
   const [mesgul, setMesgul] = useState(false)
   const [acikKalem, setAcikKalem] = useState(null)   // form modalındaki kalem
+  // İmza akışı (F4 — spec 21-22): TEK müşteri imzası + en az bir personel imzası
+  const [imzaModal, setImzaModal] = useState(null)   // 'musteri' | 'personel' | null
+  const [yetkili, setYetkili] = useState(null)       // {ad, gorev, tel} — tb'den doldurulur
 
   const yukle = useCallback(async () => {
     const t = await bakimGetir(id)
@@ -180,14 +184,116 @@ export default function BakimYapScreen({ route }) {
                 <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Tümünü Tamamla ve İmzaya Geç</Text>
               </TouchableOpacity>
             )}
-            {tb.durum === 'imza_bekleniyor' && (
-              <Text style={{ color: '#eab308', fontSize: 12, textAlign: 'center', marginTop: 10 }}>
-                ✍️ İmza adımı bekleniyor (imza ekranı yakında eklenecek).
-              </Text>
+            {/* ── İMZA VE TAMAMLAMA (F4 — spec 21-22-26) ── */}
+            {(tb.durum === 'imza_bekleniyor' || tb.durum === 'tamamlandi') && (
+              <View style={{ marginTop: 16 }}>
+                <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 8 }}>İMZA VE TAMAMLAMA</Text>
+
+                {/* Müşteri yetkilisi bilgileri — imza öncesi zorunlu (spec 26) */}
+                {tb.durum === 'imza_bekleniyor' && !tb.musteriImzaUrl && (
+                  <View style={{ gap: 8, marginBottom: 10 }}>
+                    <TextInput
+                      value={(yetkili ?? { ad: tb.musteriYetkiliAd || '' }).ad}
+                      onChangeText={(v) => setYetkili((p) => ({ ad: v, gorev: p?.gorev ?? tb.musteriYetkiliGorev ?? '', tel: p?.tel ?? tb.musteriYetkiliTel ?? '' }))}
+                      placeholder="Müşteri yetkilisi adı soyadı *"
+                      placeholderTextColor={colors.textFaded}
+                      style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
+                    />
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TextInput
+                        value={(yetkili ?? { gorev: tb.musteriYetkiliGorev || '' }).gorev ?? ''}
+                        onChangeText={(v) => setYetkili((p) => ({ ad: p?.ad ?? tb.musteriYetkiliAd ?? '', gorev: v, tel: p?.tel ?? tb.musteriYetkiliTel ?? '' }))}
+                        placeholder="Görevi"
+                        placeholderTextColor={colors.textFaded}
+                        style={[styles.input, { flex: 1, backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
+                      />
+                      <TextInput
+                        value={(yetkili ?? { tel: tb.musteriYetkiliTel || '' }).tel ?? ''}
+                        onChangeText={(v) => setYetkili((p) => ({ ad: p?.ad ?? tb.musteriYetkiliAd ?? '', gorev: p?.gorev ?? tb.musteriYetkiliGorev ?? '', tel: v }))}
+                        placeholder="Telefon"
+                        placeholderTextColor={colors.textFaded}
+                        keyboardType="phone-pad"
+                        style={[styles.input, { flex: 1, backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* İmza kutuları */}
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <ImzaKutu
+                    colors={colors}
+                    etiket="Müşteri İmzası"
+                    imza={tb.musteriImzaUrl}
+                    kilitli={tb.durum === 'tamamlandi'}
+                    onPress={() => {
+                      const ad = (yetkili?.ad ?? tb.musteriYetkiliAd ?? '').trim()
+                      if (!ad) { Alert.alert('Eksik', 'Önce müşteri yetkilisinin adını girin.'); return }
+                      setImzaModal('musteri')
+                    }}
+                  />
+                  <ImzaKutu
+                    colors={colors}
+                    etiket="Teknik Personel"
+                    imza={tb.personelImzaUrl}
+                    kilitli={tb.durum === 'tamamlandi'}
+                    onPress={() => setImzaModal('personel')}
+                  />
+                </View>
+
+                {tb.durum === 'imza_bekleniyor' && (
+                  <TouchableOpacity
+                    style={[styles.tamamlaBtn, { opacity: tb.musteriImzaUrl && tb.personelImzaUrl ? 1 : 0.45 }]}
+                    onPress={async () => {
+                      // Spec 26: iki imza olmadan toplu bakım TAMAMLANAMAZ
+                      if (!tb.musteriImzaUrl || !tb.personelImzaUrl) {
+                        Alert.alert('Eksik', 'Müşteri ve teknik personel imzaları alınmadan bakım tamamlanamaz.')
+                        return
+                      }
+                      const g = await durumGuncelle(id, 'tamamlandi')
+                      if (g) {
+                        setTb((prev) => ({ ...prev, ...g }))
+                        Alert.alert('Tamamlandı 🎉', `${tb.tbNo} toplu bakımı tamamlandı.`)
+                      }
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Feather name="award" size={17} color="#fff" />
+                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Toplu Bakımı Tamamla</Text>
+                  </TouchableOpacity>
+                )}
+                {tb.durum === 'tamamlandi' && (
+                  <Text style={{ color: '#22c55e', fontSize: 12.5, textAlign: 'center', marginTop: 10, fontWeight: '700' }}>
+                    ✅ Bakım tamamlandı — formlar merkezden yazdırılabilir.
+                  </Text>
+                )}
+              </View>
             )}
           </>
         )}
       </ScrollView>
+
+      {/* İmza çizimi — mevcut ortak modal (base64 döner) */}
+      <ImzaCizModal
+        visible={!!imzaModal}
+        baslik={imzaModal === 'musteri' ? 'Müşteri Yetkilisi İmzası' : 'Teknik Personel İmzası'}
+        onClose={() => setImzaModal(null)}
+        onKaydet={async (base64) => {
+          const simdi = new Date().toISOString()
+          const patch = imzaModal === 'musteri'
+            ? {
+                musteriImzaUrl: base64,
+                musteriImzaTarih: simdi,
+                musteriYetkiliAd: (yetkili?.ad ?? tb.musteriYetkiliAd) || null,
+                musteriYetkiliGorev: (yetkili?.gorev ?? tb.musteriYetkiliGorev) || null,
+                musteriYetkiliTel: (yetkili?.tel ?? tb.musteriYetkiliTel) || null,
+              }
+            : { personelImzaUrl: base64, personelImzaTarih: simdi }
+          const g = await durumGuncelle(id, 'imza_bekleniyor', patch)
+          if (g) setTb((prev) => ({ ...prev, ...g }))
+          else throw new Error('imza kaydedilemedi')
+        }}
+      />
 
       {/* Kalem formu — tam ekran modal */}
       <Modal visible={!!acikKalem} animationType="slide" onRequestClose={() => setAcikKalem(null)}>
@@ -207,6 +313,31 @@ export default function BakimYapScreen({ route }) {
         )}
       </Modal>
     </ScreenContainer>
+  )
+}
+
+function ImzaKutu({ colors, etiket, imza, kilitli, onPress }) {
+  return (
+    <TouchableOpacity
+      style={{
+        flex: 1, minHeight: 92, borderRadius: 10, borderWidth: 1.5,
+        borderStyle: imza ? 'solid' : 'dashed',
+        borderColor: imza ? '#22c55e' : colors.border,
+        backgroundColor: imza ? '#ffffff' : colors.surface,
+        alignItems: 'center', justifyContent: 'center', padding: 8,
+      }}
+      onPress={kilitli ? undefined : onPress}
+      activeOpacity={kilitli ? 1 : 0.8}
+    >
+      {imza ? (
+        <Image source={{ uri: imza }} style={{ width: '100%', height: 56 }} resizeMode="contain" />
+      ) : (
+        <Feather name="edit-3" size={20} color={colors.textFaded} />
+      )}
+      <Text style={{ color: imza ? '#16a34a' : colors.textMuted, fontSize: 11, fontWeight: '700', marginTop: 4 }}>
+        {etiket}{imza ? ' ✓' : ''}
+      </Text>
+    </TouchableOpacity>
   )
 }
 
