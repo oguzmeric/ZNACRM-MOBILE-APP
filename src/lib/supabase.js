@@ -49,7 +49,12 @@ export const tumSayfalariCek = async (tablo, sorguKur = (q) => q) => {
   let tumKayitlar = []
   let baslangic = 0
   while (true) {
-    const query = sorguKur(supabase.from(tablo).select('*')).range(baslangic, baslangic + SAYFA - 1)
+    // id tiebreaker: benzersiz olmayan kolona göre sıralamada (örn. toplu import
+    // kayıtlarında aynı olusturma_tarih) .range() sayfaları arasında satır
+    // tekrarı/atlaması olur — son sıralama anahtarı olarak id determinizmi sağlar.
+    const query = sorguKur(supabase.from(tablo).select('*'))
+      .order('id', { ascending: false })
+      .range(baslangic, baslangic + SAYFA - 1)
     const { data, error } = await query
     if (error) {
       console.error(`[${tablo}] sayfa hata:`, error.message)

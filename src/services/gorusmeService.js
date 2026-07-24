@@ -104,6 +104,7 @@ export const gorusmeleriGetir = async ({ baslangic = 0, limit = 30, hazirlayan =
     .from('gorusmeler')
     .select('*')
     .order('olusturma_tarih', { ascending: false })
+    .order('id', { ascending: false })   // tiebreaker: esnweb import kayıtları aynı damgayı taşır
 
   if (benimAd) {
     // OR: kullanıcı ya hazırlayan ya da görüşen içinde olsun

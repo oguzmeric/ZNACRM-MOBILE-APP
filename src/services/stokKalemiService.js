@@ -591,12 +591,10 @@ const seriNormalize = (s) =>
 // Aktif tüm SN'leri set olarak getir — duplicate anlık kontrol için (SeriTaraScreen)
 export const tumSeriNumaralarıSet = async () => {
   const set = new Set()
-  const rows = await tumSayfalariCek((off, size) =>
-    supabase.from('stok_kalemleri')
-      .select('seri_no')
-      .eq('silindi', false)
-      .not('seri_no', 'is', null)
-      .range(off, off + size - 1)
+  // DİKKAT: tumSayfalariCek imzası (tablo, sorguKur) — önceki callback'li çağrı
+  // supabase.from(<fonksiyon>) üretip sessizce boş dönüyordu (duplicate kontrolü ölüydü).
+  const rows = await tumSayfalariCek('stok_kalemleri', (q) =>
+    q.eq('silindi', false).not('seri_no', 'is', null)
   )
   for (const r of rows || []) {
     if (r.seri_no) set.add(String(r.seri_no).toLocaleLowerCase('tr'))

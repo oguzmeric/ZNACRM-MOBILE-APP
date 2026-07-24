@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { useHeaderHeight } from '@react-navigation/elements'
 import { Feather } from '@expo/vector-icons'
 import ScreenContainer from '../components/ScreenContainer'
 import ImzaCizModal from '../components/ImzaCizModal'
@@ -31,6 +32,7 @@ const BAKIM_BASLADI_DURUMLAR = ['bakim_basladi', 'devam_ediyor', 'eksik_bakim', 
 export default function BakimYapScreen({ route }) {
   const { id } = route.params
   const { colors } = useTheme()
+  const headerHeight = useHeaderHeight()
   const [tb, setTb] = useState(null)
   const [loading, setLoading] = useState(true)
   const [mesgul, setMesgul] = useState(false)
@@ -85,9 +87,14 @@ export default function BakimYapScreen({ route }) {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={headerHeight}
       >
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140 }} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+      >
         {/* Üst bilgi — sabit ortak alanlar (spec 7) */}
         <View style={[styles.ustKart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -454,7 +461,12 @@ function KalemForm({ kalem, colors, onKapat, onKaydedildi }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+      >
         {/* Bakım yapılamadı anahtarı (spec 16) */}
         <TouchableOpacity
           style={[styles.yapilamadiSatir, { backgroundColor: yapilamadi ? 'rgba(245,158,11,0.12)' : colors.surface, borderColor: yapilamadi ? '#f59e0b' : colors.border }]}
