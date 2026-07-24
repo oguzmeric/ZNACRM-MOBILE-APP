@@ -194,6 +194,7 @@ export default function HomeScreen({ navigation }) {
             {
               baslik: 'SAHA',
               items: [
+                { t: 'Bakım', i: <Feather name="tool" size={20} color="#0ea5e9" />, nav: 'BakimIslerim' },
                 gorunur('kesif') && { t: 'Keşif', i: <Feather name="compass" size={20} color="#14b8a6" />, nav: 'Kesifler' },
                 gorunur('gorusmeler') && { t: 'Görüşmeler', i: <Feather name="message-circle" size={20} color="#fbbf24" />, nav: 'Gorusmeler' },
                 gorunur('teklif') && { t: 'Teklif', i: <Feather name="file-text" size={20} color="#a855f7" />, nav: 'Teklif' },

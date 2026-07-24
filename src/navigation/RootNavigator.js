@@ -28,6 +28,8 @@ import MusteriDetayScreen from '../screens/MusteriDetayScreen'
 import YeniMusteriScreen from '../screens/YeniMusteriScreen'
 import KisiFormScreen from '../screens/KisiFormScreen'
 import ServisTalepleriScreen from '../screens/ServisTalepleriScreen'
+import BakimIslerimScreen from '../screens/BakimIslerimScreen'
+import BakimYapScreen from '../screens/BakimYapScreen'
 import ServisTalebiDetayScreen from '../screens/ServisTalebiDetayScreen'
 import YeniServisTalebiScreen from '../screens/YeniServisTalebiScreen'
 import LokasyonFormScreen from '../screens/LokasyonFormScreen'
@@ -196,6 +198,8 @@ export default function RootNavigator() {
             <Stack.Screen name="AdminPersonelStok" component={AdminPersonelStokScreen} options={{ title: 'Üzerindeki Stok' }} />
             <Stack.Screen name="ServisDetay" component={ServisTalebiDetayScreen} options={{ title: 'Servis Detayı' }} />
             <Stack.Screen name="Servisler" component={ServisTalepleriScreen} options={{ title: 'Servis Talepleri' }} />
+            <Stack.Screen name="BakimIslerim" component={BakimIslerimScreen} options={{ title: 'Bakım İşlerim' }} />
+            <Stack.Screen name="BakimYap" component={BakimYapScreen} options={{ title: 'Toplu Bakım' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
             <Stack.Screen name="Bildirimler" component={BildirimlerScreen} options={{ title: 'Bildirimler' }} />
             <Stack.Screen name="Demolar" component={DemolarScreen} options={{ title: 'Demo Takip' }} />
