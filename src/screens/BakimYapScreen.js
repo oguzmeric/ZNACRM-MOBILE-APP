@@ -80,7 +80,13 @@ export default function BakimYapScreen({ route }) {
 
   return (
     <ScreenContainer>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+      {/* Klavye açılınca imza bölümündeki yetkili alanları (ad/görev/tel) kapanmasın */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140 }} keyboardShouldPersistTaps="handled">
         {/* Üst bilgi — sabit ortak alanlar (spec 7) */}
         <View style={[styles.ustKart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -273,6 +279,7 @@ export default function BakimYapScreen({ route }) {
           </>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* İmza çizimi — mevcut ortak modal (base64 döner) */}
       <ImzaCizModal
