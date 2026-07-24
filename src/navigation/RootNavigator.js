@@ -222,6 +222,8 @@ export default function RootNavigator() {
             <Stack.Screen name="YeniGörev" component={YeniGorevScreen} options={{ title: 'Yeni Görev' }} />
             <Stack.Screen name="ServisDetay" component={ServisTalebiDetayScreen} options={{ title: 'Servis Detayı' }} />
             <Stack.Screen name="YeniServisTalebi" component={YeniServisTalebiScreen} options={{ title: 'Yeni Servis Talebi' }} />
+            <Stack.Screen name="BakimIslerim" component={BakimIslerimScreen} options={{ title: 'Bakım İşlerim' }} />
+            <Stack.Screen name="BakimYap" component={BakimYapScreen} options={{ title: 'Toplu Bakım' }} />
             <Stack.Screen name="MalzemeTeslimAl" component={MalzemeTeslimAlScreen} options={{ title: 'Malzeme Teslim Al' }} />
             <Stack.Screen name="MalzemeKullan" component={MalzemeKullanScreen} options={{ title: 'Sahada Kullan' }} />
             <Stack.Screen name="CihazDetay" component={CihazDetayScreen} options={{ title: 'Cihaz Detayı' }} />
