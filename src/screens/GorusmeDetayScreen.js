@@ -16,6 +16,7 @@ import { musterileriGetir } from '../services/musteriService'
 import { bildirimEkleDb } from '../services/bildirimService'
 import { parseMentions } from '../lib/mention'
 import MentionInput, { MentionText } from '../components/MentionInput'
+import CokluSecimPicker from '../components/CokluSecimPicker'
 
 const trIcerir = (haystack, q) => {
   if (!q) return true
@@ -379,22 +380,14 @@ export default function GorusmeDetayScreen({ route, navigation }) {
               />
 
               <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>GÖRÜŞEN (bizden)</Text>
-              {formGorusenList.length > 0 && (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                  {formGorusenList.map(ad => (
-                    <TouchableOpacity key={ad} onPress={() => toggleGorusen(ad)} style={styles.chipAktif}>
-                      <Text style={styles.chipAktifText}>{ad} ✕</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {(kullanicilar || []).filter(k => !formGorusenList.includes(k.ad)).map(k => (
-                  <TouchableOpacity key={k.id} onPress={() => toggleGorusen(k.ad)} style={[styles.chipPasif, { borderColor: colors.border }]}>
-                    <Text style={[styles.chipPasifText, { color: colors.textPrimary }]}>+ {k.ad}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              {/* Chip yığını yerine aranabilir dropdown (kullanıcı tercihi):
+                  uzun personel listesinde kaydırmak yerine yazarak süzülür */}
+              <CokluSecimPicker
+                degerler={formGorusenList}
+                onChange={(yeni) => setForm({ ...form, gorusen: yeni.join(', ') })}
+                secenekler={(kullanicilar || []).map(k => ({ id: k.ad, isim: k.ad }))}
+                placeholder="Görüşen kişileri seç…"
+              />
 
               <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>İRTİBAT ŞEKLİ</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>

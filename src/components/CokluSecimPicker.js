@@ -9,14 +9,32 @@
 //  secenekler-> [{ id, isim }, ...]
 //  placeholder
 
-import { useState } from 'react'
-import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet, Pressable } from 'react-native'
+import { useMemo, useState } from 'react'
+import { View, Text, TouchableOpacity, Modal, FlatList, StyleSheet, Pressable, TextInput } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useTheme } from '../context/ThemeContext'
 
-export default function CokluSecimPicker({ degerler = [], onChange, secenekler = [], placeholder = 'Seç…' }) {
+// Türkçe duyarlı arama: büyük/küçük + aksan farkını yutar
+const trNormalize = (s = '') =>
+  String(s).toLocaleLowerCase('tr')
+    .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
+    .replace(/ı/g, 'i').replace(/i̇/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
+
+export default function CokluSecimPicker({
+  degerler = [], onChange, secenekler = [], placeholder = 'Seç…',
+  aramaEsigi = 8,   // bu sayıdan fazla seçenek varsa arama kutusu çıkar
+}) {
   const { colors } = useTheme()
   const [acik, setAcik] = useState(false)
+  const [arama, setArama] = useState('')
+
+  // Uzun listede aşağı kaydırmak yerine yazarak süz (kullanıcı isteği)
+  const aramaGoster = secenekler.length > aramaEsigi
+  const gorunen = useMemo(() => {
+    const q = trNormalize(arama.trim())
+    if (!q) return secenekler
+    return secenekler.filter(s => trNormalize(s.isim).includes(q))
+  }, [secenekler, arama])
 
   const secili = new Set(degerler)
   const seciliAdlar = secenekler.filter(s => secili.has(s.id)).map(s => s.isim)
@@ -61,10 +79,35 @@ export default function CokluSecimPicker({ degerler = [], onChange, secenekler =
                 <Feather name="x" size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
+            {aramaGoster && (
+              <View style={{ paddingHorizontal: 12, paddingTop: 10 }}>
+                <View style={[styles.aramaKutu, { borderColor: colors.border, backgroundColor: colors.bg }]}>
+                  <Feather name="search" size={15} color={colors.textMuted} />
+                  <TextInput
+                    value={arama}
+                    onChangeText={setArama}
+                    placeholder={`${secenekler.length} kayıtta ara…`}
+                    placeholderTextColor={colors.textFaded}
+                    autoCorrect={false}
+                    style={{ flex: 1, color: colors.textPrimary, fontSize: 14, paddingVertical: 8 }}
+                  />
+                  {!!arama && (
+                    <TouchableOpacity onPress={() => setArama('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Feather name="x" size={15} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
             <FlatList
-              data={secenekler}
+              data={gorunen}
               keyExtractor={(it) => String(it.id)}
               keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={
+                <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center', padding: 20 }}>
+                  Aramaya uyan kayıt yok.
+                </Text>
+              }
               renderItem={({ item }) => {
                 const isaretli = secili.has(item.id)
                 return (
@@ -122,6 +165,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center', padding: 24,
   },
   sheet: { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  aramaKutu: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderRadius: 10, paddingHorizontal: 10,
+  },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1,
