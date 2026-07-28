@@ -27,6 +27,7 @@ import { tarihFormat, tarihSaatFormat } from '../utils/format'
 import { paraFormat } from '../utils/paraFormat'
 import { teklifPdfUretVePaylas, TEKLIF_FORMATLARI } from '../lib/teklifPdf'
 import BelgePaylasModal from '../components/BelgePaylasModal'
+import { teklifGorebilirMi } from '../services/menuYetkiService'
 
 export default function TeklifDetayScreen({ route, navigation }) {
   const { id } = route.params
@@ -86,6 +87,20 @@ export default function TeklifDetayScreen({ route, navigation }) {
         clearTimeout(safety)
         setPdfUretiliyor(false)
       })
+  }
+
+  // Yetki kapısı — hook'lardan SONRA. DB tarafı zaten kaydı vermez (mig 238);
+  // burası kullanıcıya "bulunamadı" yerine net mesaj göstermek için.
+  if (!teklifGorebilirMi(kullanici)) {
+    return (
+      <ScreenContainer>
+        <View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
+          <Text style={{ color: colors.textMuted, textAlign: 'center' }}>
+            Teklifler ve fiyat bilgileri yalnız yetkili personele açıktır.
+          </Text>
+        </View>
+      </ScreenContainer>
+    )
   }
 
   if (loading) {

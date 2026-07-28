@@ -35,6 +35,7 @@ import { tarihFormat } from '../utils/format'
 import { paraFormat } from '../utils/paraFormat'
 import { trIcerir } from '../utils/trSearch'
 import { tumStokUrunleriniGetir } from '../services/stokUrunService'
+import { teklifGorebilirMi } from '../services/menuYetkiService'
 
 const PARA_BIRIMLERI = ['TL', 'USD', 'EUR']
 const ODEME_SECENEKLERI = ['Peşin', '30 Gün', '60 Gün', 'Havale/EFT', 'Çek', 'Diğer']
@@ -284,6 +285,17 @@ export default function YeniTeklifScreen({ route, navigation }) {
     } else {
       navigation.replace('TeklifDetay', { id: sonuc.id })
     }
+  }
+
+  // Yetki kapısı — TÜM hook'lardan SONRA (erken return hook sırasını bozar)
+  if (!teklifGorebilirMi(kullanici)) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.bg, justifyContent: 'center', padding: 24 }]}>
+        <Text style={{ color: colors.textMuted, textAlign: 'center' }}>
+          Teklif oluşturma yetkiniz bulunmuyor.
+        </Text>
+      </View>
+    )
   }
 
   return (

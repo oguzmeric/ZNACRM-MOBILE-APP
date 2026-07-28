@@ -7,7 +7,7 @@ export const MENU_LISTESI = [
   { anahtar: 'servisler',  ad: 'Servisler' },
   { anahtar: 'tara',       ad: 'Tara' },
   { anahtar: 'stok',       ad: 'Stok' },
-  { anahtar: 'teklif',     ad: 'Teklif' },
+  { anahtar: 'teklif',     ad: 'Teklif (fiyatlı)' },
   { anahtar: 'musteriler', ad: 'Müşteriler' },
   { anahtar: 'gorusmeler', ad: 'Görüşmelerim' },
   { anahtar: 'destek',     ad: 'Destek' },
@@ -26,8 +26,12 @@ export const MODUL_ESLEME = {
   servisler:  'servis_talepleri',
   stok:       'stok',
   tara:       'stok',            // barkod tarama = stok işlemi
-  teklif:     'musteriler',      // web'de Teklifler "Müşteri & Satış" modülüne bağlı
-  kesif:      'musteriler',
+  // Teklif fiyat/kâr içerir: teknisyen, saha ekibi ve depo GÖREMEZ (mig 238).
+  // Eskiden 'musteriler' modülüne bağlıydı, o yüzden müşteri yetkisi olan her
+  // teknisyen tüm teklifleri ve fiyatları görüyordu. Artık ayrı 'teklifler'
+  // modülü — web menü/rota (lib/teklifYetki.js) ve DB RLS ile aynı anahtar.
+  teklif:     'teklifler',
+  kesif:      'musteriler',      // keşif fiyatsız, sahada kalır
   musteriler: 'musteriler',
   gorusmeler: 'gorusmeler',
   demolar:    'demolar',
@@ -46,6 +50,15 @@ export const menuGorunurMu = (anahtar, kullanici, harita = {}) => {
   const modul = MODUL_ESLEME[anahtar]
   if (modul === undefined || modul === null) return true
   return Array.isArray(kullanici?.moduller) && kullanici.moduller.includes(modul)
+}
+
+// Teklif ekranları için doğrudan kapı — menu_yetkileri haritası beklemeden
+// kullanılabilsin diye ayrı. Web lib/teklifYetki.js ve DB teklif_gorebilir()
+// ile AYNI kural (mig 238).
+export const teklifGorebilirMi = (kullanici) => {
+  if (!kullanici) return false
+  if (kullanici.rol === 'admin') return true
+  return Array.isArray(kullanici.moduller) && kullanici.moduller.includes('teklifler')
 }
 
 // Bir kullanıcının yetki haritası: { menu_anahtari: gorunur }

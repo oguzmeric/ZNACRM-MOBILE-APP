@@ -23,6 +23,7 @@ import { tarihFormat } from '../utils/format'
 import { paraFormat } from '../utils/paraFormat'
 import { trIcerir } from '../utils/trSearch'
 import EmptyState from '../components/EmptyState'
+import { teklifGorebilirMi } from '../services/menuYetkiService'
 import LoadingState from '../components/LoadingState'
 
 const SEKMELER = [
@@ -74,6 +75,20 @@ export default function TekliflerScreen({ navigation }) {
     setRefreshing(true)
     await yukle()
     setRefreshing(false)
+  }
+
+  // Yetki kapısı — TÜM hook'lardan SONRA (erken return hook sırasını bozar).
+  // Menü zaten gizli; bu, bayat geri yığını / derin bağlantı için son kapı.
+  if (!teklifGorebilirMi(kullanici)) {
+    return (
+      <ScreenContainer>
+        <EmptyState
+          ikon="lock"
+          baslik="Bu bölüm size kapalı"
+          mesaj="Teklifler ve fiyat bilgileri yalnız yetkili personele açıktır."
+        />
+      </ScreenContainer>
+    )
   }
 
   return (
