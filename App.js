@@ -140,7 +140,7 @@ export default Sentry.wrap(function App() {
   // olduğu için kilit burada, çalışma anında kurulur.
   // NOT: eski build'lerde expo-screen-orientation native tarafı yoktur —
   // lib/ekranYonu içindeki try/catch sessizce geçer, çökme olmaz.
-  useEffect(() => { dikeyKilitle() }, [])
+  useEffect(() => { dikeyKilitle().catch(() => {}) }, [])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

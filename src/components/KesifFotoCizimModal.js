@@ -219,7 +219,10 @@ export default function KesifFotoCizimModal({
   const dondur = yatayMod && !ekranZatenYatay
 
   useEffect(() => {
-    if (visible) { cizimYatayAc(); return () => { cizimYatayKapat() } }
+    if (visible) {
+      cizimYatayAc().catch(() => {})
+      return () => { cizimYatayKapat().catch(() => {}) }
+    }
     // Kapanışta görünüm durumu sıfırlansın — Modal unmount olmadığı için
     // bir sonraki açılış bayat zoom/yatay ile gelmesin
     setZoom(1)

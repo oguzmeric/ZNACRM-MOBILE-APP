@@ -11,9 +11,27 @@
 // Gerçek rotasyon yeni build ile devreye girer; o zamana kadar modaldaki
 // "Yatay" butonu (yazılımsal 90° döndürme) devrede kalır.
 
+// Native modül KAYITLI MI? Bunu ÖNCE sormak şart: paketi require etmek bile
+// eski build'de "Cannot find native module 'ExpoScreenOrientation'" hatasını
+// fırlatıyor (28.07 canlı çökme — try/catch yetmedi, hata modülün kendi
+// içindeki bir promise'ten geldiği için yakalanamadı).
+function nativeKayitliMi() {
+  try {
+    const g = globalThis
+    return !!(
+      g?.expo?.modules?.ExpoScreenOrientation ||
+      g?.ExpoModules?.ExpoScreenOrientation ||
+      g?.__turboModuleProxy?.('ExpoScreenOrientation')
+    )
+  } catch {
+    return false
+  }
+}
+
 let _modul
 function modulAl() {
   if (_modul !== undefined) return _modul
+  if (!nativeKayitliMi()) { _modul = null; return null }
   try {
     _modul = require('expo-screen-orientation')
   } catch {
