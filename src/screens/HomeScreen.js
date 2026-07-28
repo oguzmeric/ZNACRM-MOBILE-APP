@@ -216,6 +216,8 @@ export default function HomeScreen({ navigation }) {
                 gorunur('musteriler') && { t: 'Müşteriler', i: <Feather name="users" size={20} color="#06b6d4" />, nav: 'Müşteriler' },
                 { t: 'Takvim', i: <Feather name="calendar" size={20} color="#1a73e8" />, nav: 'Takvim' },
                 { t: 'Notlarım', i: <Feather name="edit-3" size={20} color="#f59e0b" />, nav: 'Notlarim' },
+                // Kişiye özel: herkes kendi bordrosunu + kendi izin taleplerini görür
+                { t: 'İzin & Bordro', i: <Feather name="briefcase" size={20} color="#10b981" />, nav: 'IzinBordro' },
                 gorunur('arac_takip') && { t: 'Mobiltek', i: <Feather name="truck" size={20} color="#60a5fa" />, nav: 'Mobiltek' },
               ].filter(Boolean),
             },
