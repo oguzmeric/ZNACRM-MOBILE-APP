@@ -65,7 +65,6 @@ import BulkDetayScreen from '../screens/BulkDetayScreen'
 import TekliflerScreen from '../screens/TekliflerScreen'
 import TeklifDetayScreen from '../screens/TeklifDetayScreen'
 import YeniTeklifScreen from '../screens/YeniTeklifScreen'
-import MalzemeTeslimAlScreen from '../screens/MalzemeTeslimAlScreen'
 import MalzemeKullanScreen from '../screens/MalzemeKullanScreen'
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen'
 import AdminPersonelTakipScreen from '../screens/admin/AdminPersonelTakipScreen'
@@ -227,7 +226,6 @@ export default function RootNavigator() {
             <Stack.Screen name="BakimIslerim" component={BakimIslerimScreen} options={{ title: 'Bakım İşlerim' }} />
             <Stack.Screen name="BakimYap" component={BakimYapScreen} options={{ title: 'Toplu Bakım' }} />
             <Stack.Screen name="IzinBordro" component={IzinBordroScreen} options={{ title: 'İzin & Bordro' }} />
-            <Stack.Screen name="MalzemeTeslimAl" component={MalzemeTeslimAlScreen} options={{ title: 'Malzeme Teslim Al' }} />
             <Stack.Screen name="MalzemeKullan" component={MalzemeKullanScreen} options={{ title: 'Sahada Kullan' }} />
             <Stack.Screen name="CihazDetay" component={CihazDetayScreen} options={{ title: 'Cihaz Detayı' }} />
             <Stack.Screen name="YeniCihaz" component={YeniCihazScreen} options={{ title: 'Yeni Cihaz Kaydı' }} />

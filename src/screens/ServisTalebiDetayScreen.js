@@ -399,30 +399,12 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const durumDegistir = async (yeniDurum) => {
     if (yeniDurum === talep?.durum) return
 
-    // "Tamamlandı" için: (1) tüm planlı malzemeler teslim alınmış olmalı (S/N okutulmuş)
-    //                    (2) müşteri imzası alınmış olmalı
+    // "Tamamlandı" için: (1.5) S/N cihaz teknik bilgisi + (2) müşteri imzası
     if (yeniDurum === 'tamamlandi') {
-      // (1) Plan satırlarından eksik teslim alınanlar var mı?
-      const eksikler = (malzemePlani || []).filter((p) => {
-        const planli = Number(p.planliMiktar ?? 0)
-        const teslim = Number(p.teslimAlinanMiktar ?? 0)
-        const kullanilan = Number(p.kullanilanMiktar ?? 0)
-        // Bulk (sarf) için: teslim VEYA kullanılan en az 1 olsun yeter
-        // S/N'lik için: teslim VEYA kullanılan planlı miktarı karşılıyorsa yeterli
-        // (teknisyen kendi envanterinden direkt kullanmış olabilir)
-        if (p.tip === 'bulk') return planli > 0 && teslim === 0 && kullanilan === 0
-        return planli > 0 && teslim < planli && kullanilan < planli
-      })
-      if (eksikler.length > 0) {
-        const ozet = eksikler.slice(0, 3).map((p) => `• ${p.stokAdi || p.stokKodu}`).join('\n')
-        const ekstra = eksikler.length > 3 ? `\n…ve ${eksikler.length - 3} tane daha` : ''
-        Alert.alert(
-          'Eksik Teslim Alma',
-          `Aşağıdaki malzemeler için seri numarası okutulmadı / teslim alınmadı:\n\n${ozet}${ekstra}\n\n"Teslim Al" ekranından S/N okutmadan servis kapatılamaz.`,
-          [{ text: 'Tamam' }]
-        )
-        return
-      }
+      // (1) Eksik teslim alma kapısı KALDIRILDI (28.07): servis içinden teslim
+      //     alma adımı istenmiyor. Malzeme planı artık yalnızca "ne götüreceğim"
+      //     listesi; zimmet TARA ile, kullanım "Kullan" ekranından yürüyor.
+      //     Kapı kalsaydı planlı malzemesi olan servis HİÇ kapatılamazdı.
 
       // (1.5) S/N takipli cihazlar için teknik bilgi (IP + alt-lokasyon) dolduruldu mu?
       const eksikCihazlar = await eksikCihazKayitlariGetir(id)
@@ -754,23 +736,19 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* "Teslim Al" KALDIRILDI (kullanıcı kararı 28.07): servis içinden teslim
+            alma bir denetim adımıydı ve istenmiyor. Gerçek akış: sabah TARA ile
+            zimmet → iş bitince "Kullan" ekranından kendi deposundan seçim.
+            Bu liste artık yalnız "ne götüreceğim" planı. */}
         {malzemePlani.length > 0 && (
           <View style={styles.malzemeToolbar}>
             <TouchableOpacity
               style={[styles.toolbarBtn, styles.toolbarBtnPrimary]}
-              onPress={() => navigation.navigate('MalzemeTeslimAl', { servisTalepId: id })}
-              activeOpacity={0.85}
-            >
-              <Feather name="package" size={15} color="#fff" />
-              <Text style={styles.toolbarBtnText}>Teslim Al</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toolbarBtn, styles.toolbarBtnSecondary]}
               onPress={() => navigation.navigate('MalzemeKullan', { servisTalepId: id })}
               activeOpacity={0.85}
             >
-              <Feather name="tool" size={15} color="#cbd5e1" />
-              <Text style={[styles.toolbarBtnText, { color: '#cbd5e1' }]}>Kullan</Text>
+              <Feather name="tool" size={15} color="#fff" />
+              <Text style={styles.toolbarBtnText}>Kullanılan Malzemeleri Ekle</Text>
             </TouchableOpacity>
           </View>
         )}
