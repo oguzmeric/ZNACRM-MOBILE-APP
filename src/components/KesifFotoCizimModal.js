@@ -247,12 +247,21 @@ export default function KesifFotoCizimModal({
   const ARAC_KOLON = 62
   const RENK_KOLON = 52
   const [toolbarH, setToolbarH] = useState(52)
+  // Güvenli alan payları — YAZILIMSAL döndürmede cihazın fiziksel ÜSTÜ (çentik +
+  // durum çubuğu) içeriğin SOL kenarına, fiziksel ALTI (home göstergesi) SAĞ
+  // kenarına düşer. Modal ayrı bir view hiyerarşisinde açıldığı için
+  // useSafeAreaInsets 0 dönebiliyor — o yüzden alt sınır veriyoruz (butonların
+  // üstü durum çubuğunun altında kalıyordu, 28.07).
+  const guvenliSol = dondur ? Math.max(insets.top || 0, 44) : 0
+  const guvenliSag = dondur ? Math.max(insets.bottom || 0, 12) : 0
+  const aracKolonTam = ARAC_KOLON + guvenliSol
+  const renkKolonTam = RENK_KOLON + guvenliSag
   // Tuval/palet alanının yatayda kenar kolonlarının altına girmemesi için
-  const icerikKenar = yatayDuzen ? { marginLeft: ARAC_KOLON, marginRight: RENK_KOLON } : null
-  const kenarKolon = (taraf) => (yatayDuzen ? {
-    position: 'absolute', top: toolbarH, bottom: 0, zIndex: 5,
-    [taraf]: 0, width: taraf === 'left' ? ARAC_KOLON : RENK_KOLON,
-  } : null)
+  const icerikKenar = yatayDuzen ? { marginLeft: aracKolonTam, marginRight: renkKolonTam } : null
+  const kenarKolon = (taraf) => (yatayDuzen ? (taraf === 'left'
+    ? { position: 'absolute', top: toolbarH, bottom: 0, left: 0, zIndex: 5, width: aracKolonTam, paddingLeft: guvenliSol }
+    : { position: 'absolute', top: toolbarH, bottom: 0, right: 0, zIndex: 5, width: renkKolonTam, paddingRight: guvenliSag }
+  ) : null)
 
   // Modal her açılışta başlangıç şekillerini tazele
   if (visible && ilkSekillerRef.current !== baslangicSekilleri) {
@@ -467,10 +476,9 @@ export default function KesifFotoCizimModal({
         transform: [{ rotate: '90deg' }],
         backgroundColor: '#0b1120',
         paddingTop: 6,
-        // 90° dönünce cihazın fiziksel ÜSTÜ (çentik) içeriğin SOL kenarına,
-        // fiziksel ALTI (home göstergesi) SAĞ kenarına düşer
-        paddingLeft: insets.top,
-        paddingRight: insets.bottom,
+        // Güvenli alan payları kökte DEĞİL, kenar kolonlarında ve toolbar'da
+        // veriliyor: absolute konumlu kolonlar kökün padding'ini yok sayıyor,
+        // kökte verilince tuval iki kez içeri kayıyordu.
       }
     : { flex: 1, backgroundColor: '#0b1120', paddingTop: insets.top }
 
@@ -485,7 +493,7 @@ export default function KesifFotoCizimModal({
       <View style={kokStil}>
         {/* Üst toolbar — yatayda kenar kolonları bunun altından başlar */}
         <View
-          style={styles.toolbar}
+          style={[styles.toolbar, yatayDuzen && { paddingLeft: guvenliSol + 8, paddingRight: guvenliSag + 8 }]}
           onLayout={(e) => setToolbarH(e.nativeEvent.layout.height)}
         >
           <TouchableOpacity onPress={kapat} style={styles.tbBtn}>
