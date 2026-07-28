@@ -3,7 +3,7 @@
     "name": "ZNA CRM",
     "slug": "crm-mobile",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/logo.jpeg",
     "userInterfaceStyle": "dark",
     "primaryColor": "#2563eb",

@@ -14,6 +14,7 @@ import RootNavigator, { navigationRef } from './src/navigation/RootNavigator'
 import { toplantiHatirlaticilariniYenile } from './src/lib/toplantiHatirlatici'
 import { bildirimLinkHedefi } from './src/lib/bildirimLink'
 import GecikmisGorevKapisi from './src/components/GecikmisGorevKapisi'
+import { dikeyKilitle } from './src/lib/ekranYonu'
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
@@ -134,6 +135,13 @@ function AppInner() {
 }
 
 export default Sentry.wrap(function App() {
+  // Uygulama genel olarak DİKEY kalır; yalnız keşif çizim modalı yatay açılır
+  // (o modal kilidi kendi açıp kapatıyor). app.json'da orientation "default"
+  // olduğu için kilit burada, çalışma anında kurulur.
+  // NOT: eski build'lerde expo-screen-orientation native tarafı yoktur —
+  // lib/ekranYonu içindeki try/catch sessizce geçer, çökme olmaz.
+  useEffect(() => { dikeyKilitle() }, [])
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>

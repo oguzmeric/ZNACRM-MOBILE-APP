@@ -4,11 +4,12 @@
 // tutulur → cizim_veri iki platformda da açılıp düzenlenebilir.
 // Kaydet: canvas snapshot (foto + çizim flatten) → base64 PNG; orijinal korunur.
 
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
-  ActivityIndicator, ScrollView, Modal, Platform,
+  ActivityIndicator, ScrollView, Modal, Platform, useWindowDimensions,
 } from 'react-native'
+import { cizimYatayAc, cizimYatayKapat } from '../lib/ekranYonu'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons'
 import {
@@ -205,6 +206,34 @@ export default function KesifFotoCizimModal({
   const [sembolPanel, setSembolPanel] = useState(null)  // index — kaleme bağla / sil paneli
   const ilkSekillerRef = useRef(baslangicSekilleri)
 
+  // ── Yatay mod ──────────────────────────────────────────────────────────
+  // İki yol var, ikisi de aynı butondan yönetilir:
+  //  1) Cihaz gerçekten dönüyorsa (yeni build + expo-screen-orientation):
+  //     modal açılınca kilit gevşer, kullanıcı telefonu çevirir.
+  //  2) Eski build (portrait kilitli): içerik YAZILIMSAL 90° döndürülür —
+  //     kullanıcı telefonu yan tutar. EAS Update ile hemen çalışır.
+  const { width: pencereW, height: pencereH } = useWindowDimensions()
+  const ekranZatenYatay = pencereW > pencereH
+  const [yatayMod, setYatayMod] = useState(false)
+  // Cihaz zaten yatay döndüyse yazılımsal döndürmeye GEREK YOK (çift dönme olur)
+  const dondur = yatayMod && !ekranZatenYatay
+
+  useEffect(() => {
+    if (visible) { cizimYatayAc(); return () => { cizimYatayKapat() } }
+    // Kapanışta görünüm durumu sıfırlansın — Modal unmount olmadığı için
+    // bir sonraki açılış bayat zoom/yatay ile gelmesin
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+    setYatayMod(false)
+  }, [visible])
+
+  // ── Yakınlaştır / kaydır ───────────────────────────────────────────────
+  // İki parmak = zoom + pan, tek parmak = çizim. Şekiller GÖRÜNTÜ
+  // koordinatında kalır; zoom yalnız görüntülemeyi etkiler, kayıt formatını DEĞİL.
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const pinchRef = useRef(null)
+
   // Modal her açılışta başlangıç şekillerini tazele
   if (visible && ilkSekillerRef.current !== baslangicSekilleri) {
     ilkSekillerRef.current = baslangicSekilleri
@@ -241,13 +270,24 @@ export default function KesifFotoCizimModal({
     setSekiller(yeni)
   }
 
+  // Ekran → görüntü koordinatı (zoom + kaydırma tersine çevrilir)
   const konum = (e) => ({
-    x: e.nativeEvent.locationX / olcek,
-    y: e.nativeEvent.locationY / olcek,
+    x: (e.nativeEvent.locationX - pan.x) / (olcek * zoom),
+    y: (e.nativeEvent.locationY - pan.y) / (olcek * zoom),
   })
+
+  // Kaydırmayı tuval sınırlarında tut — çizim ekrandan kaçmasın
+  const panSinirla = (p, z) => ({
+    x: Math.min(0, Math.max(cw - cw * z, p.x)),
+    y: Math.min(0, Math.max(ch - ch * z, p.y)),
+  })
+
+  const zoomSifirla = () => { setZoom(1); setPan({ x: 0, y: 0 }) }
 
   const dokunBasla = (e) => {
     if (!olcek) return
+    // İki parmak = yakınlaştırma jesti; çizim başlatma
+    if ((e.nativeEvent.touches?.length ?? 1) >= 2) return
     const { x, y } = konum(e)
     if (arac === 'silgi') {
       for (let i = sekiller.length - 1; i >= 0; i--) {
@@ -286,7 +326,36 @@ export default function KesifFotoCizimModal({
   }
 
   const dokunHareket = (e) => {
-    if (!taslak || !olcek) return
+    if (!olcek) return
+    const ts = e.nativeEvent.touches || []
+
+    // ── İki parmak: yakınlaştır + kaydır ──
+    if (ts.length >= 2) {
+      const [a, b] = ts
+      const mesafe = Math.hypot(a.locationX - b.locationX, a.locationY - b.locationY)
+      const merkez = { x: (a.locationX + b.locationX) / 2, y: (a.locationY + b.locationY) / 2 }
+      if (!pinchRef.current) {
+        // Jest başlangıcı: yarım kalan çizimi at, referansı sabitle
+        if (taslak) setTaslak(null)
+        pinchRef.current = { mesafe, merkez, zoom0: zoom, pan0: pan }
+        return
+      }
+      const p = pinchRef.current
+      if (!p.mesafe) return
+      const yeniZoom = Math.min(8, Math.max(1, p.zoom0 * (mesafe / p.mesafe)))
+      // Parmakların ortası hangi noktayı tutuyorsa o nokta yerinde kalsın;
+      // merkez kayması aynı formülden kaydırmayı da verir (tek parmakla çizim
+      // bozulmasın diye pan ayrı bir araca bağlanmadı).
+      const g = yeniZoom / p.zoom0
+      setZoom(yeniZoom)
+      setPan(panSinirla({
+        x: merkez.x - g * (p.merkez.x - p.pan0.x),
+        y: merkez.y - g * (p.merkez.y - p.pan0.y),
+      }, yeniZoom))
+      return
+    }
+
+    if (!taslak) return
     const { x, y } = konum(e)
     setTaslak(t => (t.tip === 'kalem' || t.tip === 'kablo')
       ? { ...t, noktalar: [...t.noktalar, { x, y }] }
@@ -294,6 +363,7 @@ export default function KesifFotoCizimModal({
   }
 
   const dokunBitir = () => {
+    pinchRef.current = null
     setTaslak(t => {
       if (t) {
         const bos = (t.tip === 'kalem' || t.tip === 'kablo')
@@ -330,11 +400,30 @@ export default function KesifFotoCizimModal({
     ])
   }
 
-  const kaydet = () => {
-    if (!sekiller.length) { Alert.alert('Boş', 'Önce bir işaretleme yap.'); return }
+  const anlikGoruntuAlVeKaydet = () => {
     const snapshot = canvasRef.current?.makeImageSnapshot()
     if (!snapshot) { Alert.alert('Hata', 'Çizim alınamadı.'); return }
     onKaydet(snapshot.encodeToBase64(), { surum: 1, sekiller })
+  }
+
+  // Kayıt tuvalin ANLIK görüntüsünü alır — yakınlaştırılmışken basılırsa
+  // kırpılmış/büyütülmüş bir PNG kaydedilirdi. Önce görünümü sıfırla, tuval
+  // tam halini çizsin, sonra çek.
+  const [kayitBekliyor, setKayitBekliyor] = useState(false)
+  useEffect(() => {
+    if (!kayitBekliyor) return
+    const t = setTimeout(() => { setKayitBekliyor(false); anlikGoruntuAlVeKaydet() }, 80)
+    return () => clearTimeout(t)
+  }, [kayitBekliyor])
+
+  const kaydet = () => {
+    if (!sekiller.length) { Alert.alert('Boş', 'Önce bir işaretleme yap.'); return }
+    if (zoom !== 1 || pan.x !== 0 || pan.y !== 0) {
+      zoomSifirla()
+      setKayitBekliyor(true)
+      return
+    }
+    anlikGoruntuAlVeKaydet()
   }
 
   const kapat = () => {
@@ -346,15 +435,54 @@ export default function KesifFotoCizimModal({
     } else onKapat()
   }
 
+  // Yazılımsal yatay: içeriği 90° çevir, en-boyu takas et, ekranda ortala.
+  // Cihaz gerçekten dönebiliyorsa (yeni build) bu devreye GİRMEZ.
+  const kokStil = dondur
+    ? {
+        position: 'absolute',
+        width: pencereH,
+        height: pencereW,
+        top: (pencereH - pencereW) / 2,
+        left: (pencereW - pencereH) / 2,
+        transform: [{ rotate: '90deg' }],
+        backgroundColor: '#0b1120',
+        paddingTop: 6,
+        // 90° dönünce cihazın fiziksel ÜSTÜ (çentik) içeriğin SOL kenarına,
+        // fiziksel ALTI (home göstergesi) SAĞ kenarına düşer
+        paddingLeft: insets.top,
+        paddingRight: insets.bottom,
+      }
+    : { flex: 1, backgroundColor: '#0b1120', paddingTop: insets.top }
+
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={kapat}>
-      <View style={{ flex: 1, backgroundColor: '#0b1120', paddingTop: insets.top }}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      onRequestClose={kapat}
+      supportedOrientations={['portrait', 'landscape']}
+    >
+      <View style={{ flex: 1, backgroundColor: '#0b1120' }}>
+      <View style={kokStil}>
         {/* Üst toolbar */}
         <View style={styles.toolbar}>
           <TouchableOpacity onPress={kapat} style={styles.tbBtn}>
             <Feather name="x" size={20} color="#fff" />
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', gap: 6 }}>
+            {/* Yatay çevir — cihaz zaten yatay döndüyse gereksiz, gizle */}
+            {!ekranZatenYatay && (
+              <TouchableOpacity
+                onPress={() => setYatayMod(v => !v)}
+                style={[styles.tbBtn, yatayMod && { borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.22)' }]}
+              >
+                <Feather name={yatayMod ? 'smartphone' : 'maximize-2'} size={18} color="#fff" />
+              </TouchableOpacity>
+            )}
+            {zoom > 1 && (
+              <TouchableOpacity onPress={zoomSifirla} style={styles.tbBtn}>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '800' }}>{zoom.toFixed(1)}×</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={geriAl} disabled={!geriYigin.length} style={[styles.tbBtn, !geriYigin.length && { opacity: 0.3 }]}>
               <Feather name="rotate-ccw" size={18} color="#fff" />
             </TouchableOpacity>
@@ -463,7 +591,7 @@ export default function KesifFotoCizimModal({
             <ActivityIndicator color="#60a5fa" size="large" />
           ) : olcek > 0 ? (
             <View
-              style={{ width: cw, height: ch }}
+              style={{ width: cw, height: ch, overflow: 'hidden' }}
               onStartShouldSetResponder={() => true}
               onMoveShouldSetResponder={() => true}
               onResponderGrant={dokunBasla}
@@ -473,7 +601,9 @@ export default function KesifFotoCizimModal({
             >
               <Canvas ref={canvasRef} style={{ width: cw, height: ch }} pointerEvents="none">
                 {krokiModu && <Fill color="#ffffff" />}
-                <Group transform={[{ scale: olcek }]}>
+                {/* translate ÖNCE yazılır ama noktaya ÖNCE scale uygulanır:
+                    ekran = görüntü × (olcek × zoom) + pan */}
+                <Group transform={[{ translateX: pan.x }, { translateY: pan.y }, { scale: olcek * zoom }]}>
                   {krokiModu
                     ? (izgaraPath ? <Path path={izgaraPath} color="#e8edf3" style="stroke" strokeWidth={1.5} /> : null)
                     : <SkiaImage image={skImage} x={0} y={0} width={imgW} height={imgH} fit="fill" />}
@@ -558,6 +688,7 @@ export default function KesifFotoCizimModal({
             ))}
           </ScrollView>
         </View>
+      </View>
       </View>
     </Modal>
   )
