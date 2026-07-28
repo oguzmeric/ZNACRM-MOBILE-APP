@@ -237,6 +237,23 @@ export default function KesifFotoCizimModal({
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const pinchRef = useRef(null)
 
+  // ── Yatay yerleşim ─────────────────────────────────────────────────────
+  // Yatayda araç ve renk şeritleri ALT/ÜST'te kalırsa tuvale ekranın ancak
+  // yarısı kalıyor ve resim dikeydekiyle AYNI boyutta çıkıyordu (28.07 şikâyeti):
+  //   dikey  → tuval alanı 739×1230, yatay(eski) → 1600×370  ⇒ ölçek DÜŞÜYOR.
+  // Çözüm: yatayda şeritler SOL/SAĞ kenara dikey kolon olur; böylece bol olan
+  // genişlikten yer yerler, kısıtlı olan yükseklik tuvale kalır.
+  const yatayDuzen = dondur || ekranZatenYatay
+  const ARAC_KOLON = 62
+  const RENK_KOLON = 52
+  const [toolbarH, setToolbarH] = useState(52)
+  // Tuval/palet alanının yatayda kenar kolonlarının altına girmemesi için
+  const icerikKenar = yatayDuzen ? { marginLeft: ARAC_KOLON, marginRight: RENK_KOLON } : null
+  const kenarKolon = (taraf) => (yatayDuzen ? {
+    position: 'absolute', top: toolbarH, bottom: 0, zIndex: 5,
+    [taraf]: 0, width: taraf === 'left' ? ARAC_KOLON : RENK_KOLON,
+  } : null)
+
   // Modal her açılışta başlangıç şekillerini tazele
   if (visible && ilkSekillerRef.current !== baslangicSekilleri) {
     ilkSekillerRef.current = baslangicSekilleri
@@ -466,8 +483,11 @@ export default function KesifFotoCizimModal({
     >
       <View style={{ flex: 1, backgroundColor: '#0b1120' }}>
       <View style={kokStil}>
-        {/* Üst toolbar */}
-        <View style={styles.toolbar}>
+        {/* Üst toolbar — yatayda kenar kolonları bunun altından başlar */}
+        <View
+          style={styles.toolbar}
+          onLayout={(e) => setToolbarH(e.nativeEvent.layout.height)}
+        >
           <TouchableOpacity onPress={kapat} style={styles.tbBtn}>
             <Feather name="x" size={20} color="#fff" />
           </TouchableOpacity>
@@ -510,9 +530,18 @@ export default function KesifFotoCizimModal({
           </TouchableOpacity>
         </View>
 
-        {/* Araçlar */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center' }}>
+        {/* Araçlar — dikeyde üst şerit, yatayda SOL kenar kolonu */}
+        <ScrollView
+          horizontal={!yatayDuzen}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          style={[{ flexGrow: 0 }, kenarKolon('left')]}
+          contentContainerStyle={{
+            gap: 6, alignItems: 'center',
+            paddingHorizontal: yatayDuzen ? 4 : 10,
+            paddingVertical: 6,
+          }}
+        >
           {[...KROKI_ARACLAR, ...ARACLAR].map(a => {
             const aktif = arac === a.id
             return (
@@ -529,7 +558,7 @@ export default function KesifFotoCizimModal({
         {arac === 'sembol' && (
           <>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}
-              style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 5, paddingHorizontal: 10, paddingBottom: 5, alignItems: 'center' }}>
+              style={[{ flexGrow: 0 }, icerikKenar]} contentContainerStyle={{ gap: 5, paddingHorizontal: 10, paddingBottom: 5, alignItems: 'center' }}>
               {KROKI_KATEGORILER.map(k => {
                 const aktif = secKategori === k.id
                 return (
@@ -553,7 +582,7 @@ export default function KesifFotoCizimModal({
               })}
             </ScrollView>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}
-              style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 10, paddingBottom: 6, alignItems: 'center' }}>
+              style={[{ flexGrow: 0 }, icerikKenar]} contentContainerStyle={{ gap: 6, paddingHorizontal: 10, paddingBottom: 6, alignItems: 'center' }}>
               {KROKI_SEMBOLLERI.filter(s => !s.eski && s.kategori === secKategori).map(s => (
                 <TouchableOpacity key={s.id} onPress={() => setSecSembol(s.id)}
                   style={{
@@ -577,17 +606,17 @@ export default function KesifFotoCizimModal({
             onChangeText={setMetinDeger}
             placeholder="Metni yaz, sonra fotoğrafta yerine dokun…"
             placeholderTextColor="#64748b"
-            style={{
+            style={[icerikKenar, {
               marginHorizontal: 10, marginBottom: 6, paddingHorizontal: 12, paddingVertical: 8,
               borderRadius: 8, borderWidth: 1, borderColor: '#334155',
               color: '#fff', backgroundColor: '#1e293b', fontSize: 14,
-            }}
+            }]}
           />
         )}
 
         {/* Canvas */}
         <View
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          style={[{ flex: 1, alignItems: 'center', justifyContent: 'center' }, icerikKenar]}
           onLayout={(e) => setAlan({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
         >
           {!krokiModu && !skImage ? (
@@ -667,9 +696,18 @@ export default function KesifFotoCizimModal({
           </View>
         )}
 
-        {/* Renk + kalınlık */}
-        <View style={[styles.altToolbar, { paddingBottom: 10 + (insets.bottom || 0) }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 4, alignItems: 'center' }}>
+        {/* Renk + kalınlık — dikeyde alt şerit, yatayda SAĞ kenar kolonu */}
+        <View style={[
+          styles.altToolbar,
+          { paddingBottom: yatayDuzen ? 6 : 10 + (insets.bottom || 0) },
+          kenarKolon('right'),
+        ]}>
+          <ScrollView
+            horizontal={!yatayDuzen}
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ gap: 6, paddingHorizontal: 4, paddingVertical: yatayDuzen ? 6 : 0, alignItems: 'center' }}
+          >
             {RENKLER.map(r => (
               <TouchableOpacity key={r} onPress={() => setRenk(r)}
                 style={{
@@ -678,7 +716,12 @@ export default function KesifFotoCizimModal({
                   borderColor: renk === r ? '#60a5fa' : 'rgba(255,255,255,0.35)',
                 }} />
             ))}
-            <View style={{ width: 1, height: 26, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 8 }} />
+            <View style={[
+              { backgroundColor: 'rgba(255,255,255,0.2)' },
+              yatayDuzen
+                ? { width: 26, height: 1, marginVertical: 8 }
+                : { width: 1, height: 26, marginHorizontal: 8 },
+            ]} />
             {KALINLIKLAR.map(k => (
               <TouchableOpacity key={k} onPress={() => setKalinlik(k)}
                 style={{
