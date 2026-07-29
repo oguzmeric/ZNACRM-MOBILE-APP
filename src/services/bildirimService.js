@@ -2,30 +2,38 @@
 // Realtime ile anlık bildirim, RLS ile her kullanıcı sadece kendine gelenleri görür.
 
 import { supabase } from '../lib/supabase'
-import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
+import { toCamel, arrayToCamel } from '../lib/mapper'
 
 // Yeni bildirim ekle — web ile aynı kontrat
 // payload: { aliciId, gonderenId?, baslik, mesaj?, tip?, link?, meta? }
+// Bildirim ekle — RPC üzerinden (SECURITY DEFINER), web bildirimService ile AYNI yol.
+//
+// NEDEN RPC: doğrudan `.insert().select()` BAŞKASINA bildirim yazarken
+// RLS'e takılıyordu. INSERT politikası personele izin veriyor, ama `.select()`
+// PostgREST'e RETURNING yaptırıyor ve RETURNING satırı SELECT politikasından
+// ("sadece kendi bildirimin") geçemiyor → "new row violates row-level security
+// policy" → tüm işlem ROLLBACK. Hata catch'lerde console.warn ile yutulduğu
+// için kimse fark etmiyordu: mobilden gönderilen destek / görev atama /
+// görüşme / İK izin / fatura bildirimlerinin HİÇBİRİ kaydedilmiyordu (29.07).
+// Canlı doğrulama: aynı INSERT RETURNING'siz BAŞARILI, RETURNING'li HATA.
+//
+// gonderen_id'yi RPC caller'ın oturumundan kendisi doldurur — payload.gonderenId
+// artık gerekmez (gönderilse de yok sayılır).
 export const bildirimEkleDb = async (payload) => {
   if (!payload?.aliciId) return null
-  const { data, error } = await supabase
-    .from('bildirimler')
-    .insert(toSnake({
-      aliciId: payload.aliciId,
-      gonderenId: payload.gonderenId || null,
-      baslik: payload.baslik,
-      mesaj: payload.mesaj || '',
-      tip: payload.tip || 'bilgi',
-      link: payload.link || '',
-      meta: payload.meta || null,
-    }))
-    .select()
-    .single()
+  const { data, error } = await supabase.rpc('bildirim_ekle', {
+    p_alici_id: Number(payload.aliciId),
+    p_baslik: payload.baslik || '',
+    p_mesaj: payload.mesaj || '',
+    p_tip: payload.tip || 'bilgi',
+    p_link: payload.link || '',
+    p_meta: payload.meta || null,
+  })
   if (error) {
     console.error('[bildirimEkleDb] hata:', error.message)
     return null
   }
-  return toCamel(data)
+  return { id: data }
 }
 
 export const bildirimleriGetir = async (kullaniciId, limit = 50) => {
