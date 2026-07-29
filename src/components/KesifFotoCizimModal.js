@@ -252,8 +252,20 @@ export default function KesifFotoCizimModal({
   // kenarına düşer. Modal ayrı bir view hiyerarşisinde açıldığı için
   // useSafeAreaInsets 0 dönebiliyor — o yüzden alt sınır veriyoruz (butonların
   // üstü durum çubuğunun altında kalıyordu, 28.07).
-  const guvenliSol = dondur ? Math.max(insets.top || 0, 44) : 0
-  const guvenliSag = dondur ? Math.max(insets.bottom || 0, 12) : 0
+  // İki farklı yatay durumu var, çentik iki farklı kenara düşer:
+  //  - YAZILIMSAL döndürme (dondur): cihaz dik, içerik 90° dönük → çentik
+  //    içeriğin SOLUNDA, home göstergesi SAĞINDA (insets.top / insets.bottom).
+  //  - GERÇEK rotasyon (yeni build): cihaz yan → çentik SOL veya SAĞ kenarda,
+  //    hangisi olduğu dönüş yönüne bağlı (insets.left / insets.right).
+  // Gerçek rotasyonda ilk sürümde pay HİÇ verilmiyordu: sol kolon çentiğin
+  // altında kalıp tıklanamıyor, sağdaki "Kaydet" ekran dışına taşıyordu (29.07).
+  // Dönüş yönünü tahmin etmek yerine İKİ kenara da pay veriyoruz.
+  const guvenliSol = dondur
+    ? Math.max(insets.top || 0, 44)
+    : (yatayDuzen ? Math.max(insets.left || 0, 44) : 0)
+  const guvenliSag = dondur
+    ? Math.max(insets.bottom || 0, 12)
+    : (yatayDuzen ? Math.max(insets.right || 0, 44) : 0)
   const aracKolonTam = ARAC_KOLON + guvenliSol
   const renkKolonTam = RENK_KOLON + guvenliSag
   // Tuval/palet alanının yatayda kenar kolonlarının altına girmemesi için
