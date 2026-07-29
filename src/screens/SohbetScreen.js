@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Linking, Modal,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
 import ScreenContainer from '../components/ScreenContainer'
@@ -49,6 +50,10 @@ export default function SohbetScreen({ route, navigation }) {
   const [sohbetId, setSohbetId] = useState(route.params?.sohbetId ?? null)
   const { kullanici } = useAuth()
   const { colors } = useTheme()
+  // Bu ekranda stack header kapalı (kendi başlık barımız var) — çentik/durum
+  // çubuğu boşluğunu ELLE vermek zorundayız, yoksa başlık status bar'ın altına
+  // giriyor ve geri butonu tıklanamıyor.
+  const insets = useSafeAreaInsets()
 
   const [mesajlar, setMesajlar] = useState([])
   const [kisiler, setKisiler] = useState([])
@@ -57,6 +62,7 @@ export default function SohbetScreen({ route, navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [gonderiliyor, setGonderiliyor] = useState(false)
   const [dosyaYuklenen, setDosyaYuklenen] = useState(null)
+  const [ustBarYuksek, setUstBarYuksek] = useState(0)   // klavye ofseti için ölçülür
   const [menuAcik, setMenuAcik] = useState(false)
   const [kisiEkleAcik, setKisiEkleAcik] = useState(false)
   const [eklenecek, setEklenecek] = useState(null)
@@ -354,9 +360,22 @@ export default function SohbetScreen({ route, navigation }) {
   return (
     <ScreenContainer>
       {/* Başlık */}
-      <View style={[styles.ustBar, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 6 }}>
-          <Feather name="chevron-left" size={24} color={colors.textPrimary} />
+      <View style={[
+        styles.ustBar,
+        {
+          borderBottomColor: colors.border,
+          backgroundColor: colors.card,
+          paddingTop: Math.max(insets.top, 12) + 6,
+        },
+      ]}
+        onLayout={(e) => setUstBarYuksek(e.nativeEvent.layout.height)}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.geriBtn}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Feather name="chevron-left" size={26} color={colors.textPrimary} />
         </TouchableOpacity>
         {grupMu
           ? <View style={[styles.grupIkon, { backgroundColor: colors.primary + '22' }]}>
@@ -384,7 +403,9 @@ export default function SohbetScreen({ route, navigation }) {
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+          // Ofset = üstteki başlık barının GERÇEK yüksekliği. Sabit sayı
+          // verilirse çentikli/çentiksiz cihazlarda klavye yanlış hizalanır.
+          keyboardVerticalOffset={Platform.OS === 'ios' ? ustBarYuksek : 0}
         >
           <FlatList
             ref={listeRef}
@@ -409,7 +430,15 @@ export default function SohbetScreen({ route, navigation }) {
             </View>
           )}
 
-          <View style={[styles.girisBar, { borderTopColor: colors.border, backgroundColor: colors.card }]}>
+          <View style={[
+            styles.girisBar,
+            {
+              borderTopColor: colors.border,
+              backgroundColor: colors.card,
+              // iPhone'da ana ekran çubuğunun altına girmesin
+              paddingBottom: 10 + (Platform.OS === 'ios' ? insets.bottom : 0),
+            },
+          ]}>
             <TouchableOpacity onPress={ekle} style={styles.ekBtn} disabled={!!dosyaYuklenen}>
               <Feather name="paperclip" size={20} color={dosyaYuklenen ? colors.textMuted : colors.primary} />
             </TouchableOpacity>
@@ -497,6 +526,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 8, paddingBottom: 10, borderBottomWidth: 1,
   },
+  geriBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: 2 },
   grupIkon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   ustAd: { fontSize: 16, fontWeight: '700' },
   ustAlt: { fontSize: 12, marginTop: 1 },
