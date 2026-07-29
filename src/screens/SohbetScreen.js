@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Linking, Modal,
+  Keyboard,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -62,7 +63,7 @@ export default function SohbetScreen({ route, navigation }) {
   const [yukleniyor, setYukleniyor] = useState(true)
   const [gonderiliyor, setGonderiliyor] = useState(false)
   const [dosyaYuklenen, setDosyaYuklenen] = useState(null)
-  const [ustBarYuksek, setUstBarYuksek] = useState(0)   // klavye ofseti için ölçülür
+  const [klavyeAcik, setKlavyeAcik] = useState(false)
   const [menuAcik, setMenuAcik] = useState(false)
   const [kisiEkleAcik, setKisiEkleAcik] = useState(false)
   const [eklenecek, setEklenecek] = useState(null)
@@ -86,6 +87,16 @@ export default function SohbetScreen({ route, navigation }) {
   useEffect(() => {
     navigation.setOptions?.({ title: baslik || 'Sohbet' })
   }, [navigation, baslik])
+
+  // Klavye açıkken alt çentik boşluğu EKLENMEMELİ — klavye zaten o alanı
+  // kaplıyor, eklenirse yazma çubuğu klavyenin üstünde havada kalıyor.
+  useEffect(() => {
+    const ac = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
+    const kapa = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
+    const a = Keyboard.addListener(ac, () => setKlavyeAcik(true))
+    const k = Keyboard.addListener(kapa, () => setKlavyeAcik(false))
+    return () => { a.remove(); k.remove() }
+  }, [])
 
   useEffect(() => {
     let iptal = false
@@ -367,9 +378,7 @@ export default function SohbetScreen({ route, navigation }) {
           backgroundColor: colors.card,
           paddingTop: Math.max(insets.top, 12) + 6,
         },
-      ]}
-        onLayout={(e) => setUstBarYuksek(e.nativeEvent.layout.height)}
-      >
+      ]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.geriBtn}
@@ -403,9 +412,10 @@ export default function SohbetScreen({ route, navigation }) {
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          // Ofset = üstteki başlık barının GERÇEK yüksekliği. Sabit sayı
-          // verilirse çentikli/çentiksiz cihazlarda klavye yanlış hizalanır.
-          keyboardVerticalOffset={Platform.OS === 'ios' ? ustBarYuksek : 0}
+          // Ofset 0: KeyboardAvoidingView'ın ALT kenarı zaten ekranın altında.
+          // Buraya başlık yüksekliği vermek klavyenin üstünde o kadar boşluk
+          // bırakıyordu (kullanıcı ekran görüntüsüyle gösterdi).
+          keyboardVerticalOffset={0}
         >
           <FlatList
             ref={listeRef}
@@ -435,8 +445,9 @@ export default function SohbetScreen({ route, navigation }) {
             {
               borderTopColor: colors.border,
               backgroundColor: colors.card,
-              // iPhone'da ana ekran çubuğunun altına girmesin
-              paddingBottom: 10 + (Platform.OS === 'ios' ? insets.bottom : 0),
+              // iPhone'da ana ekran çubuğunun altına girmesin — ama klavye
+              // açıkken o çubuk yok, boşluk eklersek çubuk havada kalır
+              paddingBottom: 10 + (Platform.OS === 'ios' && !klavyeAcik ? insets.bottom : 0),
             },
           ]}>
             <TouchableOpacity onPress={ekle} style={styles.ekBtn} disabled={!!dosyaYuklenen}>

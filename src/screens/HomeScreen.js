@@ -120,15 +120,21 @@ export default function HomeScreen({ navigation }) {
       >
         {/* Üst bar — selamlama solda, çan + avatar sağda */}
         <View style={styles.topBar}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.welcome, { color: colors.textPrimary }]}>Merhaba {kullanici?.ad ?? 'Kullanıcı'}</Text>
-            <Text style={[styles.role, { color: colors.textMuted }]}>{kullanici?.unvan ?? 'Kullanıcı'}</Text>
+          {/* minWidth:0 + numberOfLines: uzun ad ikonların altına taşmasın
+              (Oğuz Meriç vakası — ad sohbet ikonunun üstüne biniyordu) */}
+          <View style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
+            <Text numberOfLines={1} style={[styles.welcome, { color: colors.textPrimary }]}>
+              Merhaba {kullanici?.ad ?? 'Kullanıcı'}
+            </Text>
+            <Text numberOfLines={1} style={[styles.role, { color: colors.textMuted }]}>
+              {kullanici?.unvan ?? 'Kullanıcı'}
+            </Text>
           </View>
           {/* Sohbet — okunmamış mesaj rozetiyle (web ile aynı yazışmalar) */}
           <TouchableOpacity
             onPress={() => navigation.navigate('Sohbetler')}
             activeOpacity={0.7}
-            style={{ position: 'relative', padding: 8, marginRight: 2 }}
+            style={{ position: 'relative', padding: 8, marginRight: 2, flexShrink: 0 }}
           >
             <Feather name="message-circle" size={22} color={colors.textPrimary} />
             {okunmamisMesaj > 0 && (
@@ -150,7 +156,7 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity
             onPress={() => navigation.navigate('Bildirimler')}
             activeOpacity={0.7}
-            style={{ position: 'relative', padding: 8, marginRight: 4 }}
+            style={{ position: 'relative', padding: 8, marginRight: 4, flexShrink: 0 }}
           >
             <Feather name="bell" size={22} color={colors.textPrimary} />
             {okunmamisSayisi > 0 && (
