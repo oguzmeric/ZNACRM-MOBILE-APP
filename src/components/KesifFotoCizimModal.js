@@ -246,7 +246,6 @@ export default function KesifFotoCizimModal({
   const yatayDuzen = dondur || ekranZatenYatay
   const ARAC_KOLON = 62
   const RENK_KOLON = 52
-  const [toolbarH, setToolbarH] = useState(52)
   // Güvenli alan payları — YAZILIMSAL döndürmede cihazın fiziksel ÜSTÜ (çentik +
   // durum çubuğu) içeriğin SOL kenarına, fiziksel ALTI (home göstergesi) SAĞ
   // kenarına düşer. Modal ayrı bir view hiyerarşisinde açıldığı için
@@ -270,9 +269,14 @@ export default function KesifFotoCizimModal({
   const renkKolonTam = RENK_KOLON + guvenliSag
   // Tuval/palet alanının yatayda kenar kolonlarının altına girmemesi için
   const icerikKenar = yatayDuzen ? { marginLeft: aracKolonTam, marginRight: renkKolonTam } : null
+  // Kolonlar TAM yükseklik (top: 0). Eskiden toolbar'ın altından (top: toolbarH)
+  // başlıyorlardı ve sol üst köşede X (kapat) ile Sembol butonu üst üste
+  // biniyordu — absolute çocuk kökün paddingTop'unu yok saydığı için hizalar
+  // tutmuyordu. Artık toolbar kolonların ARASINA sıkışıyor (aşağıda paddingLeft/
+  // paddingRight), çakışma matematiksel olarak imkânsız.
   const kenarKolon = (taraf) => (yatayDuzen ? (taraf === 'left'
-    ? { position: 'absolute', top: toolbarH, bottom: 0, left: 0, zIndex: 5, width: aracKolonTam, paddingLeft: guvenliSol }
-    : { position: 'absolute', top: toolbarH, bottom: 0, right: 0, zIndex: 5, width: renkKolonTam, paddingRight: guvenliSag }
+    ? { position: 'absolute', top: 0, bottom: 0, left: 0, zIndex: 5, width: aracKolonTam, paddingLeft: guvenliSol }
+    : { position: 'absolute', top: 0, bottom: 0, right: 0, zIndex: 5, width: renkKolonTam, paddingRight: guvenliSag }
   ) : null)
 
   // Modal her açılışta başlangıç şekillerini tazele
@@ -505,8 +509,10 @@ export default function KesifFotoCizimModal({
       <View style={kokStil}>
         {/* Üst toolbar — yatayda kenar kolonları bunun altından başlar */}
         <View
-          style={[styles.toolbar, yatayDuzen && { paddingLeft: guvenliSol + 8, paddingRight: guvenliSag + 8 }]}
-          onLayout={(e) => setToolbarH(e.nativeEvent.layout.height)}
+          style={[styles.toolbar, yatayDuzen && {
+            paddingLeft: aracKolonTam + 8,   // sol araç kolonunun sağından başla
+            paddingRight: renkKolonTam + 8,  // sağ renk kolonuna girme (Kaydet taşmasın)
+          }]}
         >
           <TouchableOpacity onPress={kapat} style={styles.tbBtn}>
             <Feather name="x" size={20} color="#fff" />
