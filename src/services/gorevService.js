@@ -75,20 +75,29 @@ export const gorevDurumGuncelle = (id, durum) =>
 // Göreve not ekle — notlar jsonb array, her not:
 // { metin, kullanici, tarih, fotoUrls?, dosyalar? }
 // dosyalar = belge ekleri [{url,name,type,size}] (web EkListesi ile aynı şekil)
+// Göreve not/yorum ekle — SECURITY DEFINER RPC (mig 239).
+//
+// NEDEN RPC: not, görev satırını güncelleyerek yazılıyor (gorevler.notlar jsonb)
+// ama gorevler UPDATE politikası yalnız atanan/oluşturan/onaylayıcı/ekip'e açık.
+// SELECT politikası ise standart görevleri HERKESE açıyor. Sonuç: etiketlenen
+// kişi görevi görüyor ama yorum yazamıyordu — üstelik UPDATE sessizce 0 satır
+// etkiliyor, hata bile dönmüyordu (Salih Çakmaklı vakası, 29.07).
+// UPDATE politikasını genişletmek yerine RPC: yalnız `notlar` alanına ekler,
+// görünürlük kuralı SELECT ile birebir aynı (gizli görevde yine katılımcı+admin).
+// Yazar adını SUNUCU dolduruyor — kullaniciAd artık kullanılmıyor, imza
+// geriye uyumluluk için duruyor.
 export const gorevNotEkle = async (id, metin, kullaniciAd, fotoUrls = [], dosyalar = []) => {
-  const mevcut = await gorevGetir(id)
-  if (!mevcut) return null
-  const yeniNotlar = [
-    ...(mevcut.notlar ?? []),
-    {
-      metin,
-      kullanici: kullaniciAd ?? '',
-      tarih: new Date().toISOString(),
-      ...(fotoUrls.length > 0 ? { fotoUrls } : {}),
-      ...(dosyalar.length > 0 ? { dosyalar } : {}),
-    },
-  ]
-  return gorevGuncelle(id, { notlar: yeniNotlar })
+  const { data, error } = await supabase.rpc('gorev_not_ekle', {
+    p_gorev_id: Number(id),
+    p_metin: metin ?? '',
+    p_foto_urls: fotoUrls ?? [],
+    p_dosyalar: dosyalar ?? [],
+  })
+  if (error) {
+    console.error('gorevNotEkle hata:', error.message)
+    return null
+  }
+  return toCamel(data)
 }
 
 export const gorevSil = async (id) => {
