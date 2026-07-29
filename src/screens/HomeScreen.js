@@ -23,6 +23,7 @@ import { banaAtananAktifGorevSayisi } from '../services/gorevService'
 import { banaAtananAktifTalepSayisi } from '../services/servisService'
 import { kullaniciMenuYetkileri, menuGorunurMu } from '../services/menuYetkiService'
 import { okunmamisBildirimSayisi, bildirimleriDinle } from '../services/bildirimService'
+import { okunmamisMesajSayisi } from '../services/chatService'
 import { aktifZimmetleriGetir } from '../services/demoService'
 import DuyuruBanner from '../components/DuyuruBanner'
 import MesaiKarti from '../components/MesaiKarti'
@@ -38,6 +39,7 @@ export default function HomeScreen({ navigation }) {
   const [gorevSayisi, setGorevSayisi] = useState(0)
   const [servisSayisi, setServisSayisi] = useState(0)
   const [okunmamisSayisi, setOkunmamisSayisi] = useState(0)
+  const [okunmamisMesaj, setOkunmamisMesaj] = useState(0)
   const [demoGecikmisSayisi, setDemoGecikmisSayisi] = useState(0)
   const [yetki, setYetki] = useState({})
   // Akordiyon bölümler — son durum hatırlanır (varsayılan: SAHA açık)
@@ -74,15 +76,17 @@ export default function HomeScreen({ navigation }) {
 
   const sayilariYukle = useCallback(async () => {
     if (!kullanici?.id) return
-    const [g, s, b, dz] = await Promise.all([
+    const [g, s, b, dz, msj] = await Promise.all([
       banaAtananAktifGorevSayisi(kullanici.id),
       banaAtananAktifTalepSayisi(kullanici.id),
       okunmamisBildirimSayisi(kullanici.id),
       aktifZimmetleriGetir(),
+      okunmamisMesajSayisi(kullanici.id).catch(() => 0),
     ])
     setGorevSayisi(g)
     setServisSayisi(s)
     setOkunmamisSayisi(b)
+    setOkunmamisMesaj(msj || 0)
     setDemoGecikmisSayisi((dz || []).filter(z => z.beklenenIadeTarihi && new Date(z.beklenenIadeTarihi) < new Date()).length)
   }, [kullanici])
 
@@ -120,6 +124,29 @@ export default function HomeScreen({ navigation }) {
             <Text style={[styles.welcome, { color: colors.textPrimary }]}>Merhaba {kullanici?.ad ?? 'Kullanıcı'}</Text>
             <Text style={[styles.role, { color: colors.textMuted }]}>{kullanici?.unvan ?? 'Kullanıcı'}</Text>
           </View>
+          {/* Sohbet — okunmamış mesaj rozetiyle (web ile aynı yazışmalar) */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Sohbetler')}
+            activeOpacity={0.7}
+            style={{ position: 'relative', padding: 8, marginRight: 2 }}
+          >
+            <Feather name="message-circle" size={22} color={colors.textPrimary} />
+            {okunmamisMesaj > 0 && (
+              <View style={{
+                position: 'absolute',
+                top: 4, right: 2,
+                minWidth: 18, height: 18,
+                paddingHorizontal: 4,
+                borderRadius: 9,
+                backgroundColor: '#dc2626',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                  {okunmamisMesaj > 99 ? '99+' : okunmamisMesaj}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('Bildirimler')}
             activeOpacity={0.7}

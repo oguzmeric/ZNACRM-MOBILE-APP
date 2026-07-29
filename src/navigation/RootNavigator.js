@@ -38,6 +38,8 @@ import GorusmelerScreen from '../screens/GorusmelerScreen'
 import YeniGorusmeScreen from '../screens/YeniGorusmeScreen'
 import GorusmeDetayScreen from '../screens/GorusmeDetayScreen'
 import BildirimlerScreen from '../screens/BildirimlerScreen'
+import SohbetlerScreen from '../screens/SohbetlerScreen'
+import SohbetScreen from '../screens/SohbetScreen'
 import DemolarScreen from '../screens/DemolarScreen'
 import NotlarimScreen from '../screens/NotlarimScreen'
 import NotDuzenleScreen from '../screens/NotDuzenleScreen'
@@ -203,6 +205,9 @@ export default function RootNavigator() {
             <Stack.Screen name="IzinBordro" component={IzinBordroScreen} options={{ title: 'İzin & Bordro' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
             <Stack.Screen name="Bildirimler" component={BildirimlerScreen} options={{ title: 'Bildirimler' }} />
+            <Stack.Screen name="Sohbetler" component={SohbetlerScreen} options={{ title: 'Sohbetler' }} />
+            {/* SohbetScreen kendi başlık barını çiziyor — çift başlık olmasın */}
+            <Stack.Screen name="Sohbet" component={SohbetScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Demolar" component={DemolarScreen} options={{ title: 'Demo Takip' }} />
             <Stack.Screen name="Notlarim" component={NotlarimScreen} options={{ title: 'Notlarım' }} />
             <Stack.Screen name="NotDuzenle" component={NotDuzenleScreen} options={{ title: 'Not' }} />
@@ -260,6 +265,9 @@ export default function RootNavigator() {
             <Stack.Screen name="YeniGorusme" component={YeniGorusmeScreen} options={{ title: 'Yeni Görüşme' }} />
             <Stack.Screen name="GorusmeDetay" component={GorusmeDetayScreen} options={{ title: 'Görüşme Detayı' }} />
             <Stack.Screen name="Bildirimler" component={BildirimlerScreen} options={{ title: 'Bildirimler' }} />
+            <Stack.Screen name="Sohbetler" component={SohbetlerScreen} options={{ title: 'Sohbetler' }} />
+            {/* SohbetScreen kendi başlık barını çiziyor — çift başlık olmasın */}
+            <Stack.Screen name="Sohbet" component={SohbetScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Demolar" component={DemolarScreen} options={{ title: 'Demo Takip' }} />
             <Stack.Screen name="Notlarim" component={NotlarimScreen} options={{ title: 'Notlarım' }} />
             <Stack.Screen name="NotDuzenle" component={NotDuzenleScreen} options={{ title: 'Not' }} />
