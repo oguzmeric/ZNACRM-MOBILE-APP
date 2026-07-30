@@ -13,6 +13,7 @@ const IKONLAR = {
   'Ana Sayfa': 'home',
   'Görevler':  'check-square',
   'Servisler': 'tool',
+  'Sohbet':    'message-circle',
   'Tara':      'maximize',
   'Profil':    'user',
 }

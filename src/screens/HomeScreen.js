@@ -23,6 +23,7 @@ import { banaAtananAktifGorevSayisi } from '../services/gorevService'
 import { banaAtananAktifTalepSayisi } from '../services/servisService'
 import { kullaniciMenuYetkileri, menuGorunurMu } from '../services/menuYetkiService'
 import { okunmamisBildirimSayisi, bildirimleriDinle } from '../services/bildirimService'
+import { okunmamisMesajSayisi } from '../services/chatService'
 import { aktifZimmetleriGetir } from '../services/demoService'
 import DuyuruBanner from '../components/DuyuruBanner'
 import MesaiKarti from '../components/MesaiKarti'
@@ -75,15 +76,17 @@ export default function HomeScreen({ navigation }) {
 
   const sayilariYukle = useCallback(async () => {
     if (!kullanici?.id) return
-    const [g, s, b, dz] = await Promise.all([
+    const [g, s, b, dz, msj] = await Promise.all([
       banaAtananAktifGorevSayisi(kullanici.id),
       banaAtananAktifTalepSayisi(kullanici.id),
       okunmamisBildirimSayisi(kullanici.id),
       aktifZimmetleriGetir(),
+      okunmamisMesajSayisi(kullanici.id).catch(() => 0),
     ])
     setGorevSayisi(g)
     setServisSayisi(s)
     setOkunmamisSayisi(b)
+    setOkunmamisMesaj(msj || 0)
     setDemoGecikmisSayisi((dz || []).filter(z => z.beklenenIadeTarihi && new Date(z.beklenenIadeTarihi) < new Date()).length)
   }, [kullanici])
 
@@ -171,10 +174,18 @@ export default function HomeScreen({ navigation }) {
         {mesaiTakipVarMi(kullanici) && <MesaiKarti />}
 
         {/* ── BUGÜN — günlük işler, rozetli büyük kartlar ── */}
-        {(gorunur('gorevler') || gorunur('servisler')) && (
-          <View style={styles.gridArea}>
+        {/* Sohbet kartı koşulsuz: alt sekme çubuğu ANA EKRANDA GİZLİ
+            (MagicTabBar), dolayısıyla buradaki kart tek giriş noktası. */}
+        <View style={styles.gridArea}>
             <Text style={[styles.bolumBaslik, { color: colors.textMuted }]}>BUGÜN</Text>
             <View style={styles.grid}>
+              <Tile width={tileGenislik}
+                title="Mesajlar"
+                hint="Personel sohbeti"
+                icon={<Feather name="message-circle" size={22} color="#34d399" />}
+                badge={okunmamisMesaj}
+                onPress={() => navigation.navigate('Sohbet')}
+              />
               {gorunur('gorevler') && (
                 <Tile width={tileGenislik}
                   title="Görevlerim"
@@ -194,8 +205,7 @@ export default function HomeScreen({ navigation }) {
                 />
               )}
             </View>
-          </View>
-        )}
+        </View>
 
         {/* ── Bölümler — 3'lü kompakt grid ── */}
         {(() => {

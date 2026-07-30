@@ -39,6 +39,7 @@ import YeniGorusmeScreen from '../screens/YeniGorusmeScreen'
 import GorusmeDetayScreen from '../screens/GorusmeDetayScreen'
 import BildirimlerScreen from '../screens/BildirimlerScreen'
 import SohbetScreen from '../screens/SohbetScreen'
+import SohbetlerScreen from '../screens/SohbetlerScreen'
 import DemolarScreen from '../screens/DemolarScreen'
 import NotlarimScreen from '../screens/NotlarimScreen'
 import NotDuzenleScreen from '../screens/NotDuzenleScreen'
@@ -106,6 +107,9 @@ function TeknisyenTabs() {
       />
       <Tab.Screen name="Görevler" component={GorevlerScreen} options={{ headerShown: true, title: 'Görevler' }} />
       <Tab.Screen name="Servisler" component={ServisTalepleriScreen} options={{ headerShown: true, title: 'Servisler' }} />
+      {/* Sohbet — personel yazışması, yetki gerektirmez.
+          DİKKAT: gerçek sekme çubuğu BURASI (BottomTabs.js kullanılmıyordu). */}
+      <Tab.Screen name="Sohbet" component={SohbetlerScreen} />
       <Tab.Screen name="Tara" component={TaraScreen} options={{ headerShown: true, title: 'Cihaz Tara', headerStyle: { backgroundColor: '#000' }, headerTintColor: '#fff' }} />
       <Tab.Screen name="Profil" component={ProfilScreen} />
     </Tab.Navigator>
