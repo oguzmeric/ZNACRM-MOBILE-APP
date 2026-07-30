@@ -2,7 +2,7 @@
 import 'react-native-gesture-handler'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
-import { Component, useEffect, useRef } from 'react'
+import { Component, useCallback, useEffect, useRef } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { View, Text, ScrollView, AppState, Linking } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -82,27 +82,50 @@ function AppInner() {
   const responseListener = useRef(null)
   const receivedListener = useRef(null)
   const kullaniciRef = useRef(null)
+  // Uygulanamamış push hedefi. RootNavigator'da NavigationContainer'ın key'i
+  // oturum/rol ile değişiyor (auth → admin/teknisyen): oturum yüklenirken
+  // container REMOUNT oluyor ve tam o ana denk gelen navigate yutuluyordu —
+  // "bildirime bastım ama mesaja gitmedi" bunun sonucuydu. Hedefi saklıyoruz,
+  // oturum oturduktan sonra tekrar uyguluyoruz.
+  const bekleyenPush = useRef(null)
   useEffect(() => { kullaniciRef.current = kullanici }, [kullanici])
 
-  useEffect(() => {
-    // Push'a dokununca ilgili ekrana git (bildirimLinkHedefi eşler).
-    // Navigasyon/oturum henüz hazır değilse kısa aralıklarla yeniden dene
-    // (uygulama push'tan soğuk açıldığında gerekir).
-    const linkeGit = (data, deneme = 0) => {
-      if (data?.tip === 'toplanti' && data?.link) {
-        try { Linking.openURL(data.link) } catch {}
-        return
-      }
-      if (!data?.link) return
-      if (!navigationRef.isReady() || !kullaniciRef.current?.id) {
-        if (deneme < 10) setTimeout(() => linkeGit(data, deneme + 1), 700)
-        return
-      }
-      const hedef = bildirimLinkHedefi(data.link, kullaniciRef.current)
-      if (hedef) {
-        try { navigationRef.navigate(...hedef) } catch (e) { console.warn('[push nav]', e?.message) }
-      }
+  const linkeGit = useCallback((data, deneme = 0) => {
+    if (data?.tip === 'toplanti' && data?.link) {
+      try { Linking.openURL(data.link) } catch {}
+      return
     }
+    if (!data?.link) return
+    if (!navigationRef.isReady() || !kullaniciRef.current?.id) {
+      bekleyenPush.current = data
+      if (deneme < 10) setTimeout(() => linkeGit(data, deneme + 1), 700)
+      return
+    }
+    const hedef = bildirimLinkHedefi(data.link, kullaniciRef.current)
+    if (!hedef) { bekleyenPush.current = null; return }
+    try {
+      navigationRef.navigate(...hedef)
+      // Remount navigate'i yutmuş olabilir — gerçekten gidildi mi doğrula
+      setTimeout(() => {
+        const suanki = navigationRef.isReady() ? navigationRef.getCurrentRoute()?.name : null
+        if (suanki === hedef[0]) { bekleyenPush.current = null; return }
+        if (deneme < 6) linkeGit(data, deneme + 1)
+        else bekleyenPush.current = null
+      }, 600)
+    } catch (e) {
+      console.warn('[push nav]', e?.message)
+      if (deneme < 6) setTimeout(() => linkeGit(data, deneme + 1), 700)
+    }
+  }, [])
+
+  // Oturum yüklenince (navKey değişip container yeniden kurulunca) bekleyeni uygula
+  useEffect(() => {
+    if (!kullanici?.id || !bekleyenPush.current) return
+    const t = setTimeout(() => { if (bekleyenPush.current) linkeGit(bekleyenPush.current) }, 900)
+    return () => clearTimeout(t)
+  }, [kullanici?.id, linkeGit])
+
+  useEffect(() => {
 
     // Foreground'da bildirim geldiğinde — sadece logla, handler shouldShowAlert ile zaten gösterir
     receivedListener.current = Notifications.addNotificationReceivedListener(() => {})
@@ -121,7 +144,7 @@ function AppInner() {
       try { Notifications.removeNotificationSubscription(receivedListener.current) } catch {}
       try { Notifications.removeNotificationSubscription(responseListener.current) } catch {}
     }
-  }, [])
+  }, [linkeGit])
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
