@@ -13,6 +13,8 @@ import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { kesifEkle, KESIF_ONCELIKLERI } from '../services/kesifService'
 import { musterileriGetir } from '../services/musteriService'
+import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
+import SecimPicker from '../components/SecimPicker'
 
 export default function YeniKesifScreen({ navigation }) {
   const { colors } = useTheme()
@@ -25,6 +27,10 @@ export default function YeniKesifScreen({ navigation }) {
   const [seciliMusteri, setSeciliMusteri] = useState(null) // { id, ad }
   const [kesifBasligi, setKesifBasligi] = useState('')
   const [lokasyon, setLokasyon] = useState('')
+  // Kayıtlı alt lokasyon — GERÇEK bağ (kesifler.lokasyon_id). Bu olmadan keşif,
+  // müşteri detayındaki lokasyon dökümüne düşmüyordu.
+  const [lokasyonlar, setLokasyonlar] = useState([])
+  const [lokasyonId, setLokasyonId] = useState(null)
   const [oncelik, setOncelik] = useState('normal')
   const [genelNot, setGenelNot] = useState('')
   const [kaydediliyor, setKaydediliyor] = useState(false)
@@ -32,6 +38,17 @@ export default function YeniKesifScreen({ navigation }) {
   useEffect(() => {
     musterileriGetir().then(setMusteriler).catch(() => {})
   }, [])
+
+  // Müşteri seçilince alt lokasyonlarını çek
+  useEffect(() => {
+    setLokasyonId(null); setLokasyonlar([])
+    if (!seciliMusteri?.id) return
+    let iptal = false
+    musteriLokasyonlariniGetir(seciliMusteri.id)
+      .then(d => { if (!iptal) setLokasyonlar((d || []).filter(l => l.aktif !== false)) })
+      .catch(() => {})
+    return () => { iptal = true }
+  }, [seciliMusteri?.id])
 
   const musteriAdiYap = (m) => m.firma || `${m.ad || ''} ${m.soyad || ''}`.trim() || '—'
   const aramaQ = musteriArama.trim().toLocaleLowerCase('tr')
@@ -54,6 +71,7 @@ export default function YeniKesifScreen({ navigation }) {
       firmaAdi: seciliMusteri.ad,
       kesifBasligi: kesifBasligi.trim(),
       lokasyon: lokasyon.trim(),
+      lokasyonId: lokasyonId ? Number(lokasyonId) : null,
       oncelik,
       genelNot: genelNot.trim() || null,
       kesifTarihi: new Date().toISOString().split('T')[0],
@@ -136,6 +154,24 @@ export default function YeniKesifScreen({ navigation }) {
           <Text style={labelStil}>Keşif Başlığı</Text>
           <TextInput value={kesifBasligi} onChangeText={setKesifBasligi} placeholder="örn. Fabrika çevre kamera keşfi"
             placeholderTextColor={colors.textMuted} style={inputStil} />
+
+          {/* Alt lokasyon — seçilirse müşteri detayındaki lokasyon dökümüne
+              (keşif + takılı envanter) bu keşif de düşer */}
+          {seciliMusteri && lokasyonlar.length > 0 && (
+            <>
+              <Text style={labelStil}>Alt Lokasyon</Text>
+              <SecimPicker
+                deger={lokasyonId}
+                onSec={(secilen) => {
+                  setLokasyonId(secilen)
+                  const l = lokasyonlar.find(x => String(x.id) === String(secilen))
+                  if (l && !lokasyon.trim()) setLokasyon(l.adres?.trim() || l.ad || '')
+                }}
+                secenekler={lokasyonlar.map(l => ({ id: l.id, isim: l.ad }))}
+                placeholder="Lokasyon seç… (yoksa boş bırak)"
+              />
+            </>
+          )}
 
           <Text style={labelStil}>Keşif Adresi</Text>
           <TextInput value={lokasyon} onChangeText={setLokasyon} placeholder="Saha adresi"
