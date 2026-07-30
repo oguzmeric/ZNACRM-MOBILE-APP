@@ -9,6 +9,17 @@ export function bildirimLinkHedefi(link, kullanici) {
   const id = parcalar[1] ? parseInt(parcalar[1], 10) : null
 
   switch (kok) {
+    // Sohbet mesajı push'u (mig 245): /sohbet/kisi/<gondericiId>
+    //                                 /sohbet/grup/<sohbetId>
+    // id 2. konumda olduğu için yukarıdaki genel `id` ayrıştırması işe yaramaz.
+    case 'sohbet': {
+      const alt = parcalar[1]
+      const sohbetId = parcalar[2] ? parseInt(parcalar[2], 10) : null
+      if (!sohbetId) return ['Sohbet']
+      return alt === 'grup'
+        ? ['Sohbet', { tip: 'grup', sohbetId }]
+        : ['Sohbet', { tip: 'kisi', kisiId: sohbetId }]
+    }
     case 'gorevler':
       return id ? ['GörevDetay', { id }] : ['Görevler']
     case 'servis-talepleri':

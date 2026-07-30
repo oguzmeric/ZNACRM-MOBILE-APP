@@ -36,12 +36,20 @@ export const bildirimEkleDb = async (payload) => {
   return { id: data }
 }
 
+// tip='mesaj' bildirimleri SADECE push için var (mig 245): sohbetin kendi
+// arayüzü var, uygulama içi bildirim listesi/sayacı her mesajda dolmasın.
+//
+// DİKKAT: `.neq('tip','mesaj')` KULLANMA — NULL <> 'mesaj' → NULL → false,
+// yani tip'i NULL olan eski satırlar da elenir.
+const MESAJ_HARIC = 'tip.is.null,tip.neq.mesaj'
+
 export const bildirimleriGetir = async (kullaniciId, limit = 50) => {
   if (!kullaniciId) return []
   const { data, error } = await supabase
     .from('bildirimler')
     .select('*')
     .eq('alici_id', kullaniciId)
+    .or(MESAJ_HARIC)
     .order('olusturma_tarih', { ascending: false })
     .limit(limit)
   if (error) {
@@ -58,6 +66,7 @@ export const okunmamisBildirimSayisi = async (kullaniciId) => {
     .select('*', { count: 'exact', head: true })
     .eq('alici_id', kullaniciId)
     .eq('okundu', false)
+    .or(MESAJ_HARIC)
   if (error) return 0
   return count ?? 0
 }
@@ -119,6 +128,10 @@ export const bildirimleriDinle = (kullaniciId, onYeniBildirim) => {
       },
       (payload) => {
         try {
+          // Sohbet mesajı bildirimi (mig 245) sadece PUSH için; uygulama içi
+          // listeye/sayaca düşmemeli. Realtime'da ikinci filtre konamıyor
+          // (tek kolon eq, o da alici_id) — eleme burada.
+          if (payload.new?.tip === 'mesaj') return
           onYeniBildirim?.(toCamel(payload.new))
         } catch (e) {
           console.error('[bildirim realtime] hata:', e)

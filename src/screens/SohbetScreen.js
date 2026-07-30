@@ -47,8 +47,12 @@ const boyutYazi = (b) => {
 }
 
 export default function SohbetScreen({ route, navigation }) {
-  const { tip, kisiId, baslik } = route.params || {}
+  const { tip, kisiId } = route.params || {}
   const [sohbetId, setSohbetId] = useState(route.params?.sohbetId ?? null)
+  // Push bildiriminden gelince baslik parametresi YOKTUR (link sadece id
+  // taşıyor) — o durumda adı kişi/sohbet listesinden kendimiz buluyoruz,
+  // yoksa başlıkta "Sohbet" yazardı.
+  const [baslik, setBaslik] = useState(route.params?.baslik || '')
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   // Bu ekranda stack header kapalı (kendi başlık barımız var) — çentik/durum
@@ -108,8 +112,13 @@ export default function SohbetScreen({ route, navigation }) {
 
       let sid = sohbetId
       if (grupMu) {
-        setSohbet((ss || []).find(s => s.id === sid) || null)
+        const g = (ss || []).find(s => s.id === sid) || null
+        setSohbet(g)
+        if (!route.params?.baslik) setBaslik(g?.ad || 'Grup')
       } else {
+        if (!route.params?.baslik) {
+          setBaslik((ks || []).find(k => k.id === Number(kisiId))?.ad || 'Sohbet')
+        }
         // Birebirde sohbet henüz açılmamış olabilir; ilk mesajda açılacak.
         const bulunan = (ss || []).find(s =>
           s.tip === 'birebir' && (s.katilimcilar || []).includes(Number(kisiId))
