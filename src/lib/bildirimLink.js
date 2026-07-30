@@ -15,10 +15,11 @@ export function bildirimLinkHedefi(link, kullanici) {
     case 'sohbet': {
       const alt = parcalar[1]
       const sohbetId = parcalar[2] ? parseInt(parcalar[2], 10) : null
+      // 'Sohbet' = sekmedeki LİSTE, 'SohbetDetay' = tek sohbet ekranı
       if (!sohbetId) return ['Sohbet']
       return alt === 'grup'
-        ? ['Sohbet', { tip: 'grup', sohbetId }]
-        : ['Sohbet', { tip: 'kisi', kisiId: sohbetId }]
+        ? ['SohbetDetay', { tip: 'grup', sohbetId }]
+        : ['SohbetDetay', { tip: 'kisi', kisiId: sohbetId }]
     }
     case 'gorevler':
       return id ? ['GörevDetay', { id }] : ['Görevler']

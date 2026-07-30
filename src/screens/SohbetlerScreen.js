@@ -133,14 +133,14 @@ export default function SohbetlerScreen({ navigation }) {
     if (r.__error) { Alert.alert('Hata', r.__error); return }
     setGrupModal(false); setGrupAd(''); setGrupUyeler([])
     await yukle()
-    navigation.navigate('Sohbet', { tip: 'grup', sohbetId: r.sohbetId, baslik: grupAd.trim() })
+    navigation.navigate('SohbetDetay', { tip: 'grup', sohbetId: r.sohbetId, baslik: grupAd.trim() })
   }
 
   const satirAc = (item) => {
     if (item.__tip === 'grup') {
-      navigation.navigate('Sohbet', { tip: 'grup', sohbetId: item.g.id, baslik: item.g.ad })
+      navigation.navigate('SohbetDetay', { tip: 'grup', sohbetId: item.g.id, baslik: item.g.ad })
     } else {
-      navigation.navigate('Sohbet', { tip: 'kisi', kisiId: item.k.id, baslik: item.k.ad })
+      navigation.navigate('SohbetDetay', { tip: 'kisi', kisiId: item.k.id, baslik: item.k.ad })
     }
   }
 

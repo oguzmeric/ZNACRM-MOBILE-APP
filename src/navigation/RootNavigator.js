@@ -211,7 +211,11 @@ export default function RootNavigator() {
             {/* Sohbet LİSTESİ alt sekmede (BottomTabs) — burada kayıtlı değil:
                 useBottomTabBarHeight() sekme bağlamı olmadan hata verir. */}
             {/* SohbetScreen kendi başlık barını çiziyor — çift başlık olmasın */}
-            <Stack.Screen name="Sohbet" component={SohbetScreen} options={{ headerShown: false }} />
+            {/* Adı "Sohbet" DEĞİL: sekmedeki liste ekranının adı "Sohbet".
+                İkisi aynı adı taşıyınca navigate('Sohbet') en yakın
+                navigator'daki LİSTEYİ buluyordu → satıra basınca hiçbir şey
+                olmuyordu (kullanıcı: "mesajlara tıklayamıyorum"). */}
+            <Stack.Screen name="SohbetDetay" component={SohbetScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Demolar" component={DemolarScreen} options={{ title: 'Demo Takip' }} />
             <Stack.Screen name="Notlarim" component={NotlarimScreen} options={{ title: 'Notlarım' }} />
             <Stack.Screen name="NotDuzenle" component={NotDuzenleScreen} options={{ title: 'Not' }} />
@@ -272,7 +276,11 @@ export default function RootNavigator() {
             {/* Sohbet LİSTESİ alt sekmede (BottomTabs) — burada kayıtlı değil:
                 useBottomTabBarHeight() sekme bağlamı olmadan hata verir. */}
             {/* SohbetScreen kendi başlık barını çiziyor — çift başlık olmasın */}
-            <Stack.Screen name="Sohbet" component={SohbetScreen} options={{ headerShown: false }} />
+            {/* Adı "Sohbet" DEĞİL: sekmedeki liste ekranının adı "Sohbet".
+                İkisi aynı adı taşıyınca navigate('Sohbet') en yakın
+                navigator'daki LİSTEYİ buluyordu → satıra basınca hiçbir şey
+                olmuyordu (kullanıcı: "mesajlara tıklayamıyorum"). */}
+            <Stack.Screen name="SohbetDetay" component={SohbetScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Demolar" component={DemolarScreen} options={{ title: 'Demo Takip' }} />
             <Stack.Screen name="Notlarim" component={NotlarimScreen} options={{ title: 'Notlarım' }} />
             <Stack.Screen name="NotDuzenle" component={NotDuzenleScreen} options={{ title: 'Not' }} />
