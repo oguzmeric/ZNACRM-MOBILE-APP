@@ -130,8 +130,31 @@ export default function HomeScreen({ navigation }) {
               {kullanici?.unvan ?? 'Kullanıcı'}
             </Text>
           </View>
-          {/* Sohbet girişi ALT SEKMEDE — üst bara koyunca uzun isimlerle
-              çakışıyordu (kullanıcı: "isim yarım çıkıyor") */}
+          {/* Sohbet — üst barda, zilin solunda. İlk denemede isimle çakıştı;
+              çözüm ikonu kaldırmak değil İSİM FONTUNU küçültmekti (22→18,
+              kullanıcı önerisi). Rozet ikonun sağ üstünde. */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Sohbet')}
+            activeOpacity={0.7}
+            style={{ position: 'relative', padding: 8, marginRight: 2, flexShrink: 0 }}
+          >
+            <Feather name="message-circle" size={22} color={colors.textPrimary} />
+            {okunmamisMesaj > 0 && (
+              <View style={{
+                position: 'absolute',
+                top: 4, right: 2,
+                minWidth: 18, height: 18,
+                paddingHorizontal: 4,
+                borderRadius: 9,
+                backgroundColor: '#dc2626',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                  {okunmamisMesaj > 99 ? '99+' : okunmamisMesaj}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('Bildirimler')}
             activeOpacity={0.7}
@@ -172,37 +195,6 @@ export default function HomeScreen({ navigation }) {
 
         {/* Mesai kartı — modülü olan teknisyen/depo/yönetim görür */}
         {mesaiTakipVarMi(kullanici) && <MesaiKarti />}
-
-        {/* Sohbet — kendi satırında, tam genişlik.
-            BUGÜN ızgarasına koymuştum: 3 kart 2 sütuna sığmayınca Servislerim
-            yalnız kaldı, ayrıca sohbet "bana atanan iş" değil (kullanıcı:
-            "Mesajlar kısmı burada çok kötü duruyor").
-            Alt sekme çubuğu bu ekranda GİZLİ (MagicTabBar) → burası şart. */}
-        <TouchableOpacity
-          style={styles.mesajCard}
-          onPress={() => navigation.navigate('Sohbet')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.mesajIkon}>
-            <Feather name="message-circle" size={18} color="#34d399" />
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[styles.mesajTitle, { color: colors.textPrimary }]}>Mesajlar</Text>
-            <Text style={[styles.mesajHint, { color: colors.textMuted }]} numberOfLines={1}>
-              {okunmamisMesaj > 0
-                ? `${okunmamisMesaj} okunmamış mesaj`
-                : 'Personel sohbeti'}
-            </Text>
-          </View>
-          {okunmamisMesaj > 0 && (
-            <View style={styles.mesajRozet}>
-              <Text style={styles.mesajRozetYazi}>
-                {okunmamisMesaj > 99 ? '99+' : okunmamisMesaj}
-              </Text>
-            </View>
-          )}
-          <Feather name="chevron-right" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
 
         {/* ── BUGÜN — günlük işler, rozetli büyük kartlar ── */}
         {(gorunur('gorevler') || gorunur('servisler')) && (
@@ -392,33 +384,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 
-  // Mesajlar satırı — destekCard ile aynı dil, yeşil vurgu (sohbet rengi)
-  mesajCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 4,
-    marginBottom: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.22)',
-    backgroundColor: 'rgba(52, 211, 153, 0.07)',
-  },
-  mesajIkon: {
-    width: 36, height: 36, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(52, 211, 153, 0.12)',
-  },
-  mesajTitle: { fontSize: 14, fontWeight: '700' },
-  mesajHint: { fontSize: 12, marginTop: 1 },
-  mesajRozet: {
-    minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11,
-    backgroundColor: '#dc2626', alignItems: 'center', justifyContent: 'center',
-  },
-  mesajRozetYazi: { color: '#fff', fontSize: 11, fontWeight: '700' },
-
   destekCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -440,7 +405,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     marginTop: 4,
   },
-  welcome: { color: '#fff', fontSize: 22, fontWeight: '700' },
+  // 22 -> 18: üst barda 3 ikon (sohbet + zil + avatar) varken 22px uzun
+  // isimleri taşırıyordu ("Merhaba OĞUZ MERİÇ" ikonun altına giriyordu)
+  welcome: { color: '#fff', fontSize: 18, fontWeight: '700' },
   role: {
     color: '#94a3b8',
     textTransform: 'capitalize',

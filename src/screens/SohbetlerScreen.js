@@ -60,7 +60,23 @@ export default function SohbetlerScreen({ navigation }) {
     const [k, s, m] = await Promise.all([
       kullanicilariGetir(), sohbetleriGetir(), mesajlariGetir(),
     ])
-    setKisiler((k || []).filter(x => x.id !== kullanici.id && x.tip !== 'musteri' && x.rol !== 'musteri'))
+    // Liste = personel + YAZIŞMASI OLAN herkes.
+    //
+    // Neden birleşim: rozet okunmamışı DB'den ham sayıyor, liste ise kişi
+    // tipine göre süzüyordu. `tip='musteri'` bir hesaptan mesaj gelince rozet
+    // "1" diyor ama kişi listede çıkmıyordu → okunmamışı GÖREMİYOR, sohbeti
+    // açamadığı için rozeti DÜŞÜREMİYOR (30.07 vakası: ZNA TEST hesabı
+    // rol=personel ama tip=musteri).
+    const yazismaliIdler = new Set(
+      (s || [])
+        .filter(x => x.tip === 'birebir')
+        .flatMap(x => x.katilimcilar || [])
+        .filter(id => id !== kullanici.id)
+    )
+    setKisiler((k || []).filter(x =>
+      x.id !== kullanici.id &&
+      ((x.tip !== 'musteri' && x.rol !== 'musteri') || yazismaliIdler.has(x.id))
+    ))
     setSohbetler(s || [])
     setMesajlar(m || [])
     setYukleniyor(false)
