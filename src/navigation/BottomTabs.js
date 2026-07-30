@@ -7,9 +7,12 @@ import GorevlerScreen from '../screens/GorevlerScreen'
 import ServisTalepleriScreen from '../screens/ServisTalepleriScreen'
 import StokScreen from '../screens/StokScreen'
 import MusterilerScreen from '../screens/MusterilerScreen'
+import SohbetlerScreen from '../screens/SohbetlerScreen'
 import { colors } from '../theme'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import { kullaniciMenuYetkileri, menuGorunurMu } from '../services/menuYetkiService'
+import { okunmamisMesajSayisi } from '../services/chatService'
 
 const Tab = createBottomTabNavigator()
 
@@ -26,6 +29,7 @@ const tabBarStyle = {
 export default function BottomTabs() {
   const { kullanici } = useAuth()
   const [harita, setHarita] = useState({})
+  const [mesajSayisi, setMesajSayisi] = useState(0)
 
   // Sekmeler de web "Modül erişimleri" + mobil menü yetkilerine uyar
   // (eskiden herkes 5 sekmenin hepsini görüyordu)
@@ -35,6 +39,26 @@ export default function BottomTabs() {
   }, [kullanici?.id])
 
   const g = (anahtar) => menuGorunurMu(anahtar, kullanici, harita)
+
+  // Sohbet sekmesi rozeti — okunmamış mesaj (birebir + grup).
+  // Ana ekranın üst barında duruyordu, uzun isimlerle çakışıyordu (kullanıcı
+  // "isim yarım çıkıyor, başka bir yere alalım" dedi) — sekmeye taşındı.
+  useEffect(() => {
+    if (!kullanici?.id) { setMesajSayisi(0); return }
+    let iptal = false
+    const yenile = () => {
+      okunmamisMesajSayisi(kullanici.id)
+        .then((s) => { if (!iptal) setMesajSayisi(s || 0) })
+        .catch(() => {})
+    }
+    yenile()
+    // Payload kullanılmıyor, sadece sayaç tazeleniyor — veri sızıntısı yok
+    const kanal = supabase
+      .channel(`sekme_mesaj_${kullanici.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mesajlar' }, yenile)
+      .subscribe()
+    return () => { iptal = true; supabase.removeChannel(kanal) }
+  }, [kullanici?.id])
 
   return (
     <Tab.Navigator
@@ -63,6 +87,16 @@ export default function BottomTabs() {
           }}
         />
       )}
+      {/* Sohbet — personel yazışması; yetki gerektirmez, herkes erişir */}
+      <Tab.Screen
+        name="Sohbet"
+        component={SohbetlerScreen}
+        options={{
+          tabBarIcon: ({ color }) => <Feather name="message-circle" size={22} color={color} />,
+          tabBarBadge: mesajSayisi > 0 ? (mesajSayisi > 99 ? '99+' : mesajSayisi) : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#dc2626', fontSize: 10, fontWeight: '700' },
+        }}
+      />
       {g('servisler') && (
         <Tab.Screen
           name="Servisler"

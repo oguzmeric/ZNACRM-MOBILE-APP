@@ -9,6 +9,8 @@ import {
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
 import ScreenContainer from '../components/ScreenContainer'
 import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
@@ -37,6 +39,10 @@ const trKucuk = (s = '') => String(s).toLocaleLowerCase('tr')
 export default function SohbetlerScreen({ navigation }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
+  // Bu ekran ALT SEKMEDE açılıyor: üstte stack header yok → çentik boşluğunu
+  // elle ver; altta sekme çubuğu var → listenin sonu onun altında kalmasın.
+  const insets = useSafeAreaInsets()
+  const sekmeYuksek = useBottomTabBarHeight()
   const [kisiler, setKisiler] = useState([])
   const [sohbetler, setSohbetler] = useState([])
   const [mesajlar, setMesajlar] = useState([])
@@ -208,7 +214,10 @@ export default function SohbetlerScreen({ navigation }) {
 
   return (
     <ScreenContainer>
-      <View style={[styles.ustBar, { borderBottomColor: colors.border }]}>
+      <View style={[
+        styles.ustBar,
+        { borderBottomColor: colors.border, paddingTop: Math.max(insets.top, 12) + 8 },
+      ]}>
         <View style={[styles.aramaKutu, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Feather name="search" size={16} color={colors.textMuted} />
           <TextInput
@@ -242,7 +251,11 @@ export default function SohbetlerScreen({ navigation }) {
         ListEmptyComponent={
           <EmptyState ikon="message-circle" baslik="Sohbet yok" mesaj="Personel listesi boş görünüyor." />
         }
-        contentContainerStyle={veri.length === 0 ? { flexGrow: 1, justifyContent: 'center' } : { paddingBottom: 24 }}
+        contentContainerStyle={
+          veri.length === 0
+            ? { flexGrow: 1, justifyContent: 'center', paddingBottom: sekmeYuksek }
+            : { paddingBottom: sekmeYuksek + 24 }
+        }
       />
 
       {/* Yeni grup */}
