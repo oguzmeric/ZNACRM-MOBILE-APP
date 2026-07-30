@@ -173,19 +173,42 @@ export default function HomeScreen({ navigation }) {
         {/* Mesai kartı — modülü olan teknisyen/depo/yönetim görür */}
         {mesaiTakipVarMi(kullanici) && <MesaiKarti />}
 
+        {/* Sohbet — kendi satırında, tam genişlik.
+            BUGÜN ızgarasına koymuştum: 3 kart 2 sütuna sığmayınca Servislerim
+            yalnız kaldı, ayrıca sohbet "bana atanan iş" değil (kullanıcı:
+            "Mesajlar kısmı burada çok kötü duruyor").
+            Alt sekme çubuğu bu ekranda GİZLİ (MagicTabBar) → burası şart. */}
+        <TouchableOpacity
+          style={styles.mesajCard}
+          onPress={() => navigation.navigate('Sohbet')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.mesajIkon}>
+            <Feather name="message-circle" size={18} color="#34d399" />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={[styles.mesajTitle, { color: colors.textPrimary }]}>Mesajlar</Text>
+            <Text style={[styles.mesajHint, { color: colors.textMuted }]} numberOfLines={1}>
+              {okunmamisMesaj > 0
+                ? `${okunmamisMesaj} okunmamış mesaj`
+                : 'Personel sohbeti'}
+            </Text>
+          </View>
+          {okunmamisMesaj > 0 && (
+            <View style={styles.mesajRozet}>
+              <Text style={styles.mesajRozetYazi}>
+                {okunmamisMesaj > 99 ? '99+' : okunmamisMesaj}
+              </Text>
+            </View>
+          )}
+          <Feather name="chevron-right" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+
         {/* ── BUGÜN — günlük işler, rozetli büyük kartlar ── */}
-        {/* Sohbet kartı koşulsuz: alt sekme çubuğu ANA EKRANDA GİZLİ
-            (MagicTabBar), dolayısıyla buradaki kart tek giriş noktası. */}
-        <View style={styles.gridArea}>
+        {(gorunur('gorevler') || gorunur('servisler')) && (
+          <View style={styles.gridArea}>
             <Text style={[styles.bolumBaslik, { color: colors.textMuted }]}>BUGÜN</Text>
             <View style={styles.grid}>
-              <Tile width={tileGenislik}
-                title="Mesajlar"
-                hint="Personel sohbeti"
-                icon={<Feather name="message-circle" size={22} color="#34d399" />}
-                badge={okunmamisMesaj}
-                onPress={() => navigation.navigate('Sohbet')}
-              />
               {gorunur('gorevler') && (
                 <Tile width={tileGenislik}
                   title="Görevlerim"
@@ -205,7 +228,8 @@ export default function HomeScreen({ navigation }) {
                 />
               )}
             </View>
-        </View>
+          </View>
+        )}
 
         {/* ── Bölümler — 3'lü kompakt grid ── */}
         {(() => {
@@ -367,6 +391,33 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 16,
   },
+
+  // Mesajlar satırı — destekCard ile aynı dil, yeşil vurgu (sohbet rengi)
+  mesajCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 4,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.22)',
+    backgroundColor: 'rgba(52, 211, 153, 0.07)',
+  },
+  mesajIkon: {
+    width: 36, height: 36, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(52, 211, 153, 0.12)',
+  },
+  mesajTitle: { fontSize: 14, fontWeight: '700' },
+  mesajHint: { fontSize: 12, marginTop: 1 },
+  mesajRozet: {
+    minWidth: 22, height: 22, paddingHorizontal: 6, borderRadius: 11,
+    backgroundColor: '#dc2626', alignItems: 'center', justifyContent: 'center',
+  },
+  mesajRozetYazi: { color: '#fff', fontSize: 11, fontWeight: '700' },
 
   destekCard: {
     flexDirection: 'row',
