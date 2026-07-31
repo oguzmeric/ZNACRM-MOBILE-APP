@@ -22,7 +22,7 @@ import { useTheme } from '../context/ThemeContext'
 import { kullanicilariGetir } from '../services/kullaniciService'
 import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
-import { gorevEkle, gorevGuncelle } from '../services/gorevService'
+import { gorevEkle, gorevGuncelle, gorevGetir } from '../services/gorevService'
 import { ekYukle } from '../services/ekYukleService'
 import { talepOlusturGorevden } from '../services/servisService'
 import { bildirimEkleDb } from '../services/bildirimService'
@@ -232,6 +232,25 @@ export default function YeniGorevScreen({ navigation, route }) {
 
     // Edit modu — güncelle ve geri dön
     if (duzenle?.id) {
+      // Düzenlemede eklenen dosyalar MEVCUTLARIN ÜSTÜNE eklenir (Salih Çakmaklı
+      // 31.07: "düzenlemeye girince foto ekleyemiyorum"). Mevcut liste kaydetme
+      // anında tazelenir — form açıkken başkası ek eklemiş olabilir.
+      if (ekler.length) {
+        const yuklenen = []
+        for (const ek of ekler) {
+          try { yuklenen.push(await ekYukle('gorev-dosyalar', ek)) }
+          catch (e) {
+            setKaydediliyor(false)
+            Alert.alert('Ek Yüklenemedi', e?.message ?? 'Dosya yüklenemedi.')
+            return
+          }
+        }
+        const taze = await gorevGetir(duzenle.id).catch(() => null)
+        const oncekiler = Array.isArray(taze?.dosyalar)
+          ? taze.dosyalar
+          : (Array.isArray(duzenle.dosyalar) ? duzenle.dosyalar : [])
+        payload.dosyalar = [...oncekiler, ...yuklenen]
+      }
       const guncel = await gorevGuncelle(duzenle.id, payload)
       setKaydediliyor(false)
       if (!guncel) {
@@ -526,12 +545,17 @@ export default function YeniGorevScreen({ navigation, route }) {
           placeholder="Tarih ve saat seç"
         />
 
-        {/* Ekler — yalnız YENİ görevde (mig 184); web görev detayında görünür */}
-        {!duzenle?.id && (
+        {/* Ekler (mig 184) — düzenlemede de açık; seçilenler mevcutlara EKLENİR */}
+        {(
           <View style={{ marginTop: 16 }}>
             <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '700', marginBottom: 8 }}>
               Ekler (dosya / resim, opsiyonel)
             </Text>
+            {duzenle?.id && Array.isArray(duzenle.dosyalar) && duzenle.dosyalar.length > 0 && (
+              <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 8 }}>
+                Bu görevde zaten {duzenle.dosyalar.length} ek var — yeni seçtiklerin üzerine eklenir.
+              </Text>
+            )}
             <TouchableOpacity
               onPress={ekSec}
               disabled={kaydediliyor}
