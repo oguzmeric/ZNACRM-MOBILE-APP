@@ -25,6 +25,10 @@ export function bildirimLinkHedefi(link, kullanici) {
       return id ? ['GörevDetay', { id }] : ['Görevler']
     case 'servis-talepleri':
       return id ? ['ServisDetay', { id }] : null
+    // Bakım atama bildirimi (mig 253): /bakim-isleri/<id>
+    // Web'de detay sayfası, mobilde teknisyenin bakımı doldurduğu ekran.
+    case 'bakim-isleri':
+      return id ? ['BakimYap', { id }] : ['BakimIslerim']
     case 'gorusmeler':
       return id ? ['GorusmeDetay', { id }] : null
     case 'teklifler':

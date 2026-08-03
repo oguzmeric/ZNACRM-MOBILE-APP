@@ -31,7 +31,8 @@ export default function BakimIslerimScreen({ navigation }) {
 
   const yukle = useCallback(async () => {
     if (!kullanici?.id) return
-    const l = await bakimIslerimGetir(kullanici.id)
+    // Obje geçiyoruz: saha sorumlusu (Salih, Mahmut, admin) tüm bakımları görür
+    const l = await bakimIslerimGetir(kullanici)
     setListe(l)
     setLoading(false)
   }, [kullanici?.id])

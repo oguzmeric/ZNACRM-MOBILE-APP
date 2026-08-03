@@ -7,6 +7,10 @@ import { supabase } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 import { oturumTokenAl } from '../lib/storageAuth'
 
+// Web topluBakimService.sahaSorumlusuMu ile AYNI kural — iki taraf ayrışmasın.
+export const sahaSorumlusuMu = (kullanici) =>
+  !!kullanici && (kullanici.rol === 'admin' || kullanici.sahaSorumlusu === true)
+
 // Bakım fotoğrafı yükle — gorevFotoService ile aynı desen (public bucket +
 // personel JWT + FormData). URL'ler kalemin cevaplar.fotolar dizisinde tutulur.
 const FOTO_BUCKET = 'urun-gorselleri'
@@ -41,10 +45,15 @@ export const bakimFotoYukle = async (altNo, uri) => {
 }
 
 // Bana atanan işler: ana görevli VEYA yardımcı ekipte (spec 22).
-export const bakimIslerimGetir = async (kullaniciId) => {
-  if (!kullaniciId) return []
-  const kid = Number(kullaniciId)
-  const { data, error } = await supabase
+// SAHA SORUMLUSU istisnası: bakım işlerini planlayan/izleyen kişi (Salih, Mahmut,
+// admin) kendine iş atanmasa da tüm bakımları görür — aksi halde mobilde menü
+// açılıyor ama liste boş kalıyordu.
+export const bakimIslerimGetir = async (kullanici) => {
+  // Geriye dönük uyum: eskiden yalnız id geçiliyordu
+  const kid = Number(typeof kullanici === 'object' ? kullanici?.id : kullanici)
+  if (!kid) return []
+  const hepsiniGorur = sahaSorumlusuMu(typeof kullanici === 'object' ? kullanici : null)
+  let q = supabase
     .from('toplu_bakimlar')
     .select(`
       id, tb_no, musteri_id, lokasyon_adi, lokasyon_adres, bakim_donemi,
@@ -53,7 +62,8 @@ export const bakimIslerimGetir = async (kullaniciId) => {
       musteriler ( firma ),
       toplu_bakim_kalemleri ( id, kalem_tip, durum, ariza_var )
     `)
-    .or(`teknik_personel_id.eq.${kid},ekip_ids.cs.{${kid}}`)
+  if (!hepsiniGorur) q = q.or(`teknik_personel_id.eq.${kid},ekip_ids.cs.{${kid}}`)
+  const { data, error } = await q
     .order('planlanan_tarih', { ascending: true })
   if (error) { console.error('[bakim] islerim:', error.message); return [] }
   return (data || []).map((r) => ({

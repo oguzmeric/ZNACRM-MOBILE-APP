@@ -673,14 +673,26 @@ function CctvForm({ c, set, colors }) {
 
 // ─── Genel form (turnike / ekran / alarm / sistem odası / fiber v1) ─────────
 
+// Web BakimKalemFormModal'daki ADET_ETIKETI/MARKA_ORNEGI ile birebir aynı liste
+const ADET_ETIKETI = {
+  turnike: 'Turnike adedi',
+  ekran_led: 'Ekran adedi',
+  plaka_tanima: 'Plaka tanıma ünitesi adedi',
+}
+const MARKA_ORNEGI = {
+  ekran_led: 'örn. SAMSUNG',
+  sistem_odasi: 'örn. CANOVATE',
+  santral: 'örn. KAREL',
+}
+
 function GenelForm({ tip, c, set, colors }) {
-  const adetli = tip === 'turnike' || tip === 'ekran_led'
-  const markali = tip === 'ekran_led' || tip === 'sistem_odasi'
+  const adetli = !!ADET_ETIKETI[tip]
+  const markali = !!MARKA_ORNEGI[tip]
   return (
     <View style={{ marginTop: 14, gap: 14 }}>
       {adetli && (
         <View>
-          <Text style={[styles.soru, { color: colors.textMuted }]}>{tip === 'turnike' ? 'Turnike adedi' : 'Ekran adedi'}</Text>
+          <Text style={[styles.soru, { color: colors.textMuted }]}>{ADET_ETIKETI[tip]}</Text>
           <TextInput
             value={String(c.adet ?? '')}
             onChangeText={(v) => set('adet', v.replace(/[^0-9]/g, ''))}
@@ -698,7 +710,7 @@ function GenelForm({ tip, c, set, colors }) {
             <TextInput
               value={c.marka ?? ''}
               onChangeText={(v) => set('marka', v)}
-              placeholder={tip === 'sistem_odasi' ? 'örn. CANOVATE' : 'örn. SAMSUNG'}
+              placeholder={MARKA_ORNEGI[tip]}
               placeholderTextColor={colors.textFaded}
               style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary, marginTop: 6 }]}
             />
