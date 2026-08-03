@@ -17,6 +17,18 @@ function sureGoster(dk) {
   return `${s}:${m}`
 }
 
+// Mesai suresi: cikis varsa DB'deki sure_dakika kesin degerdir; yoksa (mesai
+// devam ediyor) girisden su ana kadar gecen hesaplanir. sure_dakika kolonu
+// YALNIZ 18:30 otomatik kapanisinda yazildigi icin gun icinde null'dur ve
+// ekran "—" / 0 gosteriyordu (01.08 bildirimi, web ile ayni duzeltme).
+function kayitDakika(k) {
+  if (!k) return 0
+  if (k.sure_dakika != null) return Number(k.sure_dakika) || 0
+  if (!k.giris_zamani) return 0
+  const gecen = Math.round((Date.now() - new Date(k.giris_zamani).getTime()) / 60000)
+  return gecen > 0 ? gecen : 0
+}
+
 function saatGoster(iso) {
   if (!iso) return '—'
   return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
@@ -51,7 +63,7 @@ export default function MesaiGecmisiScreen() {
 
   const onTazele = async () => { setTazele(true); await yukle(); setTazele(false) }
 
-  const toplamDk = kendi.reduce((t, k) => t + (k.sure_dakika ?? 0), 0)
+  const toplamDk = kendi.reduce((t, k) => t + kayitDakika(k), 0)
   const acikKayit = kendi.find(k => !k.cikis_zamani)
 
   return (
@@ -153,7 +165,7 @@ function KayitSatiri({ kayit, colors }) {
         </Text>
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
           <Text style={{ color: colors.textMuted, fontSize: 11 }}>
-            Süre: {sureGoster(kayit.sure_dakika)}
+            Süre: {sureGoster(kayitDakika(kayit))}{kayit.cikis_zamani ? '' : ' (devam)'}
           </Text>
           {kayit.giris_mesafe_m != null && (
             <Text style={{ color: colors.textMuted, fontSize: 11 }}>
@@ -177,7 +189,7 @@ function EkipSatiri({ satir, colors }) {
   const durumMetin = aktif
     ? `Mesaide · ${saatGoster(k.giris_zamani)}`
     : k
-      ? `${saatGoster(k.giris_zamani)} → ${saatGoster(k.cikis_zamani)} · ${sureGoster(k.sure_dakika)}`
+      ? `${saatGoster(k.giris_zamani)} → ${saatGoster(k.cikis_zamani)} · ${sureGoster(kayitDakika(k))}`
       : 'Bugün giriş yok'
   return (
     <View style={{
