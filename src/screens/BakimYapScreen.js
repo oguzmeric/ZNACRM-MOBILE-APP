@@ -24,6 +24,7 @@ import {
   kalemBilgi, kalemDurumBilgi, tbDurumBilgi,
   YAPILAMADI_SEBEPLERI, KAYIT_CIHAZI_TURLERI, HDD_KAPASITELERI,
   SAAT_TARIH_SECENEKLERI, cctvDogrula, genelDogrula, arizaVarMi, sonucMetniUret,
+  IMZA_YOK_SEBEPLERI, imzaYokSebepMetni, imzasizTamamlandiMi,
 } from '../lib/bakimSablon'
 
 const fmtTarih = (t) => t ? new Date(t + 'T00:00:00').toLocaleDateString('tr-TR') : '—'
@@ -40,6 +41,12 @@ export default function BakimYapScreen({ route }) {
   // İmza akışı (F4 — spec 21-22): TEK müşteri imzası + en az bir personel imzası
   const [imzaModal, setImzaModal] = useState(null)   // 'musteri' | 'personel' | null
   const [yetkili, setYetkili] = useState(null)       // {ad, gorev, tel} — tb'den doldurulur
+  // mig 254 — müşteri yetkilisi sahada yoksa gerekçeli tamamlama
+  const [imzaYok, setImzaYok] = useState(false)
+  const [imzaYokSebep, setImzaYokSebep] = useState('')
+  const [imzaYokNot, setImzaYokNot] = useState('')
+  // 'diger' seçilirse açıklama zorunlu — gerekçesiz "diğer" kayda değmez
+  const imzaYokGecerli = !!imzaYokSebep && (imzaYokSebep !== 'diger' || !!imzaYokNot.trim())
   const scrollRef = useRef(null)                     // Tümünü Tamamla → imza bölümüne kaydır
 
   const yukle = useCallback(async () => {
@@ -207,8 +214,10 @@ export default function BakimYapScreen({ route }) {
               <View style={{ marginTop: 16 }}>
                 <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700', marginBottom: 8 }}>İMZA VE TAMAMLAMA</Text>
 
-                {/* Müşteri yetkilisi bilgileri — imza öncesi zorunlu (spec 26) */}
-                {tb.durum === 'imza_bekleniyor' && !tb.musteriImzaUrl && (
+                {/* Müşteri yetkilisi bilgileri — imza öncesi zorunlu (spec 26).
+                    mig 254: "yetkili yok" işaretlendiyse gizlenir; imzasız
+                    tamamlanmışsa SONRADAN imza için tekrar açılır. */}
+                {(tb.durum === 'imza_bekleniyor' || imzasizTamamlandiMi(tb)) && !tb.musteriImzaUrl && !imzaYok && (
                   <View style={{ gap: 8, marginBottom: 10 }}>
                     <TextInput
                       value={(yetkili ?? { ad: tb.musteriYetkiliAd || '' }).ad}
@@ -237,14 +246,65 @@ export default function BakimYapScreen({ route }) {
                   </View>
                 )}
 
+                {/* Yetkili yok → gerekçe paneli (mig 254) */}
+                {tb.durum === 'imza_bekleniyor' && !tb.musteriImzaUrl && imzaYok && (
+                  <View style={{
+                    gap: 8, marginBottom: 10, padding: 10, borderRadius: 10,
+                    backgroundColor: '#f59e0b1a', borderWidth: 1, borderColor: '#fcd34d',
+                  }}>
+                    <Text style={{ color: '#b45309', fontSize: 12, fontWeight: '700' }}>
+                      İmza alınamama gerekçesi — rapora şerh olarak yazılır
+                    </Text>
+                    {Object.entries(IMZA_YOK_SEBEPLERI).map(([kod, metin]) => {
+                      const secili = imzaYokSebep === kod
+                      return (
+                        <TouchableOpacity
+                          key={kod}
+                          onPress={() => setImzaYokSebep(kod)}
+                          activeOpacity={0.7}
+                          style={{
+                            flexDirection: 'row', alignItems: 'center', gap: 8,
+                            paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8,
+                            backgroundColor: secili ? '#f59e0b26' : colors.surface,
+                            borderWidth: 1, borderColor: secili ? '#f59e0b' : colors.border,
+                          }}
+                        >
+                          <Feather
+                            name={secili ? 'check-circle' : 'circle'}
+                            size={16}
+                            color={secili ? '#f59e0b' : colors.textFaded}
+                          />
+                          <Text style={{
+                            flex: 1, fontSize: 12.5,
+                            fontWeight: secili ? '700' : '500',
+                            color: secili ? colors.textPrimary : colors.textSecondary,
+                          }}>
+                            {metin}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                    <TextInput
+                      value={imzaYokNot}
+                      onChangeText={setImzaYokNot}
+                      placeholder={imzaYokSebep === 'diger' ? 'Açıklama (zorunlu) *' : 'Ek açıklama (opsiyonel)'}
+                      placeholderTextColor={colors.textFaded}
+                      style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary }]}
+                    />
+                  </View>
+                )}
+
                 {/* İmza kutuları */}
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <ImzaKutu
                     colors={colors}
                     etiket="Müşteri İmzası"
                     imza={tb.musteriImzaUrl}
-                    kilitli={tb.durum === 'tamamlandi'}
+                    // Tamamlandı + imzasız ise kutu AÇIK kalır: yetkiliye sonradan
+                    // ulaşıldığında imza eklenir, rapordaki şerh düşer.
+                    kilitli={tb.durum === 'tamamlandi' && !imzasizTamamlandiMi(tb)}
                     onPress={() => {
+                      if (imzaYok) { setImzaYok(false); return }   // imza alacaksa gerekçeden çık
                       const ad = (yetkili?.ad ?? tb.musteriYetkiliAd ?? '').trim()
                       if (!ad) { Alert.alert('Eksik', 'Önce müşteri yetkilisinin adını girin.'); return }
                       setImzaModal('musteri')
@@ -259,31 +319,83 @@ export default function BakimYapScreen({ route }) {
                   />
                 </View>
 
+                {tb.durum === 'imza_bekleniyor' && !tb.musteriImzaUrl && (
+                  <TouchableOpacity
+                    onPress={() => { setImzaYok(!imzaYok); setImzaYokSebep(''); setImzaYokNot('') }}
+                    activeOpacity={0.7}
+                    style={{ alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 14 }}
+                  >
+                    <Text style={{ color: imzaYok ? colors.textSecondary : '#b45309', fontSize: 12.5, fontWeight: '700' }}>
+                      {imzaYok ? '← İmza alacağım' : 'Müşteri yetkilisi yok →'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
                 {tb.durum === 'imza_bekleniyor' && (
                   <TouchableOpacity
-                    style={[styles.tamamlaBtn, { opacity: tb.musteriImzaUrl && tb.personelImzaUrl ? 1 : 0.45 }]}
+                    style={[styles.tamamlaBtn, {
+                      opacity: tb.personelImzaUrl && (tb.musteriImzaUrl || imzaYokGecerli) ? 1 : 0.45,
+                    }]}
                     onPress={async () => {
-                      // Spec 26: iki imza olmadan toplu bakım TAMAMLANAMAZ
-                      if (!tb.musteriImzaUrl || !tb.personelImzaUrl) {
-                        Alert.alert('Eksik', 'Müşteri ve teknik personel imzaları alınmadan bakım tamamlanamaz.')
+                      // Personel imzası HER durumda şart — işi yapanın beyanı olmadan tutanak olmaz
+                      if (!tb.personelImzaUrl) {
+                        Alert.alert('Eksik', 'Teknik personel imzası alınmadan bakım tamamlanamaz.')
                         return
                       }
-                      const g = await durumGuncelle(id, 'tamamlandi')
+                      if (!tb.musteriImzaUrl && !imzaYokGecerli) {
+                        Alert.alert(
+                          'Eksik',
+                          imzaYok
+                            ? (imzaYokSebep === 'diger'
+                                ? 'Diğer seçeneği için açıklama yazın.'
+                                : 'İmza alınamama gerekçesini seçin.')
+                            : 'Müşteri imzası alın veya "Müşteri yetkilisi yok" seçeneğini kullanın.',
+                        )
+                        return
+                      }
+                      const ekstra = tb.musteriImzaUrl ? {} : {
+                        musteriImzaYokSebep: imzaYokSebep,
+                        musteriImzaYokNot: imzaYokNot.trim() || null,
+                      }
+                      const g = await durumGuncelle(id, 'tamamlandi', ekstra)
                       if (g) {
                         setTb((prev) => ({ ...prev, ...g }))
-                        Alert.alert('Tamamlandı 🎉', `${tb.tbNo} toplu bakımı tamamlandı.`)
+                        setImzaYok(false)
+                        Alert.alert(
+                          'Tamamlandı 🎉',
+                          tb.musteriImzaUrl
+                            ? `${tb.tbNo} toplu bakımı tamamlandı.`
+                            : `${tb.tbNo} imzasız tamamlandı. Gerekçe rapora işlendi; yetkiliye ulaşınca imza sonradan eklenebilir.`,
+                        )
                       }
                     }}
                     activeOpacity={0.85}
                   >
                     <Feather name="award" size={17} color="#fff" />
-                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Toplu Bakımı Tamamla</Text>
+                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>
+                      {tb.musteriImzaUrl ? 'Toplu Bakımı Tamamla' : 'İmzasız Tamamla'}
+                    </Text>
                   </TouchableOpacity>
                 )}
                 {tb.durum === 'tamamlandi' && (
-                  <Text style={{ color: '#22c55e', fontSize: 12.5, textAlign: 'center', marginTop: 10, fontWeight: '700' }}>
-                    ✅ Bakım tamamlandı — formlar merkezden yazdırılabilir.
-                  </Text>
+                  imzasizTamamlandiMi(tb) ? (
+                    <View style={{ marginTop: 10, gap: 4 }}>
+                      <Text style={{ color: '#b45309', fontSize: 12.5, textAlign: 'center', fontWeight: '700' }}>
+                        ⚠️ Müşteri imzası alınmadan tamamlandı
+                      </Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 11.5, textAlign: 'center' }}>
+                        {imzaYokSebepMetni(tb.musteriImzaYokSebep)}
+                        {tb.musteriImzaYokNot ? ` — ${tb.musteriImzaYokNot}` : ''}
+                      </Text>
+                      <Text style={{ color: colors.textFaded, fontSize: 11, textAlign: 'center' }}>
+                        Yetkiliye ulaştığınızda yukarıdaki kutudan imzayı ekleyebilirsiniz.
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={{ color: '#22c55e', fontSize: 12.5, textAlign: 'center', marginTop: 10, fontWeight: '700' }}>
+                      ✅ Bakım tamamlandı — formlar merkezden yazdırılabilir.
+                    </Text>
+                  )
                 )}
               </View>
             )}

@@ -43,6 +43,20 @@ export const TB_DURUMLAR = {
 
 export const tbDurumBilgi = (d) => TB_DURUMLAR[d] ?? { isim: d ?? '—', renk: '#94a3b8' }
 
+// Müşteri yetkilisi imzalayamadığında gerekçe (mig 254) — web ile birebir aynı.
+// İmza ATLANMAZ; yerine "kim/ne zaman/neden" kaydı geçer, raporda şerh basılır.
+export const IMZA_YOK_SEBEPLERI = {
+  yetkili_yok:        'Müşteri yetkilisi lokasyonda bulunmadı',
+  lokasyon_kapali:    'Lokasyon kapalıydı / yetkiliye erişilemedi',
+  yetkili_imzalamadi: 'Yetkili imza atmaktan kaçındı',
+  mesai_disi:         'Bakım mesai saatleri dışında yapıldı',
+  diger:              'Diğer (açıklama zorunlu)',
+}
+export const imzaYokSebepMetni = (kod) => IMZA_YOK_SEBEPLERI[kod] ?? kod ?? ''
+
+export const imzasizTamamlandiMi = (tb) =>
+  !!tb?.musteriImzaYokSebep && !tb?.musteriImzaTarih && !tb?.musteriImzaUrl
+
 export const YAPILAMADI_SEBEPLERI = [
   'Sisteme erişim sağlanamadı',
   'Müşteri izin vermedi',
