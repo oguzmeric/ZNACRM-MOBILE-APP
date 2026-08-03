@@ -12,7 +12,7 @@ import * as Location from 'expo-location'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useNavigation } from '@react-navigation/native'
 import { useTheme } from '../context/ThemeContext'
-import { mesaiyeBasla, acikMesaiGetir } from '../services/mesaiService'
+import { mesaiyeBasla, mesaiyiBitir, acikMesaiGetir } from '../services/mesaiService'
 
 function sureFormat(baslangicIso) {
   const ms = Date.now() - new Date(baslangicIso).getTime()
@@ -42,6 +42,12 @@ function istanbulDakika() {
 }
 
 const kilitliMi = (dk) => dk >= KILIT_BASLANGIC_DK && dk < KILIT_BITIS_DK
+
+// FAZLA MESAİ (mig 252): 19:00 ve sonrasında başlatılan çalışma ayrı tutulur ve
+// ayrı ücretlendirilir. Normal mesainin aksine 18:30 cron'u dokunmaz; personel
+// ELLE bitirir, unutulursa gece 02:00'da yedek cron kapatır.
+const FAZLA_BASLANGIC_DK = 19 * 60
+const fazlaPenceresiMi = (dk) => dk >= FAZLA_BASLANGIC_DK
 
 export default function MesaiKarti() {
   const { colors } = useTheme()
@@ -159,19 +165,64 @@ export default function MesaiKarti() {
     )
   }
 
-  const kartBg = acik ? 'rgba(34,197,94,0.10)' : colors.surface
-  const kartBorder = acik ? 'rgba(34,197,94,0.35)' : colors.border
-
   // Buton HER ZAMAN görünür; basılamıyorsa nedeni altta yazar.
   // (_tick 30sn'de bir arttığı için kilit penceresi kendiliğinden güncellenir.)
-  const kilitli = kilitliMi(istanbulDakika())
-  const butonPasif = meshgul || !!acik || kilitli
-  const butonEtiket = acik ? 'Mesaide' : kilitli ? '19:00' : 'Başla'
-  const altYazi = acik
-    ? `Başlangıç ${new Date(acik.giris_zamani).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })} · 18:30'da otomatik kapanır`
-    : kilitli
-      ? 'Mesai 18:30\'da kapandı · 19:00\'dan sonra başlatabilirsin'
-      : 'Bugün henüz başlamadın · geçmişi gör →'
+  const suAnDk = istanbulDakika()
+  const kilitli = kilitliMi(suAnDk)
+  const fazlaPencere = fazlaPenceresiMi(suAnDk)
+  const fazlaAcik = acik?.tip === 'fazla'
+
+  // Fazla mesai turuncu, normal mesai yeşil — ekipte "hangisindeyim" sorusu olmasın
+  const kartBg = fazlaAcik ? 'rgba(245,158,11,0.12)' : acik ? 'rgba(34,197,94,0.10)' : colors.surface
+  const kartBorder = fazlaAcik ? 'rgba(245,158,11,0.40)' : acik ? 'rgba(34,197,94,0.35)' : colors.border
+
+  // Fazla mesaide buton AKTİF kalır ve "Bitir" olur (normal mesaide Bitir yok).
+  const butonPasif = meshgul || (!!acik && !fazlaAcik) || kilitli
+  const butonEtiket = fazlaAcik ? 'Bitir'
+    : acik ? 'Mesaide'
+    : kilitli ? '19:00'
+    : fazlaPencere ? 'Fazla Mesai'
+    : 'Başla'
+  const saatMetni = (iso) => new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+  const altYazi = fazlaAcik
+    ? `Fazla mesai · başlangıç ${saatMetni(acik.giris_zamani)} · bitirmeyi unutma`
+    : acik
+      ? `Başlangıç ${saatMetni(acik.giris_zamani)} · 18:30'da otomatik kapanır`
+      : kilitli
+        ? 'Mesai 18:30\'da kapandı · 19:00\'dan sonra başlatabilirsin'
+        : fazlaPencere
+          ? 'Şimdi başlatılan mesai FAZLA MESAİ sayılır · bitişini sen kapatırsın'
+          : 'Bugün henüz başlamadın · geçmişi gör →'
+
+  // Fazla mesaiyi elle kapat. Konum best-effort: alınamazsa kayıt yine kapanır,
+  // çünkü asıl amaç bitiş SAATİNİ doğru yazmak.
+  const fazlaMesaiBitir = () => {
+    Alert.alert('Fazla mesaiyi bitir', 'Mesai şimdi kapatılsın mı?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Bitir',
+        onPress: async () => {
+          setMeshgul(true)
+          try {
+            let lat = null, lng = null
+            try {
+              const k = await Location.getCurrentPositionAsync({})
+              lat = k.coords.latitude; lng = k.coords.longitude
+            } catch { /* konum yoksa da kapat */ }
+            const cvp = await mesaiyiBitir({ lat, lng })
+            if (cvp?.ok) {
+              const dk = Number(cvp.sure_dakika ?? 0)
+              Alert.alert('Fazla mesai kapatıldı',
+                dk > 0 ? `Süre: ${Math.floor(dk / 60)} sa ${dk % 60} dk` : 'Kayıt kapatıldı.')
+              yenile()
+            } else {
+              Alert.alert('Hata', cvp?.hata ?? 'Mesai kapatılamadı.')
+            }
+          } finally { setMeshgul(false) }
+        },
+      },
+    ])
+  }
 
   return (
     <View style={{
@@ -194,14 +245,16 @@ export default function MesaiKarti() {
       >
         <View style={{
           width: 40, height: 40, borderRadius: 10,
-          backgroundColor: acik ? colors.success : colors.surfaceDark,
+          backgroundColor: fazlaAcik ? '#f59e0b' : acik ? colors.success : colors.surfaceDark,
           alignItems: 'center', justifyContent: 'center',
         }}>
-          <Feather name="clock" size={20} color={acik ? '#fff' : colors.textMuted} />
+          <Feather name={fazlaAcik ? 'moon' : 'clock'} size={20} color={acik ? '#fff' : colors.textMuted} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
-            {acik ? `Mesaide · ${sureFormat(acik.giris_zamani)}` : 'Mesai'}
+            {fazlaAcik ? `Fazla mesaide · ${sureFormat(acik.giris_zamani)}`
+              : acik ? `Mesaide · ${sureFormat(acik.giris_zamani)}`
+              : 'Mesai'}
           </Text>
           <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
             {altYazi}
@@ -209,13 +262,16 @@ export default function MesaiKarti() {
         </View>
       </TouchableOpacity>
 
-      {/* Sağ — yalnız "Başla". Bitir butonu YOK: mesai 18:30'da otomatik kapanır. */}
+      {/* Sağ — normal mesaide yalnız "Başla" (18:30'da otomatik kapanır),
+          fazla mesaide "Bitir" (elle kapatılır). */}
       <TouchableOpacity
-        onPress={qrOku}
+        onPress={fazlaAcik ? fazlaMesaiBitir : qrOku}
         disabled={butonPasif}
         activeOpacity={0.8}
         style={{
-          backgroundColor: butonPasif ? colors.surfaceDark : colors.success,
+          backgroundColor: butonPasif ? colors.surfaceDark
+            : fazlaAcik ? '#f59e0b'
+            : colors.success,
           borderRadius: 10,
           paddingHorizontal: 14,
           paddingVertical: 10,
@@ -229,7 +285,7 @@ export default function MesaiKarti() {
           ? <ActivityIndicator color="#fff" size="small" />
           : <>
               <Feather
-                name={acik ? 'check' : kilitli ? 'lock' : 'maximize'}
+                name={fazlaAcik ? 'stop-circle' : acik ? 'check' : kilitli ? 'lock' : 'maximize'}
                 size={14}
                 color={butonPasif ? colors.textMuted : '#fff'}
               />

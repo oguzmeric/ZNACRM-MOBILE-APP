@@ -25,7 +25,7 @@ export async function acikMesaiGetir() {
   if (!k) return null
   const { data } = await supabase
     .from('mesai_kayitlari')
-    .select('id, giris_zamani')
+    .select('id, giris_zamani, tip')
     .eq('kullanici_id', k.id)
     .is('cikis_zamani', null)
     .order('giris_zamani', { ascending: false })
@@ -49,7 +49,7 @@ export async function kendiMesaiGecmisim({ gun = 30 } = {}) {
   const sinir = new Date(Date.now() - gun * 24 * 60 * 60 * 1000).toISOString()
   const { data } = await supabase
     .from('mesai_kayitlari')
-    .select('id, giris_zamani, cikis_zamani, sure_dakika, giris_mesafe_m, not_')
+    .select('id, giris_zamani, cikis_zamani, sure_dakika, giris_mesafe_m, not_, tip')
     .eq('kullanici_id', k.id)
     .gte('giris_zamani', sinir)
     .order('giris_zamani', { ascending: false })
