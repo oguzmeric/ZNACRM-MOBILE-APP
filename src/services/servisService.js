@@ -162,6 +162,11 @@ export const durumGuncelle = async (id, yeniDurum, kullaniciAd) => {
     ...(mevcut.durumGecmisi ?? []),
     {
       durum: yeniDurum,
+      // `kullaniciAd` WEB ile ortak alan adı. Eskiden yalnız `kullanici`
+      // yazılıyordu ve mobilden yapılan durum değişiklikleri web zaman
+      // çizelgesinde isimsiz görünüyordu. İkisi de yazılıyor: eski mobil
+      // sürümler `kullanici`yı okumaya devam ediyor.
+      kullaniciAd: kullaniciAd ?? '',
       kullanici: kullaniciAd ?? '',
       tarih: new Date().toISOString(),
     },
@@ -171,6 +176,29 @@ export const durumGuncelle = async (id, yeniDurum, kullaniciAd) => {
     durum: yeniDurum,
     durumGecmisi: yeniGecmis,
   })
+}
+
+// Talep başlığını değiştir (web ServisTalepDetay ile aynı davranış).
+// Geçmiş kaydı WEB FORMATINDA yazılır ({tip,durum,tarih,kullaniciAd,aciklama}) —
+// web'in zaman çizelgesi `kullaniciAd` okuyor, `kullanici` yazarsak isim boş çıkar.
+export const baslikGuncelle = async (id, yeniKonu, kullaniciAd) => {
+  const temiz = String(yeniKonu || '').trim()
+  if (!temiz) return null
+  const mevcut = await servisTalepGetir(id)
+  if (!mevcut) return null
+  if (temiz === (mevcut.konu || '')) return mevcut   // değişmediyse geçmişi kirletme
+
+  const yeniGecmis = [
+    ...(mevcut.durumGecmisi ?? []),
+    {
+      tip: 'baslik',
+      durum: mevcut.durum,
+      tarih: new Date().toISOString(),
+      kullaniciAd: kullaniciAd ?? 'Sistem',
+      aciklama: `Başlık değişti: "${mevcut.konu || '—'}" → "${temiz}"`,
+    },
+  ]
+  return servisTalepGuncelle(id, { konu: temiz, durumGecmisi: yeniGecmis })
 }
 
 // Notlar jsonb array — yeni not ekle

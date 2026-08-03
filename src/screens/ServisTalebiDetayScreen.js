@@ -49,6 +49,7 @@ import {
   servisTalepGetir,
   servisTalepGuncelle,
   durumGuncelle,
+  baslikGuncelle,
   notEkle,
   servisTalepSil,
 } from '../services/servisService'
@@ -76,6 +77,10 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const adminModu = mod === 'admin'
   const headerHeight = useHeaderHeight()
   const [talep, setTalep] = useState(null)
+  // Başlık düzenleme (web ServisTalepDetay ile aynı davranış)
+  const [baslikDuzenle, setBaslikDuzenle] = useState(false)
+  const [baslikTaslak, setBaslikTaslak] = useState('')
+  const [baslikKaydediliyor, setBaslikKaydediliyor] = useState(false)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [faturaTalebi, setFaturaTalebi] = useState(null)  // servise açılan proforma
@@ -483,6 +488,16 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     else Alert.alert('Hata', 'Durum güncellenemedi.')
   }
 
+  const baslikKaydet = async () => {
+    const yeni = baslikTaslak.trim()
+    if (!yeni) { Alert.alert('Eksik', 'Başlık boş bırakılamaz.'); return }
+    setBaslikKaydediliyor(true)
+    const guncel = await baslikGuncelle(id, yeni, kullanici?.ad)
+    setBaslikKaydediliyor(false)
+    if (guncel) { setTalep(guncel); setBaslikDuzenle(false) }
+    else Alert.alert('Hata', 'Başlık güncellenemedi.')
+  }
+
   const notKaydet = async () => {
     if (!yeniNot.trim()) return
     setNotKaydediliyor(true)
@@ -671,11 +686,77 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
 
         <Text style={[styles.firma, { color: colors.textPrimary }]}>{talep.firmaAdi || talep.musteriAd || '—'}</Text>
 
-        {!!talep.konu && (
-          <View style={[styles.konuBox, { backgroundColor: colors.surface, borderLeftColor: colors.info }]}>
-            <Text style={[styles.konu, { color: colors.textPrimary }]}>{talep.konu}</Text>
-          </View>
-        )}
+        {/* Başlık — düzenlenebilir. Boş başlıkta da kutu görünür ki
+            eksik bırakılmış talebin başlığı sonradan girilebilsin. */}
+        <View style={[styles.konuBox, { backgroundColor: colors.surface, borderLeftColor: colors.info }]}>
+          {baslikDuzenle ? (
+            <View style={{ gap: 8 }}>
+              <TextInput
+                value={baslikTaslak}
+                onChangeText={setBaslikTaslak}
+                placeholder="Servis başlığı"
+                placeholderTextColor={colors.textFaded}
+                autoFocus
+                multiline
+                style={{
+                  backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+                  borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8,
+                  color: colors.textPrimary, fontSize: 15, fontWeight: '600', minHeight: 44,
+                }}
+              />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  onPress={baslikKaydet}
+                  disabled={baslikKaydediliyor}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                    gap: 6, paddingVertical: 10, borderRadius: 8, backgroundColor: colors.info,
+                    opacity: baslikKaydediliyor ? 0.6 : 1,
+                  }}
+                >
+                  <Feather name="check" size={15} color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                    {baslikKaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setBaslikDuzenle(false)}
+                  activeOpacity={0.7}
+                  style={{
+                    paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8,
+                    borderWidth: 1, borderColor: colors.border,
+                  }}
+                >
+                  <Text style={{ color: colors.textSecondary, fontWeight: '600', fontSize: 13 }}>İptal</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+              <Text style={[styles.konu, {
+                flex: 1,
+                color: talep.konu ? colors.textPrimary : colors.textFaded,
+                fontStyle: talep.konu ? 'normal' : 'italic',
+              }]}>
+                {talep.konu || 'Başlık girilmemiş'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => { setBaslikTaslak(talep.konu || ''); setBaslikDuzenle(true) }}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 4,
+                  paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6,
+                  borderWidth: 1, borderColor: colors.border,
+                }}
+              >
+                <Feather name="edit-2" size={11} color={colors.textSecondary} />
+                <Text style={{ color: colors.textSecondary, fontSize: 11.5, fontWeight: '600' }}>Düzenle</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
         {!!talep.aciklama && (
           <Field label="Açıklama" deger={talep.aciklama} multi />
@@ -1009,7 +1090,8 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
                       {d?.ikon} {d?.isim ?? g.durum}
                     </Text>
                     <Text style={[styles.notMeta, { color: colors.textFaded }]}>
-                      {g.kullanici ?? '—'} · {tarihSaatFormat(g.tarih)}
+                      {/* Web `kullaniciAd`, eski mobil kayıtları `kullanici` yazıyor */}
+                      {g.kullaniciAd ?? g.kullanici ?? '—'} · {tarihSaatFormat(g.tarih)}
                     </Text>
                   </View>
                 )
