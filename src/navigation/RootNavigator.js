@@ -55,6 +55,7 @@ import YeniCihazScreen from '../screens/YeniCihazScreen'
 import StokScreen from '../screens/StokScreen'
 import MobiltekScreen from '../screens/MobiltekScreen'
 import AracRotaScreen from '../screens/AracRotaScreen'
+import SozlesmeKapisi from '../components/SozlesmeKapisi'
 import CanliKameraScreen from '../screens/CanliKameraScreen'
 import MesaiGecmisiScreen from '../screens/MesaiGecmisiScreen'
 import AracKayitScreen from '../screens/AracKayitScreen'
@@ -156,6 +157,9 @@ export default function RootNavigator() {
   const navKey = !kullanici ? 'auth' : adminModu ? 'admin' : 'teknisyen'
 
   return (
+    // Zorunlu sözleşme onayı (mig 264/265): onaylamamış PERSONEL uygulamayı
+    // kullanamaz. Kapsam kapısı sunucuda — müşteri/bayi hesapları etkilenmez.
+    <SozlesmeKapisi>
     <NavigationContainer key={navKey} theme={navTheme} ref={navigationRef}>
       <Stack.Navigator screenOptions={stackHeader}>
         {!kullanici ? (
@@ -298,5 +302,6 @@ export default function RootNavigator() {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+    </SozlesmeKapisi>
   )
 }
