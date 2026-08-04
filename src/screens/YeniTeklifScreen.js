@@ -36,6 +36,7 @@ import { paraFormat } from '../utils/paraFormat'
 import { trIcerir } from '../utils/trSearch'
 import { tumStokUrunleriniGetir } from '../services/stokUrunService'
 import { teklifGorebilirMi } from '../services/menuYetkiService'
+import { teklifOnayaDustuBildir } from '../services/teklifOnayService'
 
 const PARA_BIRIMLERI = ['TL', 'USD', 'EUR']
 const ODEME_SECENEKLERI = ['Peşin', '30 Gün', '60 Gün', 'Havale/EFT', 'Çek', 'Diğer']
@@ -274,6 +275,11 @@ export default function YeniTeklifScreen({ route, navigation }) {
         revizyon: 0,
         hazirlayan: kullanici?.ad ?? '',
         onayDurumu: 'takipte',
+        // ⚠️ 04.08 EKSİĞİ: bu alan yazılmıyordu. spek_durum boş kalınca teklif
+        // "Yönetici Onayı Bekliyor" durumuna girmiyor, Günlük Özet'teki onay
+        // listesinde de görünmüyordu (o ekran spek_durum'a göre filtreliyor).
+        // Web tarafı (TeklifDetay.jsx) bunu hep yazıyordu — mobil geride kalmış.
+        spekDurum: 'yon_onay_bekliyor',
       })
     }
     setKaydediliyor(false)
@@ -283,6 +289,13 @@ export default function YeniTeklifScreen({ route, navigation }) {
       Alert.alert('Revize Edildi', `Revizyon ${mevcutRevizyon + 1} olarak kaydedildi.`)
       navigation.goBack()
     } else {
+      // Onay yetkililerine bildirim + SMS — web ile aynı davranış.
+      // Best-effort: başarısız olsa bile teklif kaydedilmiş durumda, akış durmaz.
+      // sonuc = insert().select().single() dönüşü → teklifNo ve firmaAdi dolu
+      teklifOnayaDustuBildir(sonuc, {
+        gonderenAd: kullanici?.ad,
+        gonderenId: kullanici?.id,
+      }).catch(() => {})
       navigation.replace('TeklifDetay', { id: sonuc.id })
     }
   }
