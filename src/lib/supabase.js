@@ -21,6 +21,11 @@ try {
       persistSession: true,
       detectSessionInUrl: false,
     },
+    // UYGULAMA İMZASI (04.08) — web ile aynı; script/otomasyon tespitinin
+    // temeli. Şu an yalnız gönderiliyor, zorunlu DEĞİL: RLS kapısı ancak
+    // tüm cihazlar bu güncellemeyi aldıktan sonra açılabilir, yoksa eski
+    // sürümdeki telefonlar veri göremez.
+    global: { headers: { 'x-zna-istemci': 'mobil' } },
   })
 } catch (e) {
   console.error('[supabase] init hatası:', e?.message || e)
