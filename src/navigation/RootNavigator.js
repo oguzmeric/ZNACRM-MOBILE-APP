@@ -54,6 +54,7 @@ import CihazDetayScreen from '../screens/CihazDetayScreen'
 import YeniCihazScreen from '../screens/YeniCihazScreen'
 import StokScreen from '../screens/StokScreen'
 import MobiltekScreen from '../screens/MobiltekScreen'
+import AracRotaScreen from '../screens/AracRotaScreen'
 import CanliKameraScreen from '../screens/CanliKameraScreen'
 import MesaiGecmisiScreen from '../screens/MesaiGecmisiScreen'
 import AracKayitScreen from '../screens/AracKayitScreen'
@@ -247,6 +248,7 @@ export default function RootNavigator() {
             <Stack.Screen name="YeniCihaz" component={YeniCihazScreen} options={{ title: 'Yeni Cihaz Kaydı' }} />
             <Stack.Screen name="Stok" component={StokScreen} />
             <Stack.Screen name="Mobiltek" component={MobiltekScreen} options={{ title: 'Mobiltek', headerShown: true }} />
+            <Stack.Screen name="AracRota" component={AracRotaScreen} options={{ title: 'Rota Geçmişi', headerShown: true }} />
             <Stack.Screen name="CanliKamera" component={CanliKameraScreen} options={{ title: 'Canlı Kamera', headerShown: true }} />
             <Stack.Screen name="MesaiGecmisi" component={MesaiGecmisiScreen} options={{ title: 'Mesai Geçmişi', headerShown: true }} />
             <Stack.Screen name="AracKayit" component={AracKayitScreen} options={{ title: 'Araç Foto Kayıt', headerShown: true }} />

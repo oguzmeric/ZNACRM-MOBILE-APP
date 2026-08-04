@@ -181,9 +181,19 @@ export default function MobiltekScreen() {
               {mock && <View style={styles.mockRozet}><Text style={styles.mockText}>MOCK</Text></View>}
             </View>
           </View>
-          <TouchableOpacity onPress={yukle} style={styles.yenileBtn}>
-            <Feather name="refresh-cw" size={16} color="#3b82f6" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* Rota Geçmişi — mig 261; web'deki "Rota Geçmişi" sekmesinin karşılığı */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AracRota')}
+              style={styles.rotaBtn}
+            >
+              <MaterialCommunityIcons name="map-marker-path" size={15} color="#2563eb" />
+              <Text style={styles.rotaBtnText}>Rota</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={yukle} style={styles.yenileBtn}>
+              <Feather name="refresh-cw" size={16} color="#3b82f6" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -337,6 +347,13 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
+  rotaBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#fff', height: 40, paddingHorizontal: 12, borderRadius: 20,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  rotaBtnText: { color: '#2563eb', fontSize: 13, fontWeight: '700' },
   listeBaslik: {
     paddingHorizontal: 16, paddingTop: 16, paddingBottom: 10,
     borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.08)',
