@@ -79,6 +79,11 @@ export default function BakimYapScreen({ route }) {
   const oran = tb.kalemler.length ? Math.round((sonuclanan / tb.kalemler.length) * 100) : 0
   const hepsiSonuclandi = sonuclanan === tb.kalemler.length && tb.kalemler.length > 0
   const kilitli = ['imza_bekleniyor', 'tamamlandi', 'iptal', 'yonetici_kontrolunde', 'musteriye_gonderildi'].includes(tb.durum)
+  // 04.08: kalem DÜZENLEME kilidi akış kilidinden ayrıldı — teknisyen yanlış
+  // girdiği sonucu bakım tamamlandıktan sonra da düzeltebilmeli (kullanıcı
+  // isteği). Akış butonları (Tümünü Tamamla, Yola Çıktım…) `kilitli` ile
+  // kilitli KALIR; yalnız kalem formu açılışı bu değişkene bakar.
+  const kalemKilitli = ['iptal', 'musteriye_gonderildi'].includes(tb.durum)
 
   const tumunuTamamla = async () => {
     // Spec 26: seçilen tüm kalemler sonuçlanmadan tamamlanamaz
@@ -165,8 +170,8 @@ export default function BakimYapScreen({ route }) {
                 <TouchableOpacity
                   key={k.id}
                   style={[styles.kalemKart, { backgroundColor: colors.surface, borderLeftColor: kb.renk, borderColor: colors.border }]}
-                  onPress={() => !kilitli && setAcikKalem(k)}
-                  activeOpacity={kilitli ? 1 : 0.8}
+                  onPress={() => !kalemKilitli && setAcikKalem(k)}
+                  activeOpacity={kalemKilitli ? 1 : 0.8}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                     <Feather name={kb.ikon} size={17} color={kb.renk} />
