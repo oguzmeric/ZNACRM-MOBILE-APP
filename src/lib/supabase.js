@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { AppState } from 'react-native'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL
@@ -42,6 +43,38 @@ try {
 }
 
 export const supabase = _supabase
+
+// ── Oturum ömrü: arka planda token yenileme (04.08 şikayeti: "1 saat sonra
+// oturum düşüyor") ─────────────────────────────────────────────────────────
+// Supabase erişim jetonu 1 SAAT geçerlidir; autoRefreshToken bunu süresi
+// dolmadan yeniler AMA yenileyici bir JS zamanlayıcısıdır ve uygulama arka
+// plana atıldığında React Native zamanlayıcıları dondurur. Telefon cebe
+// girip 1 saat geçince jeton sessizce ölüyor, kullanıcı uygulamayı açtığında
+// oturumu düşmüş buluyordu.
+//
+// Supabase'in React Native için önerdiği çözüm: uygulama öne gelince
+// yenileyiciyi BAŞLAT, arka plana geçince DURDUR. Öne gelişte ayrıca bir kez
+// elle yenileme tetiklenir — donmuş zamanlayıcı yüzünden kaçırılan yenileme
+// telafi edilir, kullanıcı beklemeden içeride kalır.
+if (typeof AppState?.addEventListener === 'function') {
+  const uygula = (durum) => {
+    try {
+      if (durum === 'active') {
+        _supabase.auth.startAutoRefresh?.()
+        // Jeton arka planda süresi dolmuş olabilir — hemen tazele (best-effort)
+        _supabase.auth.getSession?.().then(({ data }) => {
+          if (data?.session) _supabase.auth.refreshSession?.().catch(() => {})
+        }).catch(() => {})
+      } else {
+        _supabase.auth.stopAutoRefresh?.()
+      }
+    } catch (e) {
+      console.warn('[supabase] autoRefresh durum:', e?.message)
+    }
+  }
+  AppState.addEventListener('change', uygula)
+  uygula(AppState.currentState || 'active')   // ilk açılışta da başlat
+}
 
 // Supabase 1000 satır limitini aşmak için sayfalama yardımcısı
 export const tumSayfalariCek = async (tablo, sorguKur = (q) => q) => {

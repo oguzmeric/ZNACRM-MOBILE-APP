@@ -1,7 +1,9 @@
-// Toplu Bakım — mobil servis katmanı (teknik personel tarafı).
+// Toplu Bakım — mobil servis katmanı.
 // Teknik personel: müşteri/lokasyon DEĞİŞTİREMEZ, kalem EKLEYEMEZ/SİLEMEZ,
-// yeni iş OLUŞTURAMAZ (spec madde 6) — burada yalnız okuma + saha akışı +
-// kalem cevap/sonuç yazma fonksiyonları var.
+// yeni iş OLUŞTURAMAZ (spec madde 6) — okuma + saha akışı + kalem cevap/sonuç.
+// 04.08: SAHA SORUMLUSU (+admin) mobilden de yeni toplu bakım açabilir —
+// webdeki YeniTopluBakim ile aynı yetki; DB tarafında tb_saha_insert RLS'i
+// zaten saha_sorumlusu_mu() istiyor, yani kapı sunucuda da kapalı.
 
 import { supabase } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
@@ -121,4 +123,29 @@ export const kalemKaydet = async (kalemId, patch) => {
     .single()
   if (error) { console.error('[bakim] kalem:', error.message); return null }
   return toCamel(data)
+}
+
+// ── Yeni toplu bakım oluştur (04.08 — mobil, saha sorumlusu) ────────────────
+// Web topluBakimService.topluBakimOlustur ile AYNI sözleşme: kalemler ayrı
+// tabloya yazılır, yazılamazsa ana kayıt geri alınır (yarım iş bırakma).
+// Yetki DB'de de zorunlu: tb_saha_insert / tbk_saha_insert RLS'leri
+// saha_sorumlusu_mu() istiyor — istemci kapısı atlansa bile sunucu reddeder.
+export const topluBakimOlustur = async ({ kalemTipleri, ...alanlar }) => {
+  if (!kalemTipleri?.length) return { hata: 'En az bir bakım kalemi seçilmeli.' }
+  const { data: tb, error } = await supabase
+    .from('toplu_bakimlar')
+    .insert(toSnake(alanlar))
+    .select()
+    .single()
+  if (error) { console.error('[bakim] olustur:', error.message); return { hata: error.message } }
+
+  const { error: eK } = await supabase
+    .from('toplu_bakim_kalemleri')
+    .insert(kalemTipleri.map((tip) => ({ toplu_bakim_id: tb.id, kalem_tip: tip })))
+  if (eK) {
+    await supabase.from('toplu_bakimlar').delete().eq('id', tb.id)
+    console.error('[bakim] kalemler:', eK.message)
+    return { hata: 'Bakım kalemleri oluşturulamadı: ' + eK.message }
+  }
+  return toCamel(tb)
 }

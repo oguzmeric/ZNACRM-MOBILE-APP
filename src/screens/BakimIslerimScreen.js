@@ -9,7 +9,7 @@ import { Feather } from '@expo/vector-icons'
 import ScreenContainer from '../components/ScreenContainer'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { bakimIslerimGetir } from '../services/topluBakimService'
+import { bakimIslerimGetir, sahaSorumlusuMu } from '../services/topluBakimService'
 import { tbDurumBilgi, kalemBilgi, kalemDurumBilgi } from '../lib/bakimSablon'
 
 const AKTIF_DURUMLAR = ['planlandi', 'atandi', 'yola_cikildi', 'lokasyona_ulasildi', 'bakim_basladi', 'devam_ediyor', 'eksik_bakim', 'imza_bekleniyor']
@@ -59,6 +59,18 @@ export default function BakimIslerimScreen({ navigation }) {
 
   return (
     <ScreenContainer>
+      {/* Yeni bakım açma — yalnız saha sorumlusu/admin (04.08 isteği: webteki
+          gibi mobilden de açılabilsin). Teknisyende buton HİÇ görünmez. */}
+      {sahaSorumlusuMu(kullanici) && (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('YeniTopluBakim')}
+          activeOpacity={0.85}
+          style={[styles.yeniBtn, { backgroundColor: colors.primary }]}
+        >
+          <Feather name="plus-circle" size={17} color="#fff" />
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13.5 }}>Yeni Toplu Bakım</Text>
+        </TouchableOpacity>
+      )}
       <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
         {SEKMELER.map((s) => {
           const sayi = liste.filter((t) =>
@@ -149,6 +161,7 @@ export default function BakimIslerimScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  yeniBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 14, marginTop: 12, paddingVertical: 12, borderRadius: 11 },
   tabs: {
     flexDirection: 'row', gap: 6,
     paddingVertical: 8, paddingHorizontal: 8, borderBottomWidth: 1,
