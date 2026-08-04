@@ -780,6 +780,22 @@ function CctvForm({ c, set, colors }) {
           </Text>
         )}
       </View>
+
+      {/* 4) Serbest not — 04.08 teknisyen isteği: HDD arızası gibi tespitler,
+          ekstra yapılan işler, müşteriye özel durumlar buraya yazılır ve
+          sonuç metnine işlenir. Genel formda vardı, CCTV'de eksikti. */}
+      <View>
+        <Text style={[styles.soru, { color: colors.textMuted }]}>4) Ek açıklama (sonuç metnine eklenir)</Text>
+        <TextInput
+          value={c.aciklama ?? ''}
+          onChangeText={(v) => set('aciklama', v)}
+          multiline
+          textAlignVertical="top"
+          placeholder="Örn. 2 nolu kayıt cihazının hard diski arızalı, değişim önerildi…"
+          placeholderTextColor={colors.textFaded}
+          style={[styles.input, { minHeight: 70, backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary, marginTop: 6 }]}
+        />
+      </View>
     </View>
   )
 }
