@@ -38,6 +38,11 @@ export function bildirimLinkHedefi(link, kullanici) {
       return Number(kullanici?.id) === 2 ? ['AdminDestekTalepleri'] : ['DestekListe']
     case 'musteriler':
       return id ? ['MüşteriDetay', { id }] : ['Müşteriler']
+    // Kullanıcı sözleşmesi duyurusu (mig 264/265): bildirimden okunup
+    // onaylanabilsin. Onaylamamışsa SozlesmeKapisi zaten çıkar; bu ekran
+    // onaylamış kişinin de metni sonradan okuyabilmesi için.
+    case 'kullanici-sozlesmesi':
+      return ['KullaniciSozlesmesi']
     default:
       return null
   }
