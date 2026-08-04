@@ -15,6 +15,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import { Image } from 'react-native'
 import { useHeaderHeight } from '@react-navigation/elements'
 import TarihSec from '../components/TarihSec'
@@ -647,7 +648,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
             onPress={async () => {
               const izin = await ImagePicker.requestMediaLibraryPermissionsAsync()
               if (!izin.granted) return Alert.alert('İzin Gerekli', 'Galeriye erişim izni ver.')
-              const s = await ImagePicker.launchImageLibraryAsync({
+              const s = await galeridenFotoSec({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 quality: 0.7,
                 allowsMultipleSelection: true,

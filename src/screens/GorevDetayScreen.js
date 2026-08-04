@@ -18,6 +18,7 @@ import {
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import * as DocumentPicker from 'expo-document-picker'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { useAuth } from '../context/AuthContext'
@@ -637,7 +638,7 @@ export default function GorevDetayScreen({ route, navigation }) {
       Alert.alert('İzin Gerekli', 'Galeriye erişim izni ver.')
       return
     }
-    const sonuc = await ImagePicker.launchImageLibraryAsync({
+    const sonuc = await galeridenFotoSec({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.7,
       allowsMultipleSelection: true,

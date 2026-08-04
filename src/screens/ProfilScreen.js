@@ -15,6 +15,7 @@ import {
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import { useAuth } from '../context/AuthContext'
 import ScreenContainer from '../components/ScreenContainer'
 import Avatar, { initialsAl } from '../components/Avatar'
@@ -134,7 +135,7 @@ export default function ProfilScreen({ navigation }) {
       // Foto seç
       const secici = kaynak === 'kamera'
         ? ImagePicker.launchCameraAsync
-        : ImagePicker.launchImageLibraryAsync
+        : galeridenFotoSec   // HEIC→JPEG dönüşümü sarıcıda (lib/fotoSec)
       const sonuc = await secici({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,

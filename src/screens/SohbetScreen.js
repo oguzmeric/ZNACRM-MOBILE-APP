@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as DocumentPicker from 'expo-document-picker'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import ScreenContainer from '../components/ScreenContainer'
 import Avatar from '../components/Avatar'
 import SecimPicker from '../components/SecimPicker'
@@ -212,7 +213,7 @@ export default function SohbetScreen({ route, navigation }) {
   const fotoSec = async () => {
     const izin = await ImagePicker.requestMediaLibraryPermissionsAsync()
     if (!izin.granted) { Alert.alert('İzin gerekli', 'Galeriye erişim izni verilmedi.'); return }
-    const r = await ImagePicker.launchImageLibraryAsync({ quality: 0.7 })
+    const r = await galeridenFotoSec({ quality: 0.7 })
     if (r.canceled || !r.assets?.length) return
     const a = r.assets[0]
     dosyaGonder({ ...a, name: a.fileName || `foto_${Date.now()}.jpg`, mimeType: a.mimeType || 'image/jpeg' })

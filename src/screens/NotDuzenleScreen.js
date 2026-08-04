@@ -9,6 +9,7 @@ import {
 import { Feather } from '@expo/vector-icons'
 import { useHeaderHeight } from '@react-navigation/elements'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import * as DocumentPicker from 'expo-document-picker'
 import * as Sharing from 'expo-sharing'
 import * as FileSystem from 'expo-file-system/legacy'
@@ -210,7 +211,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
       Alert.alert('İzin gerekli', 'Galeri erişimi gerekli.')
       return
     }
-    const r = await ImagePicker.launchImageLibraryAsync({
+    const r = await galeridenFotoSec({
       quality: 0.7,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,

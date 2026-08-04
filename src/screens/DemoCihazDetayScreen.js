@@ -6,6 +6,7 @@ import {
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
@@ -78,7 +79,7 @@ export default function DemoCihazDetayScreen({ route, navigation }) {
       },
       {
         text: '🖼 Galeri', onPress: async () => {
-          const s = await ImagePicker.launchImageLibraryAsync({
+          const s = await galeridenFotoSec({
             mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7,
           })
           if (!s.canceled && s.assets?.[0]?.uri) await tutanakFotoYukle(s.assets[0].uri)

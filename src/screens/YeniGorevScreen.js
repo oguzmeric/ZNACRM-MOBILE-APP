@@ -16,6 +16,7 @@ import {
 import { useHeaderHeight } from '@react-navigation/elements'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import * as DocumentPicker from 'expo-document-picker'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -67,7 +68,7 @@ export default function YeniGorevScreen({ navigation, route }) {
         onPress: async () => {
           const izin = await ImagePicker.requestMediaLibraryPermissionsAsync()
           if (!izin.granted) { Alert.alert('İzin Gerekli', 'Galeri izni verin.'); return }
-          const s = await ImagePicker.launchImageLibraryAsync({
+          const s = await galeridenFotoSec({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             quality: 0.7, allowsMultipleSelection: true, selectionLimit: 5,
           })

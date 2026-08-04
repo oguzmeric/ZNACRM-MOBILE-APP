@@ -16,6 +16,7 @@ import ScreenContainer from '../components/ScreenContainer'
 import ImzaCizModal from '../components/ImzaCizModal'
 import { useTheme } from '../context/ThemeContext'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import {
   bakimGetir, yolaCiktim, lokasyonaUlastim, bakimiBaslat,
   durumGuncelle, kalemKaydet, bakimFotoYukle,
@@ -901,7 +902,7 @@ function FotoBolumu({ colors, altNo, fotolar, onDegisti }) {
     const secenekler = { quality: 0.6, allowsMultipleSelection: !kameradan }
     const sonuc = kameradan
       ? await ImagePicker.launchCameraAsync(secenekler)
-      : await ImagePicker.launchImageLibraryAsync(secenekler)
+      : await galeridenFotoSec(secenekler)
     if (sonuc.canceled || !sonuc.assets?.length) return
     setYukleniyor(true)
     const yeniUrller = []

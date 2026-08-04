@@ -11,6 +11,7 @@ import { useFocusEffect } from '@react-navigation/native'
 import { useHeaderHeight } from '@react-navigation/elements'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import ScreenContainer from '../components/ScreenContainer'
 import SecimPicker from '../components/SecimPicker'
 import CokluSecimPicker from '../components/CokluSecimPicker'
@@ -176,7 +177,7 @@ export default function KesifDetayScreen({ route, navigation }) {
   }
 
   const galeridenSec = async () => {
-    const s = await ImagePicker.launchImageLibraryAsync({
+    const s = await galeridenFotoSec({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.7,
       allowsMultipleSelection: true,

@@ -18,6 +18,7 @@ import { useHeaderHeight } from '@react-navigation/elements'
 import { Feather } from '@expo/vector-icons'
 import { Image } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import { servisEkiYukle } from '../services/servisEkService'
 import MalzemePlanModal from '../components/MalzemePlanModal'
 import ImzaModal from '../components/ImzaModal'
@@ -518,7 +519,7 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     if (!fotoYetkisi) return
     const acilis = kaynak === 'kamera'
       ? ImagePicker.launchCameraAsync
-      : ImagePicker.launchImageLibraryAsync
+      : galeridenFotoSec   // HEIC→JPEG dönüşümü sarıcıda (lib/fotoSec)
     return acilis({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })
   }
 

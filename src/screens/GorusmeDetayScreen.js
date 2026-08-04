@@ -6,6 +6,7 @@ import {
 import { Feather } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
 import * as ImagePicker from 'expo-image-picker'
+import { galeridenFotoSec } from '../lib/fotoSec'
 import * as DocumentPicker from 'expo-document-picker'
 import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
@@ -89,7 +90,7 @@ export default function GorusmeDetayScreen({ route, navigation }) {
         onPress: async () => {
           const izin = await ImagePicker.requestMediaLibraryPermissionsAsync()
           if (!izin.granted) { Alert.alert('İzin Gerekli', 'Galeri izni verin.'); return }
-          const s = await ImagePicker.launchImageLibraryAsync({
+          const s = await galeridenFotoSec({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             quality: 0.7, allowsMultipleSelection: true, selectionLimit: 5,
           })
