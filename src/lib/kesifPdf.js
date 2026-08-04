@@ -135,30 +135,25 @@ export async function kesifRaporHtml({ kesif, kalemler = [], krokiler = [], foto
   .blk img{width:100%;max-height:400px;object-fit:contain;border:1px solid #d5dde6;border-radius:7px;margin-top:4px;background:#fff}
   .ljs{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:10.5px}
   .lj{display:inline-flex;align-items:center;gap:5px}.lj b{color:#fff;font-size:9px;padding:2px 6px;border-radius:9px}
-  .fgrid{margin-top:2px}
-  .foto{display:inline-block;width:49%;vertical-align:top;margin:0 0 10px;border:1px solid #d5dde6;border-radius:7px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
-  .foto:nth-child(odd){margin-right:1.4%}
+  /* 04.08: inline-block → grid; farklı boylardaki kartlar hizayı kaydırıyordu */
+  .fgrid{margin-top:2px;display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+  .foto{border:1px solid #d5dde6;border-radius:7px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
   .foto img{width:100%;max-height:210px;object-fit:contain;background:#f6f8fb;display:block}
   .fm{padding:6px 8px;font-size:10.5px}.fm b{font-size:11px}.ciz{color:#16a34a;font-weight:700}
   .imza{display:flex;justify-content:space-between;gap:48px;margin-top:40px;break-inside:avoid;page-break-inside:avoid}
   .imza>div{flex:1;border-top:1.5px solid #334155;padding-top:6px;font-size:11px;color:#64748b;text-align:center}
   .foot{margin-top:20px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:9px;color:#94a3b8;text-align:center;line-height:1.5}
   .foot b{color:#014486}
-  .sheet{width:100%;border-collapse:collapse}
-  .sheet>thead>tr>td,.sheet>tbody>tr>td,.sheet>tfoot>tr>td{padding:0;border:none;vertical-align:top}
-  .top-space{height:0}
   @media print{
     @page{margin:0}
-    body{padding:0}
-    /* Antetli kağıt: kenar boşlukları tablo yapısından; üst boşluk (thead) + footer (tfoot) HER sayfada tekrarlar */
-    .sheet>tbody>tr>td{padding:0 12mm}
-    .top-space{height:12mm}
-    .foot{margin-top:0;padding:4mm 12mm 6mm;background:#fff}
+    /* 04.08: thead/tfoot'lu tablo düzeni KALDIRILDI — Chrome içerik sayfa
+       sınırına denk gelince fazladan boş sayfa + üst üste footer basıyordu.
+       Kenar boşlukları body padding'inden; footer fixed ile her sayfa altında,
+       alt padding çakışmayı önler. (web KesifDetay ile aynı düzen) */
+    body{padding:12mm 12mm 24mm}
+    .foot{position:fixed;bottom:0;left:0;right:0;margin:0;padding:3mm 12mm 5mm;background:#fff;border-top:1px solid #e2e8f0}
   }
 </style></head><body>
-<table class="sheet">
-<thead><tr><td><div class="top-space"></div></td></tr></thead>
-<tbody><tr><td>
 <div class="antet">
   <img src="${ZNA_LOGO_B64}" alt="ZNA">
   <div class="marka"><b>ZNA TEKNOLOJİ</b><span>SAHA KEŞİF RAPORU</span></div>
@@ -180,11 +175,7 @@ ${fotoBlok ? `<h2>FOTOĞRAFLAR (${fotolar.length})</h2><div class="fgrid">${foto
   <div>Keşfi Yapan${kesif.kesfiYapan ? `<br><b style="color:#1a2332">${esc(kesif.kesfiYapan)}</b>` : ''}</div>
   <div>Müşteri Yetkilisi${kesif.musteriYetkilisi ? `<br><b style="color:#1a2332">${esc(kesif.musteriYetkilisi)}</b>` : ''}</div>
 </div>
-</td></tr></tbody>
-<tfoot><tr><td>
 <div class="foot"><b>ZNA TEKNOLOJİ BİLİŞİM HİZ. SAN. VE TİC. LTD. ŞTİ.</b> · znateknoloji.com<br>Bu rapor ZNA Teknoloji CRM sistemi üzerinden oluşturulmuştur.</div>
-</td></tr></tfoot>
-</table>
 </body></html>`
     return html
 }
