@@ -190,6 +190,15 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       if (duzenle?.lokasyon) {
         const eslesen = liste.find((x) => x.ad === duzenle.lokasyon)
         if (eslesen) setLokasyonSecili(eslesen)
+        return
+      }
+      // Görüşmeden gelindiyse görüşmenin lokasyonu hazır seçili gelsin —
+      // aksi hâlde operatör her seferinde elle seçmek zorunda kalıyor, unutulunca
+      // talep müşteri lokasyonuna hiç bağlanmıyor (bağ metin eşleşmesiyle kuruluyor)
+      const baslangicLokasyonId = route?.params?.baslangicLokasyonId
+      if (baslangicLokasyonId) {
+        const eslesen = liste.find((x) => String(x.id) === String(baslangicLokasyonId))
+        if (eslesen) setLokasyonSecili(eslesen)
       }
     })
     musteriCihazlariniGetir(musteri.id).then((l) => setMusteriCihazlari(l ?? []))

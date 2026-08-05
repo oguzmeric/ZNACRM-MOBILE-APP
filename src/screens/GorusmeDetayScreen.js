@@ -547,6 +547,9 @@ export default function GorusmeDetayScreen({ route, navigation }) {
                       baslangicMusteriId: g.musteriId,
                       baslangicKonu: g.konu || '',
                       baslangicAciklama: aciklama,
+                      // Görüşmenin lokasyonu taşınmazsa serviste boş kalıyor ve
+                      // talep müşteri lokasyonuna hiç bağlanmıyor (metin eşleşmesi)
+                      baslangicLokasyonId: g.lokasyonId,
                     }),
                   },
                 ]
