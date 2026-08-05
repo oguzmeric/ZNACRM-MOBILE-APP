@@ -150,6 +150,17 @@ export default function MesaiKarti() {
     konumAlVeGiris(data)
   }
 
+  // FAZLA MESAİ QR'SIZ BAŞLAR: akşam personel BAŞKA lokasyonda çalışmaya devam
+  // edebiliyor, ofisteki QR'a erişemez. Sunucu da 19:00+ isteklerde QR aramaz
+  // (mesai-giris edge fn ile birlikte değişti). QR adımı kalkınca tek tık
+  // mesai açmasın diye onay sorusu var.
+  const fazlaMesaiBaslat = () => {
+    Alert.alert('Fazla mesai başlat', 'Şimdi başlatılan çalışma FAZLA MESAİ olarak kaydedilir ve bitişini sen kapatırsın. Başlatılsın mı?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      { text: 'Başlat', onPress: () => konumAlVeGiris(null) },
+    ])
+  }
+
   if (qrAcik) {
     return (
       <View style={{ height: 380, borderRadius: 16, overflow: 'hidden', marginBottom: 12, backgroundColor: '#000' }}>
@@ -262,10 +273,11 @@ export default function MesaiKarti() {
         </View>
       </TouchableOpacity>
 
-      {/* Sağ — normal mesaide yalnız "Başla" (18:30'da otomatik kapanır),
+      {/* Sağ — normal mesaide yalnız "Başla" (QR + 18:30'da otomatik kapanır),
+          19:00 sonrası "Fazla Mesai" (QR'SIZ, onayla başlar),
           fazla mesaide "Bitir" (elle kapatılır). */}
       <TouchableOpacity
-        onPress={fazlaAcik ? fazlaMesaiBitir : qrOku}
+        onPress={fazlaAcik ? fazlaMesaiBitir : fazlaPencere ? fazlaMesaiBaslat : qrOku}
         disabled={butonPasif}
         activeOpacity={0.8}
         style={{
