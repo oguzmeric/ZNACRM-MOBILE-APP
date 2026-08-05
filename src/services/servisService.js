@@ -46,23 +46,39 @@ export const servisTalepGetir = async (id) => {
 
 // Belirli prefix için o yılın bir sonraki numarasını üretir.
 // Örn: sonrakiTalepNo('ARZ') → 'ARZ-2026-0007'
+// ⚠️ count+1 DEĞİL max+1: talepler silindikçe count en büyük numaranın gerisine
+// düşüyor, count+1 DOLU bir numaraya denk gelince UNIQUE ihlali = mobilden
+// "Talep oluşturulamadı" (05.08: 68 kayıt / max 97, TLP-2026-0069 doluydu).
+// Zero-pad'li numaralarda string sıralaması sayısal sırayla aynı.
 export const sonrakiTalepNo = async (prefix = 'TLP') => {
   const yil = new Date().getFullYear()
-  const { count } = await supabase
+  const { data } = await supabase
     .from('servis_talepleri')
-    .select('*', { count: 'exact', head: true })
+    .select('talep_no')
     .like('talep_no', `${prefix}-${yil}-%`)
-  const sira = String((count ?? 0) + 1).padStart(4, '0')
-  return `${prefix}-${yil}-${sira}`
+    .order('talep_no', { ascending: false })
+    .limit(1)
+  const enBuyuk = Number(data?.[0]?.talep_no?.match(/\d+$/)?.[0] ?? 0)
+  return `${prefix}-${yil}-${String(enBuyuk + 1).padStart(4, '0')}`
 }
 
 export const servisTalepEkle = async (talep) => {
   const { id, olusturmaTarihi, guncellemeTarihi, ...rest } = talep
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('servis_talepleri')
     .insert(toSnake(rest))
     .select()
     .single()
+  // Numara çakışması (iki kullanıcı aynı anda talep açtı ya da istemci sayacı
+  // şaştı): numarayı DB trigger'ına bırakıp BİR kez daha dene — trigger boş
+  // talep_no görünce TLP üretiyor. Talep kaybolmasın; prefix TLP'ye düşebilir.
+  if (error?.code === '23505' && rest.talepNo) {
+    ;({ data, error } = await supabase
+      .from('servis_talepleri')
+      .insert(toSnake({ ...rest, talepNo: null }))
+      .select()
+      .single())
+  }
   if (error) {
     console.error('servisTalepEkle hata:', error.message)
     return null
