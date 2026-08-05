@@ -89,6 +89,9 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [yeniNot, setYeniNot] = useState('')
   const [notKaydediliyor, setNotKaydediliyor] = useState(false)
   const [fotoYukleniyor, setFotoYukleniyor] = useState(false)
+  // Toplu yüklemede "3/8" göstergesi — 10 kare yüklenirken dönen çark tek
+  // başına "takıldı mı?" hissi veriyor
+  const [fotoIlerleme, setFotoIlerleme] = useState(null)   // { mevcut, toplam }
 
 
   // Malzeme planı
@@ -520,7 +523,14 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     const acilis = kaynak === 'kamera'
       ? ImagePicker.launchCameraAsync
       : galeridenFotoSec   // HEIC→JPEG dönüşümü sarıcıda (lib/fotoSec)
-    return acilis({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })
+    return acilis({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      // Galeriden TOPLU seçim. Bir serviste 8-10 kare çekiliyor; eskiden her
+      // biri için "Ekle → kaynak seç → seç" turu atmak gerekiyordu.
+      // Kamera tek kare çeker, orada çoklu seçim anlamsız.
+      ...(kaynak === 'kamera' ? {} : { allowsMultipleSelection: true, selectionLimit: 20 }),
+    })
   }
 
   const fotoEkle = async (kaynak) => {
@@ -541,34 +551,53 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
       }
 
       const sonuc = await fotoSec(kaynak)
-      if (!sonuc || sonuc.canceled || !sonuc.assets?.[0]?.uri) return
+      if (!sonuc || sonuc.canceled) return
+      const secilenler = (sonuc.assets ?? []).filter((a) => a?.uri)
+      if (!secilenler.length) return
 
       setFotoYukleniyor(true)
-      const yuklenen = await servisEkiYukle(talep.id, sonuc.assets[0].uri)
-      if (!yuklenen.ok) {
-        setFotoYukleniyor(false)
-        Alert.alert('Yüklenemedi', yuklenen.hata ?? 'Bilinmeyen hata')
-        return
+      setFotoIlerleme({ mevcut: 0, toplam: secilenler.length })
+
+      const yeniler = []
+      const hatalar = []
+      for (let i = 0; i < secilenler.length; i++) {
+        setFotoIlerleme({ mevcut: i + 1, toplam: secilenler.length })
+        const yuklenen = await servisEkiYukle(talep.id, secilenler[i].uri)
+        if (yuklenen.ok) {
+          yeniler.push({
+            url: yuklenen.url,
+            // Date.now() toplu yüklemede aynı milisaniyeye düşebiliyor — sıra ekle
+            ad: `Foto-${Date.now()}-${i + 1}`,
+            tip: 'image',
+            ekleyen: kullanici?.ad ?? null,
+            eklenme: new Date().toISOString(),
+          })
+        } else {
+          hatalar.push(yuklenen.hata ?? 'bilinmeyen hata')
+        }
       }
 
-      // Mevcut dosyalar dizisine ekle
-      const yeniDosya = {
-        url: yuklenen.url,
-        ad: `Foto-${Date.now()}`,
-        tip: 'image',
-        ekleyen: kullanici?.ad ?? null,
-        eklenme: new Date().toISOString(),
+      // TEK güncelleme: her foto için ayrı yazsaydık araya giren bir güncelleme
+      // dosyalar dizisini ezebilirdi (jsonb kolonun tamamı yeniden yazılıyor).
+      if (yeniler.length) {
+        const yeniDosyalar = [...(talep.dosyalar ?? []), ...yeniler]
+        const guncel = await servisTalepGuncelle(talep.id, { dosyalar: yeniDosyalar })
+        if (guncel) setTalep(guncel)
+        else Alert.alert('Kaydedilemedi', 'Fotoğraflar yüklendi ama talebe işlenemedi.')
       }
-      const yeniDosyalar = [...(talep.dosyalar ?? []), yeniDosya]
-      const guncel = await servisTalepGuncelle(talep.id, { dosyalar: yeniDosyalar })
+
       setFotoYukleniyor(false)
-      if (guncel) {
-        setTalep(guncel)
-      } else {
-        Alert.alert('Kaydedilemedi', 'Foto yüklendi ama talep güncellenemedi.')
+      setFotoIlerleme(null)
+
+      if (hatalar.length) {
+        Alert.alert(
+          yeniler.length ? 'Kısmen yüklendi' : 'Yüklenemedi',
+          `${yeniler.length} fotoğraf eklendi, ${hatalar.length} tanesi yüklenemedi.\n${hatalar[0]}`,
+        )
       }
     } catch (e) {
       setFotoYukleniyor(false)
+      setFotoIlerleme(null)
       Alert.alert('Hata', String(e?.message ?? e))
     }
   }
@@ -576,7 +605,7 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const fotoSecimSor = () => {
     Alert.alert('Fotoğraf Ekle', 'Kaynak seç', [
       { text: 'Kamera', onPress: () => fotoEkle('kamera') },
-      { text: 'Galeri', onPress: () => fotoEkle('galeri') },
+      { text: 'Galeriden seç (çoklu)', onPress: () => fotoEkle('galeri') },
       { text: 'Vazgeç', style: 'cancel' },
     ])
   }
@@ -1130,7 +1159,14 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
               activeOpacity={0.85}
             >
               {fotoYukleniyor ? (
-                <ActivityIndicator size="small" color="#60a5fa" />
+                <>
+                  <ActivityIndicator size="small" color="#60a5fa" />
+                  {fotoIlerleme && fotoIlerleme.toplam > 1 && (
+                    <Text style={styles.fotoEkleText}>
+                      {fotoIlerleme.mevcut}/{fotoIlerleme.toplam}
+                    </Text>
+                  )}
+                </>
               ) : (
                 <>
                   <Feather name="camera" size={13} color="#60a5fa" />
