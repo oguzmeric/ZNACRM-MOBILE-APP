@@ -325,7 +325,21 @@ export const stokKalemGuncelle = async (id, guncellenmis) => {
 }
 
 export const stokKalemSil = async (id) => {
-  await supabase.from('stok_kalemleri').delete().eq('id', id)
+  // HARD DELETE YASAK — kanonik model soft delete (web ile aynı): defter/audit
+  // korunur; fiziksel silme DB trigger'inin hareket temizligini tetikleyip
+  // BASKA kalemlerin defterini de vuruyordu (06.08 denetimi, prefix cakismasi).
+  const { data, error } = await supabase
+    .from('stok_kalemleri')
+    .update({
+      silindi: true,
+      silindi_zamani: new Date().toISOString(),
+      silinme_sebebi: 'diger',
+      silinme_notu: 'Mobil cihaz detayindan silindi',
+    })
+    .eq('id', id)
+    .select('id')
+  if (error) throw new Error('Silinemedi: ' + error.message)
+  if (!data?.length) throw new Error('Kayit bulunamadi ya da silme yetkisi yok.')
 }
 
 // Hareket kaydı ekle (audit log)

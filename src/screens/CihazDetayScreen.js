@@ -230,14 +230,18 @@ export default function CihazDetayScreen({ route, navigation }) {
   }
 
   const sil = () => {
-    Alert.alert('Cihazı sil', 'Tüm hareket geçmişiyle birlikte silinir. Emin misin?', [
+    Alert.alert('Cihazı sil', 'Kayıt silindi olarak işaretlenir (hareket geçmişi korunur, gerekirse webden geri getirilebilir). Emin misin?', [
       { text: 'Vazgeç', style: 'cancel' },
       {
         text: 'Sil',
         style: 'destructive',
         onPress: async () => {
-          await stokKalemSil(id)
-          navigation.goBack()
+          try {
+            await stokKalemSil(id)
+            navigation.goBack()
+          } catch (e) {
+            Alert.alert('Hata', e?.message || 'Silinemedi.')
+          }
         },
       },
     ])
