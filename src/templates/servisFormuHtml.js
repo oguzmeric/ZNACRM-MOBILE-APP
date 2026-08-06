@@ -159,7 +159,7 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
       <tr><td style="${label}">Adres</td><td style="${value}" colspan="3">${escapeHtml(musteri.adres)}</td></tr>
       <tr><td style="${label}">Gsm</td><td style="${value}">${escapeHtml(musteri.gsm)}</td><td style="${label}">E-mail</td><td style="${value}">${escapeHtml(musteri.email)}</td></tr>
       <tr><td style="${label}">Servis Tipi</td><td style="${value}" colspan="3" class="kutu-satir">
-        <span>${k(servisTipi, 'ariza')} Arıza Tespiti</span><span>${k(servisTipi, 'bakim')} Bakım</span><span>${k(servisTipi, 'urun')} Ürün Alımı</span><span>${k(servisTipi, 'kurulum')} Kurulum</span><span>${k(servisTipi, 'teslimat')} Teslimat</span>
+        <span>${k(servisTipi, 'ariza')} Arıza Tespiti</span><span>${k(servisTipi, 'bakim')} Bakım</span><span>${k(servisTipi, 'urun')} Ürün Alımı</span><span>${k(servisTipi, 'kurulum')} Kurulum</span><span>${k(servisTipi, 'teslimat')} Teslimat</span><span>${k(servisTipi, 'kesif')} Keşif</span>
       </td></tr>
       <tr><td style="${label}">Yükümlülük</td><td style="${value}" colspan="3" class="kutu-satir">
         <span>${k(yukum, 'garanti')} Garanti Kapsamında</span><span>${k(yukum, 'servis')} Servis Sözleşmeli</span><span>${k(yukum, 'bakim')} Bakım Sözleşmeli</span>
