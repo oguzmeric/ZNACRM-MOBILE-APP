@@ -211,7 +211,23 @@ export const kalemAra = async (kod) => {
     .or('silindi.is.null,silindi.eq.false')
     .limit(1)
     .maybeSingle()
-  return data ? toCamel(data) : null
+  if (data) return toCamel(data)
+
+  // Tam eşleşme yoksa harf kasası toleransıyla dene — webde elle girilen SN
+  // ile etiketteki kodun kasası uyuşmayınca "depoda görünmüyor" sanılıyordu.
+  // ilike joker karakterleri escape'lenir: case-insensitive TAM eşleşme.
+  const esc = k.replace(/([%_\\])/g, '\\$1')
+  for (const kolon of ['seri_no', 'barkod']) {
+    const { data: ci } = await supabase
+      .from('stok_kalemleri')
+      .select('*')
+      .ilike(kolon, esc)
+      .or('silindi.is.null,silindi.eq.false')
+      .limit(1)
+      .maybeSingle()
+    if (ci) return toCamel(ci)
+  }
+  return null
 }
 
 // Metin ile arama (model, marka, S/N, barkod) — hem S/N'li cihazlar hem sarf malzemeler
