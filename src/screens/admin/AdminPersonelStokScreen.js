@@ -89,7 +89,7 @@ export default function AdminPersonelStokScreen({ route, navigation }) {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => navigation.navigate('CihazDetay', { kalemId: item.id })}
+            onPress={() => navigation.navigate('CihazDetay', { id: item.id })}
             activeOpacity={0.8}
           >
             <View style={{ flex: 1 }}>
