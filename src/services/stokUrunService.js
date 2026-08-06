@@ -102,12 +102,8 @@ export const bulkHareketEkle = async ({
     return null
   }
 
-  // Stok miktarını güncelle
-  await supabase
-    .from('stok_urunler')
-    .update({ stok_miktari: sonrakiMiktar })
-    .eq('stok_kodu', stokKodu)
-
+  // stok_miktari İSTEMCİDE GÜNCELLENMEZ — hareket insert'inin DB trigger'ı
+  // (mig 270) günceller. Elle çift yazım web/mobil bakiyelerini ayrıştırıyordu.
   return toCamel(h)
 }
 

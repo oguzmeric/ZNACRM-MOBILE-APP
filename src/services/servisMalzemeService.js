@@ -194,7 +194,9 @@ export const bulkTeslimAl = async (planId, ekMiktar, kullaniciAd = 'Mobil') => {
     .select()
     .single()
 
-  // 2) stok_urunler'dan düş
+  // 2) Depodan düşüm = YALNIZ hareket kaydı. stok_urunler.stok_miktari'yı
+  //    hareket insert'inin DB trigger'ı (mig 270) günceller — elle çift yazım
+  //    web/mobil bakiyelerini ayrıştırıyordu (06.08 denetimi).
   if (plan.stok_kodu) {
     const { data: urun } = await supabase
       .from('stok_urunler')
@@ -203,13 +205,6 @@ export const bulkTeslimAl = async (planId, ekMiktar, kullaniciAd = 'Mobil') => {
       .maybeSingle()
     if (urun) {
       const oncekiMiktar = Number(urun.stok_miktari ?? 0)
-      const sonrakiMiktar = oncekiMiktar - miktar
-      await supabase
-        .from('stok_urunler')
-        .update({ stok_miktari: sonrakiMiktar })
-        .eq('stok_kodu', plan.stok_kodu)
-
-      // 3) Stok hareketi kaydı (web için — müşteri/talep detayı ile)
       const parcalar = [
         talep?.firma_adi && `Müşteri: ${talep.firma_adi}`,
         talep?.talep_no && `Talep: ${talep.talep_no}`,
@@ -225,7 +220,7 @@ export const bulkTeslimAl = async (planId, ekMiktar, kullaniciAd = 'Mobil') => {
         hareket_tipi: 'transfer_cikis',
         miktar,
         onceki_miktar: oncekiMiktar,
-        sonraki_miktar: sonrakiMiktar,
+        sonraki_miktar: oncekiMiktar - miktar,
         aciklama: `Servise Teslim · ${aciklama}`,
         kullanici_ad: kullaniciAd,
       })
