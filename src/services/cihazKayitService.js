@@ -104,7 +104,7 @@ export const aktifKaydiSok = async (stokKalemiId, payload) => {
 export const eksikCihazKayitlariGetir = async (servisTalepId) => {
   // 1) Bu servise kullanıldı olarak yazılmış kalemleri al
   const { data: kullanimlar, error: e1 } = await supabase
-    .from('servis_malzeme_kullanimlari')
+    .from('servis_kalem_kullanimi')
     .select('kalem_id')
     .eq('servis_talep_id', servisTalepId)
     .eq('durum', 'kullanildi')
@@ -114,16 +114,57 @@ export const eksikCihazKayitlariGetir = async (servisTalepId) => {
   const kalemIds = [...new Set((kullanimlar || []).map((k) => k.kalem_id))]
   if (kalemIds.length === 0) return []
 
-  // 2) Kalemleri fetch et; seri numarası olan + IP veya alt-lokasyonu boş olanlar eksik
+  // 2) Kalemleri fetch et; seri numarası olan + IP veya alt-lokasyonu boş olanlar aday
   const { data: kalemler, error: e2 } = await supabase
     .from('stok_kalemleri')
-    .select('id, seri_no, ip_adresi, alt_lokasyon, urun_id, stok_urunler:urun_id (id, ad, model)')
+    .select('id, seri_no, ip_adresi, alt_lokasyon, stok_kodu, musteri_id')
     .in('id', kalemIds)
     .not('seri_no', 'is', null)
+    .eq('silindi', false)
   if (e2) { console.warn('eksikCihazKayitlariGetir.kalem:', e2.message); return [] }
 
-  const eksikler = (kalemler || []).filter((k) => !k.ip_adresi || !k.alt_lokasyon)
-  return arrayToCamel(eksikler)
+  let eksikler = (kalemler || []).filter((k) => !k.ip_adresi || !k.alt_lokasyon)
+  if (eksikler.length === 0) return []
+
+  // 2.5) Bilgi musteri_cihazlari'nda girilmiş olabilir (webdeki "Cihaz" modalı
+  //      + mobil müşteri cihaz ekranı oraya yazar) — orada dolu olan S/N'i
+  //      eksik sayma. SN unique index'i upper(trim) olduğundan eşleşme JS'te
+  //      normalize edilerek yapılır.
+  //      (Webden düşülen kalemde musteri_id boş kalır — servisin müşterisi de
+  //      sete eklenir ki kontrol atlanmasın.)
+  const musteriIdSet = new Set(eksikler.map((k) => k.musteri_id).filter(Boolean))
+  const { data: st } = await supabase
+    .from('servis_talepleri').select('musteri_id').eq('id', servisTalepId).maybeSingle()
+  if (st?.musteri_id) musteriIdSet.add(st.musteri_id)
+  const musteriIds = [...musteriIdSet]
+  if (musteriIds.length > 0) {
+    const { data: mcler } = await supabase
+      .from('musteri_cihazlari')
+      .select('seri_no, ip_adresi, lokasyon')
+      .in('musteri_id', musteriIds)
+    const norm = (s) => String(s || '').trim().toUpperCase()
+    const doluSn = new Set((mcler || [])
+      .filter((c) => c.ip_adresi && c.lokasyon)
+      .map((c) => norm(c.seri_no)))
+    eksikler = eksikler.filter((k) => !doluSn.has(norm(k.seri_no)))
+    if (eksikler.length === 0) return []
+  }
+
+  // 3) Ürün adları — stok_kalemleri→stok_urunler FK'sı yok, embed çalışmaz;
+  //    bağ stok_kodu metniyle kurulur (stok_urunler'da ad kolonu stok_adi)
+  const kodlar = [...new Set(eksikler.map((k) => k.stok_kodu).filter(Boolean))]
+  let adlar = new Map()
+  if (kodlar.length > 0) {
+    const { data: urunler } = await supabase
+      .from('stok_urunler')
+      .select('stok_kodu, stok_adi')
+      .in('stok_kodu', kodlar)
+    adlar = new Map((urunler || []).map((u) => [u.stok_kodu, u.stok_adi]))
+  }
+  return arrayToCamel(eksikler).map((k) => ({
+    ...k,
+    urunAdi: adlar.get(k.stokKodu) || null,
+  }))
 }
 
 // Bir S/N'in tarihçesi (hepsi)

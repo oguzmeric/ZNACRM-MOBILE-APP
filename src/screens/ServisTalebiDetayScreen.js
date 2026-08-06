@@ -419,7 +419,7 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
       const eksikCihazlar = await eksikCihazKayitlariGetir(id)
       if (eksikCihazlar.length > 0) {
         const ozet = eksikCihazlar.slice(0, 3).map((c) => {
-          const ad = c.stokUrunler?.ad || 'Ürün'
+          const ad = c.urunAdi || c.stokKodu || 'Ürün'
           const sn = c.seriNo ? ` S/N: ${c.seriNo}` : ''
           const eksikAlanlar = []
           if (!c.ipAdresi) eksikAlanlar.push('IP')

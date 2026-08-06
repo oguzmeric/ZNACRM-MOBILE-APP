@@ -105,7 +105,7 @@ export default function CihazTeknikBilgiModal({ visible, onClose, kalem, onSave,
     if (zorunlu && (!ipAdresi.trim() || !altLokasyon.trim())) {
       Alert.alert(
         'Bilgiler eksik',
-        'IP ve alt-lokasyon zorunlu. Şimdi atlayıp sonra Cihaz Detay ekranından doldurmak ister misin?',
+        'IP ve alt-lokasyon zorunlu. Şimdi atlayıp sonra Cihaz Detay ekranından doldurmak ister misin?\n\nUnutma: cihaz bilgileri doldurulmadan servis kapatılamaz.',
         [
           { text: 'Vazgeç', style: 'cancel' },
           { text: 'Sonra Doldururum', style: 'destructive', onPress: () => onClose?.() },
