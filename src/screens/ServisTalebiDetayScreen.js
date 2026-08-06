@@ -1277,28 +1277,37 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
               </View>
             )}
 
-            {/* Fatura Kesilecek — proforma varsa durum, yoksa işaretle butonu */}
-            {faturaTalebi ? (
+            {/* Fatura Kesilecek — açık/kesilmiş proforma varsa durum; reddedilmişse
+                red bilgisi + buton GERİ GELİR (yeniden işaretlenebilir) */}
+            {faturaTalebi && faturaTalebi.durum !== 'reddedildi' ? (
               <View style={[styles.tamamlandiBox, { marginTop: 8, backgroundColor: 'rgba(37,99,235,0.10)', borderColor: 'rgba(37,99,235,0.35)' }]}>
                 <Feather name="file-text" size={18} color="#2563eb" />
                 <Text style={[styles.tamamlandiText, { color: '#2563eb' }]}>
                   {faturaTalebi.durum === 'faturalandi'
                     ? `Fatura kesildi · ${faturaTalebi.faturaNo || ''}`
-                    : faturaTalebi.durum === 'reddedildi'
-                      ? 'Proforma reddedildi'
-                      : `Fatura bekliyor · ${faturaTalebi.talepNo}`}
+                    : `Fatura bekliyor · ${faturaTalebi.talepNo}`}
                 </Text>
               </View>
             ) : (
-              <TouchableOpacity
-                style={[styles.formuAcBtn, { backgroundColor: '#0ea5e9', marginTop: 8, opacity: faturaMesgul ? 0.6 : 1 }]}
-                onPress={faturaKesilecek}
-                disabled={faturaMesgul}
-                activeOpacity={0.88}
-              >
-                <Feather name="dollar-sign" size={18} color="#fff" />
-                <Text style={styles.formuAcBtnText}>{faturaMesgul ? 'İşaretleniyor…' : 'Fatura Kesilecek'}</Text>
-              </TouchableOpacity>
+              <>
+                {faturaTalebi?.durum === 'reddedildi' && (
+                  <View style={[styles.tamamlandiBox, { marginTop: 8, backgroundColor: 'rgba(239,68,68,0.10)', borderColor: 'rgba(239,68,68,0.35)' }]}>
+                    <Feather name="x-circle" size={18} color="#ef4444" />
+                    <Text style={[styles.tamamlandiText, { color: '#ef4444' }]}>
+                      {`Proforma reddedildi (${faturaTalebi.talepNo})${faturaTalebi.redNedeni ? ` — ${faturaTalebi.redNedeni}` : ''}. Düzeltip yeniden işaretleyebilirsiniz.`}
+                    </Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[styles.formuAcBtn, { backgroundColor: '#0ea5e9', marginTop: 8, opacity: faturaMesgul ? 0.6 : 1 }]}
+                  onPress={faturaKesilecek}
+                  disabled={faturaMesgul}
+                  activeOpacity={0.88}
+                >
+                  <Feather name="dollar-sign" size={18} color="#fff" />
+                  <Text style={styles.formuAcBtnText}>{faturaMesgul ? 'İşaretleniyor…' : 'Fatura Kesilecek'}</Text>
+                </TouchableOpacity>
+              </>
             )}
 
             <TouchableOpacity

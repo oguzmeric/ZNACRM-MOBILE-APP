@@ -12,7 +12,7 @@ import { formEnvanterKalemleri } from './servisMalzemeService'
 export const servisFaturaTalebiGetir = async (servisId) => {
   const { data } = await supabase
     .from('fatura_talepleri')
-    .select('id, talep_no, durum, fatura_no')
+    .select('id, talep_no, durum, fatura_no, red_nedeni')
     .eq('servis_talep_id', servisId)
     .order('id', { ascending: false })
     .limit(1)
