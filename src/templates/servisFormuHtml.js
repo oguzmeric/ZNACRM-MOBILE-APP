@@ -62,7 +62,9 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
   const musteri = {
     no: talep.talepNo || talep.id || '—',
     kurum: talep.firmaAdi || talep.musteriAd || '—',
-    ilIlce: talep.ilIlce || talep.lokasyon || '—',
+    // Lokasyon (alt lokasyon) KENDI satirinda — eskiden Il/Ilce'ye dusuyordu (web ile ayni, 06.08)
+    lokasyon: talep.lokasyon || '—',
+    ilIlce: talep.ilIlce || talep.sehir || '—',
     sube: talep.sube || '—',
     adres: talep.adres || '—',
     gsm: talep.telefon || '—',
@@ -155,6 +157,7 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
     <table class="f"><tbody>
       <tr><td colspan="4" class="sec"><div style="display:flex;justify-content:space-between;"><span>MÜŞTERİ BİLGİLERİ</span><span style="font-size:9px;">${escapeHtml(musteri.no)}</span></div></td></tr>
       <tr><td style="${label}">Kurum/Kuruluş</td><td style="${value}" colspan="3">${escapeHtml(musteri.kurum)}</td></tr>
+      <tr><td style="${label}">Lokasyon</td><td style="${value}" colspan="3">${escapeHtml(musteri.lokasyon)}</td></tr>
       <tr><td style="${label}">İl/İlçe</td><td style="${value}">${escapeHtml(musteri.ilIlce)}</td><td style="${label}">Şube</td><td style="${value}">${escapeHtml(musteri.sube)}</td></tr>
       <tr><td style="${label}">Adres</td><td style="${value}" colspan="3">${escapeHtml(musteri.adres)}</td></tr>
       <tr><td style="${label}">Gsm</td><td style="${value}">${escapeHtml(musteri.gsm)}</td><td style="${label}">E-mail</td><td style="${value}">${escapeHtml(musteri.email)}</td></tr>
