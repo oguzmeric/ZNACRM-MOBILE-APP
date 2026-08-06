@@ -302,7 +302,7 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     if (faturaMesgul) return
     Alert.alert(
       'Fatura Kesilecek',
-      'Bu servis için proforma açılıp muhasebenin "Fatura Kesilecek" kuyruğuna eklensin mi? Gerçek faturayı muhasebe kesip tutar/ödeme/PDF girecek.',
+      'Bu servis için proforma açılıp muhasebenin "Fatura Kesilecek" kuyruğuna eklensin mi? Serviste kullanılan malzemeler proformaya aktarılır; tutar/ödeme/PDF gerçek faturayı kesen muhasebe tarafından girilir.',
       [
         { text: 'Vazgeç', style: 'cancel' },
         {

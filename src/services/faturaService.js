@@ -6,6 +6,7 @@
 import { supabase } from '../lib/supabase'
 import { toCamel, toSnake } from '../lib/mapper'
 import { bildirimEkleDb } from './bildirimService'
+import { formEnvanterKalemleri } from './servisMalzemeService'
 
 // Servisin proforma fatura durumu (buton/rozet için)
 export const servisFaturaTalebiGetir = async (servisId) => {
@@ -38,6 +39,11 @@ export const servistenFaturaTalebiAc = async ({ servis, kullanici, not = '' }) =
     m = data
   }
 
+  // Serviste kullanılan malzemeler (web + mobil S/N akışı birleşik) proformaya
+  // FİYATSIZ kalem olarak taşınır — muhasebe ne faturalanacağını görsün
+  // (FTL-2026-000025: bomboş proforma "hata" sanılmıştı). Fiyatı muhasebe girer.
+  const malzemeler = await formEnvanterKalemleri(servis.id).catch(() => [])
+
   const payload = {
     servisTalepId: servis.id ? Number(servis.id) : null,
     musteriId: servis.musteriId ? Number(servis.musteriId) : null,
@@ -50,7 +56,15 @@ export const servistenFaturaTalebiAc = async ({ servis, kullanici, not = '' }) =
     email: m?.email || '',
     konu: servis.konu ? `Servis: ${servis.konu}` : 'Servis faturası',
     paraBirimi: 'TL',
-    kalemler: [],
+    kalemler: (malzemeler || []).map((m) => ({
+      stokKodu: m.stokKodu || '',
+      urunAdi: m.seriNo ? `${m.urunAdi || ''} (S/N: ${m.seriNo})` : (m.urunAdi || ''),
+      aciklama: '',
+      miktar: Number(m.miktar) || 1,
+      birim: m.birim || 'Adet',
+      birimFiyat: 0, iskontoOran: 0, kdvOran: 20,
+      araToplam: 0, kdvTutar: 0, satirToplam: 0,
+    })),
     araToplam: 0, kdvToplam: 0, genelToplam: 0,
     durum: 'bekliyor',
     talepNotu: not || '',
