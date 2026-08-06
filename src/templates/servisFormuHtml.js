@@ -79,7 +79,6 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
   const urunTanimi = talep.cihazTuru || talep.urunTanimi || '—'
   const seriNo = talep.seriNumarasi || '—'
   const markaModel = [talep.marka, talep.model].filter(Boolean).join(' / ') || '—'
-  const kunye = talep.kunyeNumarasi || talep.servisNo || talep.id || '—'
 
   const ariza = talep.aciklama || ''
   const yapilan = talep.cozumAciklamasi || ''
@@ -183,7 +182,7 @@ export function servisFormuHtml({ talep = {}, bannerBase64 = null, fotograflar =
     <table class="f"><tbody>
       <tr><td colspan="4" class="sec">SERVİS VERİLEN SİSTEM BİLGİLERİ</td></tr>
       <tr><td style="${label}">Ürün Tanımı</td><td style="${value}">${escapeHtml(urunTanimi)}</td><td style="${label}">Seri Numarası</td><td style="${value}">${escapeHtml(seriNo)}</td></tr>
-      <tr><td style="${label}">Marka / Model</td><td style="${value}">${escapeHtml(markaModel)}</td><td style="${label}">Künye Numarası</td><td style="${value}">${escapeHtml(kunye)}</td></tr>
+      <tr><td style="${label}">Marka / Model</td><td style="${value}" colspan="3">${escapeHtml(markaModel)}</td></tr>
     </tbody></table>
 
     <!-- ARIZA AÇIKLAMASI -->

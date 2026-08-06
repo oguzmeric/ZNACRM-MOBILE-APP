@@ -38,7 +38,6 @@ export default function ServisFormBilgileriCard({ talep, onKaydet }) {
   const [seriNo, setSeriNo] = useState(talep?.seriNumarasi || '')
   const [marka, setMarka] = useState(talep?.marka || '')
   const [model, setModel] = useState(talep?.model || '')
-  const [kunye, setKunye] = useState(talep?.kunyeNumarasi || '')
   const [ariza, setAriza] = useState(talep?.aciklama || '')
   const [cozum, setCozum] = useState(talep?.cozumAciklamasi || '')
   // Kart VARSAYILAN AÇIK (01.08): personel servise gidince formu her seferinde
@@ -53,7 +52,6 @@ export default function ServisFormBilgileriCard({ talep, onKaydet }) {
     setSeriNo(talep?.seriNumarasi || '')
     setMarka(talep?.marka || '')
     setModel(talep?.model || '')
-    setKunye(talep?.kunyeNumarasi || '')
     setAriza(talep?.aciklama || '')
     setCozum(talep?.cozumAciklamasi || '')
   }, [talep?.id])
@@ -68,7 +66,6 @@ export default function ServisFormBilgileriCard({ talep, onKaydet }) {
         seriNumarasi: seriNo.trim() || null,
         marka: marka.trim() || null,
         model: model.trim() || null,
-        kunyeNumarasi: kunye.trim() || null,
         aciklama: ariza.trim() || null,
         cozumAciklamasi: cozum.trim() || null,
         // yedekParcalar BİLEREK yazılmıyor (web ile aynı kural): alan artık
@@ -137,15 +134,10 @@ export default function ServisFormBilgileriCard({ talep, onKaydet }) {
             <ChipGroup secenekler={SERVIS_YERI} secili={servisYeri} setter={setServisYeri} />
           </View>
 
-          <View style={styles.grid2}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.label, { color: colors.textMuted }]}>Seri No</Text>
-              <TextInput style={inputStil} value={seriNo} onChangeText={setSeriNo} placeholder="—" placeholderTextColor={colors.textFaded} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.label, { color: colors.textMuted }]}>Künye No</Text>
-              <TextInput style={inputStil} value={kunye} onChangeText={setKunye} placeholder="—" placeholderTextColor={colors.textFaded} />
-            </View>
+          {/* Künye No kaldırıldı (06.08): hiç kullanılmıyordu — web ile senkron */}
+          <View>
+            <Text style={[styles.label, { color: colors.textMuted }]}>Seri No</Text>
+            <TextInput style={inputStil} value={seriNo} onChangeText={setSeriNo} placeholder="—" placeholderTextColor={colors.textFaded} />
           </View>
           <View style={styles.grid2}>
             <View style={{ flex: 1 }}>
