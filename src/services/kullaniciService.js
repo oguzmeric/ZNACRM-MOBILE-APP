@@ -8,6 +8,34 @@ import { oturumTokenAl } from '../lib/storageAuth'
 const kullaniciAdiToEmail = (kullaniciAdi) =>
   `${kullaniciAdi.toLowerCase().replace(/[^a-z0-9]/g, '')}@zna.local`
 
+/**
+ * Hata AĞ kaynaklı mı? (bağlantı yok / zaman aşımı / sunucuya ulaşılamadı)
+ *
+ * ⚠️ 07.08: giriş başarısız olan HER durumda ekranda "Kullanıcı adı veya şifre
+ * hatalı" yazıyordu. Uçak modundaki bir kullanıcı şifresini yanlış sanıp
+ * sıfırlamaya çalışıyor; sahada da "sistem beni almıyor" olarak bildiriliyor.
+ * Sebep ile mesaj artık ayrışıyor.
+ */
+const agHatasiMi = (e) => {
+  const m = String(e?.message ?? '').toLowerCase()
+  const ad = String(e?.name ?? '')
+  return (
+    ad === 'AuthRetryableFetchError' ||
+    m.includes('network') ||
+    m.includes('failed to fetch') ||
+    m.includes('fetch failed') ||
+    m.includes('timeout') ||
+    m.includes('timed out') ||
+    m.includes('connection')
+  )
+}
+
+const hataFirlat = (mesaj, kod) => {
+  const e = new Error(mesaj)
+  e.kod = kod
+  return e
+}
+
 export const kullaniciGirisKontrol = async (kullaniciAdi, sifre) => {
   // '@' içeriyorsa gerçek e-posta (self-kayıt kullanıcısı); yoksa kullanıcı adı
   // → önce DB'den gercek email cozumle (RPC), bulunamazsa sentetik @zna.local
@@ -38,7 +66,14 @@ export const kullaniciGirisKontrol = async (kullaniciAdi, sifre) => {
   }
   if (authError || !authData?.user) {
     console.warn('[kullaniciGirisKontrol] auth hata:', authError?.message)
-    return null
+    // Bağlantı yoksa şifre suçlanmaz — kullanıcı boşuna şifre sıfırlamasın
+    if (agHatasiMi(authError)) {
+      throw hataFirlat(
+        'İnternet bağlantısı kurulamadı. Uçak modu kapalı mı, bağlantınız var mı kontrol edip tekrar deneyin.',
+        'AG_HATASI',
+      )
+    }
+    return null   // gerçekten kimlik hatası
   }
   const { data: profil, error: pErr } = await supabase
     .from('kullanicilar')
@@ -48,11 +83,21 @@ export const kullaniciGirisKontrol = async (kullaniciAdi, sifre) => {
   if (pErr || !profil) {
     console.warn('[kullaniciGirisKontrol] profil bulunamadı:', pErr?.message)
     await supabase.auth.signOut()
-    return null
+    // Şifre DOĞRUYDU (auth geçti) — "şifre hatalı" demek yanlış teşhise yollar
+    if (agHatasiMi(pErr)) {
+      throw hataFirlat(
+        'Bağlantı koptuğu için bilgileriniz alınamadı. Tekrar deneyin.',
+        'AG_HATASI',
+      )
+    }
+    throw hataFirlat(
+      'Girişiniz doğrulandı ama kullanıcı kaydınıza ulaşılamadı. Yöneticinize başvurun.',
+      'PROFIL_YOK',
+    )
   }
   if (profil.hesap_silindi) {
     await supabase.auth.signOut()
-    return null
+    throw hataFirlat('Hesabınız kapatılmış. Yöneticinize başvurun.', 'HESAP_KAPALI')
   }
   if (profil.onay_durum === 'beklemede') {
     await supabase.auth.signOut()

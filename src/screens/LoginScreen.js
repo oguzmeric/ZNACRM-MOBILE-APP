@@ -35,10 +35,18 @@ export default function LoginScreen({ navigation }) {
       const ok = await girisYap(kullaniciAdi, sifre)
       if (!ok) Alert.alert('Giriş başarısız', 'Kullanıcı adı veya şifre hatalı.')
     } catch (err) {
+      // ⚠️ 07.08: eskiden HER hata "kullanıcı adı veya şifre hatalı" diyordu.
+      // Uçak modundaki kullanıcı şifresini yanlış sanıp sıfırlamaya çalışıyordu.
       if (err?.kod === 'ONAY_BEKLIYOR') {
         Alert.alert('Hesabınız onay sürecinde', err.message)
       } else if (err?.kod === 'REDDEDILDI') {
         Alert.alert('Başvuru reddedildi', err.message)
+      } else if (err?.kod === 'AG_HATASI') {
+        Alert.alert('Bağlantı yok', err.message)
+      } else if (err?.kod === 'PROFIL_YOK') {
+        Alert.alert('Kullanıcı kaydı bulunamadı', err.message)
+      } else if (err?.kod === 'HESAP_KAPALI') {
+        Alert.alert('Hesap kapalı', err.message)
       } else {
         Alert.alert('Giriş yapılamadı', err?.message || 'Bir hata oluştu.')
       }
