@@ -77,8 +77,15 @@ const ImzaTuvali = forwardRef(function ImzaTuvali({ style }, ref) {
           return []
         })
       }}
+      // Çizim yarıda başka bileşene kaptırılmasın (modal/sistem jesti)
+      onResponderTerminationRequest={() => false}
     >
-      <Canvas ref={canvasRef} style={StyleSheet.absoluteFill}>
+      {/* ⚠️ pointerEvents="none" ŞART: Canvas absoluteFill ile tuvalin üstünü
+          tamamen kaplar; bu olmadan dokunmaları YUTAR, alttaki View parmağı
+          hiç görmez ve ekrana HİÇBİR ŞEY ÇİZİLMEZ. 07.08'de tam bu yaşandı
+          (Alp, sonra Sefa). Çalışan çizim ekranları (NotCizimScreen,
+          CizimYapModal, KesifFotoCizimModal) bu satırı zaten taşıyor. */}
+      <Canvas ref={canvasRef} style={StyleSheet.absoluteFill} pointerEvents="none">
         {/* Zemin: snapshot yalnız ÇİZİLENİ yakalar — beyaz dikdörtgen şart,
             yoksa imza saydam PNG olur ve koyu zeminde görünmez */}
         <Rect x={0} y={0} width={olcu.w} height={olcu.h} color={ZEMIN} />
