@@ -8,15 +8,19 @@
 // sonradan okuyabilmeli (metni bir daha göremeyeceği bir yükümlülüğü kabul
 // etmiş olmaz). Onaylamamışsa onay butonu burada da çalışır.
 
+// ⚠️ Metin YERLİ render edilir (WebView değil) — bkz. SozlesmeMetni.js: onay
+// kutusunu WebView'in JS köprüsüne bağlamak, köprü sessizce çalışmadığında
+// kullanıcıyı onaylayamaz hâle getiriyordu (07.08).
+
 import { useEffect, useState } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform,
 } from 'react-native'
-import { WebView } from 'react-native-webview'
 import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import SozlesmeMetni from '../components/SozlesmeMetni'
 import {
-  aktifSozlesmeGetir, sozlesmeDurumum, sozlesmeOnayla, markdownToHtml,
+  aktifSozlesmeGetir, sozlesmeDurumum, sozlesmeOnayla,
 } from '../services/kullaniciSozlesmeService'
 
 export default function SozlesmeEkrani({ navigation }) {
@@ -45,36 +49,6 @@ export default function SozlesmeEkrani({ navigation }) {
     else setHata(sonuc?.hata || 'Onay kaydedilemedi. Bağlantınızı kontrol edip tekrar deneyin.')
   }
 
-  const html = sozlesme ? `<!DOCTYPE html><html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-  body { margin:0; padding:16px 16px 28px; font-family:-apple-system,system-ui,sans-serif;
-         font-size:15px; line-height:1.7; color:#1e293b; background:#fff; }
-  h1 { font-size:20px; margin:0 0 6px; }
-  h2 { font-size:16px; margin:22px 0 8px; padding-top:12px; border-top:1px solid #e2e8f0; }
-  h3 { font-size:14px; margin:14px 0 6px; }
-  p  { margin:0 0 10px; }
-  ul { margin:0 0 12px; padding-left:20px; }
-  li { margin-bottom:5px; }
-  strong { font-weight:700; }
-  hr { border:none; border-top:1px solid #e2e8f0; margin:16px 0; }
-  code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:13px; }
-</style></head><body>
-${markdownToHtml(sozlesme.icerik)}
-<script>
-  window.addEventListener('scroll', function(){
-    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 60) {
-      window.ReactNativeWebView && window.ReactNativeWebView.postMessage('son');
-    }
-  });
-  window.addEventListener('load', function(){
-    if (document.body.scrollHeight <= window.innerHeight + 40) {
-      window.ReactNativeWebView && window.ReactNativeWebView.postMessage('son');
-    }
-  });
-</script>
-</body></html>` : ''
-
   const onaylandiMi = durum && durum.gerekli === false && durum.sebep === undefined
 
   return (
@@ -101,11 +75,9 @@ ${markdownToHtml(sozlesme.icerik)}
       )}
 
       {sozlesme ? (
-        <WebView
-          originWhitelist={['*']}
-          source={{ html }}
-          onMessage={(e) => { if (e.nativeEvent.data === 'son') setSonaGeldi(true) }}
-          style={{ flex: 1 }}
+        <SozlesmeMetni
+          icerik={sozlesme.icerik}
+          onSonaGelindi={() => setSonaGeldi(true)}
         />
       ) : (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

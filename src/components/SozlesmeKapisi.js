@@ -5,20 +5,21 @@
 //   • onay kutusu metnin SONUNA inilmeden etkinleşmez
 //   • RPC hatasında KİLİTLEME YOK — teknisyen sahada uygulamadan kilitlenmesin
 //
-// Metin WebView'de gösterilir: mobilde markdown kütüphanesi yok, yeni paket
-// eklemek yerine zaten kurulu olan react-native-webview kullanılıyor.
+// ⚠️ 07.08: metin WebView'deydi ve onay kutusu WebView'in JS köprüsünden gelen
+// "sona gelindi" mesajıyla açılıyordu. Köprü çalışmazsa kutu hiç etkinleşmez,
+// 21 kişilik saha ekibi uygulamaya giremezdi. Artık yerli SozlesmeMetni.
 
 import { useEffect, useState } from 'react'
 import {
   View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, Platform,
 } from 'react-native'
-import { WebView } from 'react-native-webview'
 import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import SozlesmeMetni from './SozlesmeMetni'
 import {
-  aktifSozlesmeGetir, sozlesmeDurumum, sozlesmeOnayla, markdownToHtml,
+  aktifSozlesmeGetir, sozlesmeDurumum, sozlesmeOnayla,
 } from '../services/kullaniciSozlesmeService'
 
 export default function SozlesmeKapisi({ children }) {
@@ -38,8 +39,18 @@ export default function SozlesmeKapisi({ children }) {
     let iptal = false
     sozlesmeDurumum().then(d => {
       if (iptal) return
-      setDurum(d)
-      if (d?.gerekli) aktifSozlesmeGetir().then(s => { if (!iptal) setSozlesme(s) })
+      if (!d?.gerekli) { setDurum(d); return }
+      // Metin çekilemezse KİLİTLEME YOK: aksi hâlde ekranda sonsuza kadar
+      // "yükleniyor" kalır ve kullanıcı çıkış yapmaktan başka bir şey
+      // yapamaz. RPC hatasındaki fail-open ilkesiyle aynı.
+      aktifSozlesmeGetir()
+        .then(s => {
+          if (iptal) return
+          if (!s?.icerik) { setDurum({ gerekli: false, hata: 'metin_okunamadi' }); return }
+          setSozlesme(s)
+          setDurum(d)
+        })
+        .catch(() => { if (!iptal) setDurum({ gerekli: false, hata: 'metin_okunamadi' }) })
     })
     return () => { iptal = true }
   }, [kullanici?.id])
@@ -53,38 +64,6 @@ export default function SozlesmeKapisi({ children }) {
     if (sonuc?.ok) setDurum({ gerekli: false })
     else setHata(sonuc?.hata || 'Onay kaydedilemedi. Bağlantınızı kontrol edip tekrar deneyin.')
   }
-
-  const html = sozlesme ? `<!DOCTYPE html><html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-  body { margin:0; padding:16px 16px 28px; font-family:-apple-system,system-ui,sans-serif;
-         font-size:15px; line-height:1.7; color:#1e293b; background:#fff; }
-  h1 { font-size:20px; margin:0 0 6px; }
-  h2 { font-size:16px; margin:22px 0 8px; padding-top:12px; border-top:1px solid #e2e8f0; }
-  h3 { font-size:14px; margin:14px 0 6px; }
-  p  { margin:0 0 10px; }
-  ul { margin:0 0 12px; padding-left:20px; }
-  li { margin-bottom:5px; }
-  strong { font-weight:700; }
-  hr { border:none; border-top:1px solid #e2e8f0; margin:16px 0; }
-  code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:13px; }
-</style></head><body>
-${markdownToHtml(sozlesme.icerik)}
-<script>
-  // Metnin sonuna inildiğini React Native tarafına bildir
-  window.addEventListener('scroll', function(){
-    if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 60) {
-      window.ReactNativeWebView && window.ReactNativeWebView.postMessage('son');
-    }
-  });
-  // Metin ekrana sığıyorsa kaydırma olmaz — o hâlde de onay açılmalı
-  window.addEventListener('load', function(){
-    if (document.body.scrollHeight <= window.innerHeight + 40) {
-      window.ReactNativeWebView && window.ReactNativeWebView.postMessage('son');
-    }
-  });
-</script>
-</body></html>` : ''
 
   if (!durum || !durum.gerekli) return children
 
@@ -112,11 +91,9 @@ ${markdownToHtml(sozlesme.icerik)}
           {/* Metin */}
           <View style={{ flex: 1 }}>
             {sozlesme ? (
-              <WebView
-                originWhitelist={['*']}
-                source={{ html }}
-                onMessage={(e) => { if (e.nativeEvent.data === 'son') setSonaGeldi(true) }}
-                style={{ flex: 1 }}
+              <SozlesmeMetni
+                icerik={sozlesme.icerik}
+                onSonaGelindi={() => setSonaGeldi(true)}
               />
             ) : (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
