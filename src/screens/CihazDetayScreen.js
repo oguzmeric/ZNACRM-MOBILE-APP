@@ -793,7 +793,11 @@ function TakModal({ visible, onClose, kalem, kullanici, onDone }) {
     })
     setKaydediliyor(false)
 
-    if (sonuc) {
+    if (sonuc?.zatenTakili) {
+      // Tekrar kayıt YAZILMADI — cihaz geçmişi şişmesin (07.08 mükerrer takılma)
+      Alert.alert('Zaten Takılı', 'Bu cihaz hâlihazırda bu müşteride takılı görünüyor. Farklı bir yere takmak için önce "Söküldü" yapın.')
+      onDone()
+    } else if (sonuc) {
       Alert.alert('Tamam', 'Cihaz başarıyla takıldı.')
       onDone()
     } else {

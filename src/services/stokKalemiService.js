@@ -342,7 +342,7 @@ export const stokKalemSil = async (id) => {
   if (!data?.length) throw new Error('Kayit bulunamadi ya da silme yetkisi yok.')
 }
 
-// Hareket kaydı ekle (audit log)
+// Hareket kaydı ekle (audit log — cihazın yaşam döngüsü bundan sayılır)
 export const hareketEkle = async (hareket) => {
   const { id, tarih, ...rest } = hareket
   const { data, error } = await supabase
@@ -351,8 +351,9 @@ export const hareketEkle = async (hareket) => {
     .select()
     .single()
   if (error) {
+    // Sessiz yutma YOK: bu kayıt cihaz geçmişinin tek kaynağı (07.08 dersi).
     console.error('hareketEkle hata:', error.message)
-    return null
+    throw new Error('Cihaz hareketi kaydedilemedi: ' + error.message)
   }
   return toCamel(data)
 }
@@ -381,6 +382,15 @@ export const cihazTak = async ({
 }) => {
   const mevcut = await stokKalemGetir(kalemId)
   if (!mevcut) return null
+
+  // ⚠️ TEKRAR TAKMA KORUMASI (07.08): cihaz ZATEN aynı müşteride sahadaysa
+  // yeni "takildi" hareketi YAZILMAZ. Eskiden her çağrı (çift tıklama, ekran
+  // yenilenmeden tekrar deneme) yeni bir hareket yazıyordu; cihaz 1 kez
+  // takılmışken "Yaşam Döngüsü / TAKILMA" 5 görünüyordu (kalem 89 vakası).
+  // Başka müşteriye taşıma meşru: önce "Söküldü" yapılmalı.
+  if (mevcut.durum === 'sahada' && String(mevcut.musteriId ?? '') === String(musteriId ?? '')) {
+    return { ...mevcut, zatenTakili: true }
+  }
 
   const guncel = await stokKalemGuncelle(kalemId, {
     durum: 'sahada',
