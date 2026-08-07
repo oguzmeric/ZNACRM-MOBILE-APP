@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
   Linking,
   Platform,
   ActivityIndicator,
@@ -30,6 +31,18 @@ export default function MusteriDetayScreen({ route, navigation }) {
   const [cihazlar, setCihazlar] = useState([])
   const [envanter, setEnvanter] = useState([]) // müşteri cihaz envanteri (musteri_cihazlari)
   const [loading, setLoading] = useState(true)
+
+  // Cihaz listesi görünümü — büyük müşterilerde yüzlerce kayıt oluyor
+  // (ELEMENT ELEKTRİK'te 148). Düz liste ekranı kullanılamaz hâle getiriyordu:
+  // aynı üründen onlarca satır alt alta, aranan cihaza inmek 10+ saniye.
+  // Çözüm: ÜRÜN bazında özetle, S/N'ler yalnız istenince açılsın.
+  const [cihazAra, setCihazAra] = useState('')
+  const [acikUrunler, setAcikUrunler] = useState({})   // "lokId|urunKey" → true
+  const [envanterTumu, setEnvanterTumu] = useState(false)
+
+  const urunAcKapa = useCallback((anahtar) => {
+    setAcikUrunler((o) => ({ ...o, [anahtar]: !o[anahtar] }))
+  }, [])
 
   const yukle = useCallback(async () => {
     const [m, k, l, c, e] = await Promise.all([
@@ -281,52 +294,122 @@ export default function MusteriDetayScreen({ route, navigation }) {
         </Text>
       ) : (
         <>
-          {/* Lokasyon bazında gruplanmış cihaz tabloları */}
+          {/* Arama — büyük müşteride aranan cihaza kaydırmadan inilsin */}
+          {cihazlar.length > 10 && (
+            <TextInput
+              style={[styles.cihazArama, {
+                backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border,
+              }]}
+              placeholder="Seri no, IP veya yer ara…"
+              placeholderTextColor={colors.textFaded}
+              value={cihazAra}
+              onChangeText={setCihazAra}
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+            />
+          )}
+
+          {/* Lokasyon → ÜRÜN kırılımı. Ürün satırları katlı gelir; S/N listesi
+              yalnız dokununca açılır. 148 cihazlık müşteride düz liste ekranı
+              kullanılamaz hâle getiriyordu. */}
           {(() => {
-            const gruplar = new Map()
-            cihazlar.forEach((c) => {
+            const q = cihazAra.trim().toLocaleLowerCase('tr')
+            const suzulmus = q
+              ? cihazlar.filter((c) =>
+                  [c.seriNo, c.ipAdresi, c.altLokasyon, c.model, c.stokKodu, c.marka]
+                    .some((v) => String(v ?? '').toLocaleLowerCase('tr').includes(q)))
+              : cihazlar
+
+            if (!suzulmus.length) {
+              return (
+                <Text style={[styles.kisiBosText, { color: colors.textFaded }]}>
+                  "{cihazAra}" ile eşleşen cihaz yok.
+                </Text>
+              )
+            }
+
+            const lokGruplar = new Map()
+            suzulmus.forEach((c) => {
               const key = c.musteriLokasyonId ?? 'konumsuz'
-              if (!gruplar.has(key)) gruplar.set(key, [])
-              gruplar.get(key).push(c)
+              if (!lokGruplar.has(key)) lokGruplar.set(key, [])
+              lokGruplar.get(key).push(c)
             })
-            return Array.from(gruplar.entries()).map(([lokId, liste]) => {
+
+            return Array.from(lokGruplar.entries()).map(([lokId, liste]) => {
               const lok = lokasyonlar.find((l) => l.id === lokId)
               const baslik = lok ? lok.ad : 'Lokasyon Atanmamış'
+
+              const urunler = new Map()
+              liste.forEach((c) => {
+                const uk = c.stokKodu || c.model || 'Diğer'
+                if (!urunler.has(uk)) urunler.set(uk, [])
+                urunler.get(uk).push(c)
+              })
+
               return (
                 <View key={lokId} style={styles.cihazGrubu}>
-                  <Text style={styles.cihazGrupBaslik}>📍 {baslik}</Text>
-                  {/* Tablo başlığı */}
-                  <View style={styles.cihazTabloBaslik}>
-                    <Text style={[styles.cihazTabloSutun, { flex: 1.6 }]}>Cihaz</Text>
-                    <Text style={[styles.cihazTabloSutun, { flex: 1.2 }]}>IP</Text>
-                    <Text style={[styles.cihazTabloSutun, { flex: 1.2 }]}>Yer</Text>
-                  </View>
-                  {liste.map((c) => {
-                    const d = cihazDurumBul(c.durum)
+                  <Text style={styles.cihazGrupBaslik}>
+                    📍 {baslik}  ·  {liste.length} cihaz
+                  </Text>
+
+                  {Array.from(urunler.entries()).map(([uk, kalemler]) => {
+                    const anahtar = `${lokId}|${uk}`
+                    // Arama yapılıyorsa sonuçlar doğrudan açık gelsin
+                    const acik = q ? true : !!acikUrunler[anahtar]
+                    const sahada = kalemler.filter((x) => x.durum === 'sahada').length
+                    const gorunen = acik ? kalemler.slice(0, 50) : []
+
                     return (
-                      <TouchableOpacity
-                        key={c.id}
-                        style={styles.cihazSatir}
-                        activeOpacity={0.7}
-                        onPress={() => navigation.navigate('CihazDetay', { id: c.id })}
-                      >
-                        <View style={{ flex: 1.6 }}>
-                          <Text style={styles.cihazSatirAd} numberOfLines={1}>
-                            {c.seriNo || c.model || c.stokKodu}
-                          </Text>
-                          {!!d && (
-                            <Text style={[styles.cihazSatirDurum, { color: d.renk }]}>
-                              {d.ikon} {d.isim}
+                      <View key={anahtar}>
+                        <TouchableOpacity
+                          style={styles.urunSatir}
+                          activeOpacity={0.7}
+                          onPress={() => urunAcKapa(anahtar)}
+                        >
+                          <Text style={styles.urunOk}>{acik ? '▾' : '▸'}</Text>
+                          <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.urunAd} numberOfLines={1}>
+                              {kalemler[0]?.model || kalemler[0]?.marka || uk}
                             </Text>
-                          )}
-                        </View>
-                        <Text style={[styles.cihazSatirDeger, { flex: 1.2, fontFamily: 'monospace' }]} numberOfLines={1}>
-                          {c.ipAdresi ?? '—'}
-                        </Text>
-                        <Text style={[styles.cihazSatirDeger, { flex: 1.2 }]} numberOfLines={1}>
-                          {c.altLokasyon ?? '—'}
-                        </Text>
-                      </TouchableOpacity>
+                            <Text style={styles.urunAlt} numberOfLines={1}>
+                              {uk}  ·  {sahada}/{kalemler.length} sahada
+                            </Text>
+                          </View>
+                          <View style={styles.urunRozet}>
+                            <Text style={styles.urunRozetText}>{kalemler.length}</Text>
+                          </View>
+                        </TouchableOpacity>
+
+                        {gorunen.map((c) => {
+                          const d = cihazDurumBul(c.durum)
+                          return (
+                            <TouchableOpacity
+                              key={c.id}
+                              style={styles.snSatir}
+                              activeOpacity={0.7}
+                              onPress={() => navigation.navigate('CihazDetay', { id: c.id })}
+                            >
+                              {!!d && <View style={[styles.snNokta, { backgroundColor: d.renk }]} />}
+                              <Text style={styles.snMetin} numberOfLines={1}>
+                                {c.seriNo || c.model || uk}
+                              </Text>
+                              {!!c.ipAdresi && (
+                                <Text style={styles.snYan} numberOfLines={1}>{c.ipAdresi}</Text>
+                              )}
+                              {!!c.altLokasyon && (
+                                <Text style={styles.snYan} numberOfLines={1}>{c.altLokasyon}</Text>
+                              )}
+                            </TouchableOpacity>
+                          )
+                        })}
+
+                        {acik && kalemler.length > 50 && (
+                          <Text style={styles.snDaha}>
+                            +{kalemler.length - 50} cihaz daha — aramayı kullanın
+                          </Text>
+                        )}
+                      </View>
                     )
                   })}
                 </View>
@@ -359,7 +442,11 @@ export default function MusteriDetayScreen({ route, navigation }) {
           kullanıcı adı/şifre dahil tüm bilgiler buradan takip edilir.
         </Text>
       ) : (
-        envanter.map((c) => {
+        // Arızalılar önce; uzun listede ilk 15, gerisi istenirse (bkz. cihaz listesi)
+        [...envanter]
+          .sort((a, b) => (a.durum === 'arizali' ? -1 : 0) - (b.durum === 'arizali' ? -1 : 0))
+          .slice(0, envanterTumu ? envanter.length : 15)
+          .map((c) => {
           const d = CIHAZ_DURUMLARI.find((x) => x.id === c.durum) || CIHAZ_DURUMLARI[0]
           return (
             <TouchableOpacity
@@ -393,6 +480,18 @@ export default function MusteriDetayScreen({ route, navigation }) {
             </TouchableOpacity>
           )
         })
+      )}
+
+      {envanter.length > 15 && (
+        <TouchableOpacity
+          style={styles.dahaBtn}
+          activeOpacity={0.7}
+          onPress={() => setEnvanterTumu((o) => !o)}
+        >
+          <Text style={styles.dahaBtnText}>
+            {envanterTumu ? '▴ Daha az göster' : `▾ Tümünü göster (${envanter.length - 15} kayıt daha)`}
+          </Text>
+        </TouchableOpacity>
       )}
 
       <TouchableOpacity style={styles.silBtn} onPress={sil}>
@@ -584,6 +683,61 @@ const styles = StyleSheet.create({
   cihazBadgeText: { fontSize: 10, fontWeight: '700' },
   cihazMeta: { color: '#94a3b8', fontSize: 12, marginTop: 3 },
 
+  // Cihaz listesi — ürün bazlı katlanır görünüm (148 kayıtlık müşteri için)
+  cihazArama: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    fontSize: 13.5,
+    marginBottom: 10,
+  },
+  urunSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  urunOk: { color: '#64748b', fontSize: 12, width: 12 },
+  urunAd: { color: '#e2e8f0', fontSize: 13, fontWeight: '700' },
+  urunAlt: { color: '#64748b', fontSize: 11, marginTop: 1 },
+  urunRozet: {
+    minWidth: 30, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999,
+    backgroundColor: 'rgba(16,185,129,0.16)',
+    borderWidth: 1, borderColor: 'rgba(16,185,129,0.35)',
+    alignItems: 'center',
+  },
+  urunRozetText: { color: '#10b981', fontSize: 11.5, fontWeight: '800' },
+  snSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingLeft: 30,
+    paddingRight: 10,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: 'rgba(15,23,42,0.35)',
+  },
+  snNokta: { width: 6, height: 6, borderRadius: 3 },
+  snMetin: {
+    flex: 1, color: '#cbd5e1', fontSize: 11.5,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  snYan: { color: '#64748b', fontSize: 10.5, maxWidth: 90 },
+  snDaha: {
+    color: '#64748b', fontSize: 11, fontStyle: 'italic',
+    paddingLeft: 30, paddingVertical: 7,
+  },
+  dahaBtn: {
+    paddingVertical: 10, alignItems: 'center', borderRadius: 10, marginTop: 2,
+    backgroundColor: 'rgba(148,163,184,0.10)',
+  },
+  dahaBtnText: { color: '#94a3b8', fontSize: 12.5, fontWeight: '600' },
+
   // Lokasyon bazlı tablo görünümü
   cihazGrubu: {
     backgroundColor: 'rgba(30, 41, 59, 0.7)',
@@ -601,42 +755,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16, 185, 129, 0.12)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(16, 185, 129, 0.3)',
-  },
-  cihazTabloBaslik: {
-    flexDirection: 'row',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-  },
-  cihazTabloSutun: {
-    color: '#64748b',
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  cihazSatir: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.03)',
-  },
-  cihazSatirAd: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  cihazSatirDurum: {
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  cihazSatirDeger: {
-    color: '#cbd5e1',
-    fontSize: 12,
   },
 })
