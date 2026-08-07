@@ -9,19 +9,25 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import Signature from 'react-native-signature-canvas'
+import ImzaTuvali from './ImzaTuvali'
 
 // Kişisel imza çizme modalı — ad alanı YOK (sadece imza).
 // Profil ayarlarında personelin kendi imzasını bir kere eklemesi için.
-// signature-canvas'ın kendi butonlarını gizleyip kendi butonlarımızı kullanıyoruz.
+// Tuval SKIA (yerli çizim) — WebView tabanlı eski tuval sahada çizim almıyordu (07.08).
 
 export default function ImzaCizModal({ visible, onClose, onKaydet, baslik = 'İmzan' }) {
   const ref = useRef()
   const [kaydediliyor, setKaydediliyor] = useState(false)
 
-  const imzaAlindi = async (base64) => {
-    if (!base64 || base64.length < 100) {
-      Alert.alert('Boş İmza', 'İmza algılanamadı, lütfen daha belirgin çiz.')
+  const kaydetTikla = async () => {
+    if (kaydediliyor) return
+    if (ref.current?.bosMu()) {
+      Alert.alert('Boş İmza', 'Önce alana imzanı çiz.')
+      return
+    }
+    const base64 = ref.current?.pngBase64()
+    if (!base64) {
+      Alert.alert('Hata', 'İmza görüntüsü alınamadı. Tekrar deneyin.')
       return
     }
     setKaydediliyor(true)
@@ -35,22 +41,7 @@ export default function ImzaCizModal({ visible, onClose, onKaydet, baslik = 'İm
     }
   }
 
-  const tetikleKaydet = () => {
-    if (kaydediliyor) return
-    ref.current?.readSignature()
-  }
-
-  const temizle = () => {
-    ref.current?.clearSignature()
-  }
-
-  const webStyle = `
-    .m-signature-pad { box-shadow: none; border: none; }
-    .m-signature-pad--body { border: none; background: #f8fafc; }
-    .m-signature-pad--footer { display: none !important; margin: 0px; height: 0 !important; }
-    body, html { background-color: #f8fafc; margin: 0; padding: 0; height: 100%; width: 100%; }
-    canvas { background-color: #f8fafc !important; width: 100% !important; height: 100% !important; }
-  `
+  const temizle = () => ref.current?.temizle()
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -68,17 +59,7 @@ export default function ImzaCizModal({ visible, onClose, onKaydet, baslik = 'İm
         </Text>
 
         <View style={styles.imzaAlan}>
-          <Signature
-            ref={ref}
-            onOK={imzaAlindi}
-            onEmpty={() => Alert.alert('Boş', 'İmza atılmamış. Ekrana çiz, sonra Kaydet\'e bas.')}
-            webStyle={webStyle}
-            backgroundColor="#f8fafc"
-            penColor="#0f172a"
-            imageType="image/png"
-            descriptionText=""
-            autoClear={false}
-          />
+          <ImzaTuvali ref={ref} />
         </View>
 
         <View style={styles.butonlar}>
@@ -93,7 +74,7 @@ export default function ImzaCizModal({ visible, onClose, onKaydet, baslik = 'İm
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.onayBtn, kaydediliyor && { opacity: 0.6 }]}
-            onPress={tetikleKaydet}
+            onPress={kaydetTikla}
             disabled={kaydediliyor}
             activeOpacity={0.85}
           >

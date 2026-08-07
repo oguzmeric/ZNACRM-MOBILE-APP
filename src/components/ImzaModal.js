@@ -10,10 +10,11 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import Signature from 'react-native-signature-canvas'
+import ImzaTuvali from './ImzaTuvali'
 
-// Müşteri imza modal — signature-canvas kendi dahili butonlarını kullanıyor
-// (Kaydet/Temizle) böylece onOK/onClear event'leri garanti çalışır.
+// Müşteri imza modalı — tuval SKIA (yerli çizim), WebView DEĞİL.
+// 07.08: WebView tabanlı eski tuval sahada "ekrana hiçbir şey çizilmiyor"
+// durumuna düştü (Android WebView güncellemesi). Skia bundan bağımsız.
 
 export default function ImzaModal({ visible, onClose, onKaydet, baslangicAd = '' }) {
   const ref = useRef()
@@ -21,16 +22,25 @@ export default function ImzaModal({ visible, onClose, onKaydet, baslangicAd = ''
   const [adSoyad, setAdSoyad] = useState(baslangicAd)
 
   useEffect(() => {
-    if (visible) setAdSoyad(baslangicAd ?? '')
+    if (visible) {
+      setAdSoyad(baslangicAd ?? '')
+      ref.current?.temizle()
+    }
   }, [visible, baslangicAd])
 
-  const imzaAlindi = async (base64) => {
-    if (!base64 || base64.length < 100) {
-      Alert.alert('Boş İmza', 'İmza algılanamadı, lütfen daha belirgin çiz.')
+  const kaydetTikla = async () => {
+    if (kaydediliyor) return
+    if (ref.current?.bosMu()) {
+      Alert.alert('Boş İmza', 'Önce alana imza atın.')
       return
     }
     if (!adSoyad.trim()) {
       Alert.alert('Eksik', 'Teslim alan kişinin adı soyadı gerekli.')
+      return
+    }
+    const base64 = ref.current?.pngBase64()
+    if (!base64) {
+      Alert.alert('Hata', 'İmza görüntüsü alınamadı. Tekrar deneyin.')
       return
     }
     setKaydediliyor(true)
@@ -44,24 +54,7 @@ export default function ImzaModal({ visible, onClose, onKaydet, baslangicAd = ''
     }
   }
 
-  // Kendi kaydet butonumuz — signature paketinin dahili "OK" butonunu tetikler
-  const tetikleKaydet = () => {
-    if (kaydediliyor) return
-    ref.current?.readSignature()
-  }
-
-  const temizle = () => {
-    ref.current?.clearSignature()
-  }
-
-  // CSS — paketin kendi butonlarını GIZLIYORUZ (custom kullanıyoruz üstte)
-  const webStyle = `
-    .m-signature-pad { box-shadow: none; border: none; }
-    .m-signature-pad--body { border: none; background: #f8fafc; }
-    .m-signature-pad--footer { display: none !important; margin: 0px; height: 0 !important; }
-    body, html { background-color: #f8fafc; margin: 0; padding: 0; height: 100%; width: 100%; }
-    canvas { background-color: #f8fafc !important; width: 100% !important; height: 100% !important; }
-  `
+  const temizle = () => ref.current?.temizle()
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -91,17 +84,7 @@ export default function ImzaModal({ visible, onClose, onKaydet, baslangicAd = ''
         </View>
 
         <View style={styles.imzaAlan}>
-          <Signature
-            ref={ref}
-            onOK={imzaAlindi}
-            onEmpty={() => Alert.alert('Boş', 'İmza atılmamış. Ekrana çiz, sonra Kaydet\'e bas.')}
-            webStyle={webStyle}
-            backgroundColor="#f8fafc"
-            penColor="#0f172a"
-            imageType="image/png"
-            descriptionText=""
-            autoClear={false}
-          />
+          <ImzaTuvali ref={ref} />
         </View>
 
         <View style={styles.butonlar}>
@@ -116,7 +99,7 @@ export default function ImzaModal({ visible, onClose, onKaydet, baslangicAd = ''
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.onayBtn, kaydediliyor && { opacity: 0.6 }]}
-            onPress={tetikleKaydet}
+            onPress={kaydetTikla}
             disabled={kaydediliyor}
             activeOpacity={0.85}
           >
