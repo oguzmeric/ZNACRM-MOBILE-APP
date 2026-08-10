@@ -11,7 +11,7 @@ import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { gorevleriGetir, gorevGuncelle, gorevNotEkle, gorevDurumGuncelle } from '../services/gorevService'
-import { gorevGecikti, gecikmeGunu } from '../lib/gorevSabitleri'
+import { gorevGecikti, gecikmeGunu, bugunStr } from '../lib/gorevSabitleri'
 import { bildirimEkleDb } from '../services/bildirimService'
 
 const SEBEPLER = [
@@ -29,11 +29,13 @@ const EK_SURELER = [
   { gun: 14, etiket: '+2 hafta' },
 ]
 
-const bugunStr = () => new Date().toISOString().slice(0, 10)
+// ⚠️ bugunStr merkezî (TR günü). gunEkle de TR gününden UTC aritmetiğiyle
+// türetilir: eski hâli (yerel Date + setDate + toISOString) TR'de sonucu bir
+// gün geri kaydırıyordu — "Yarın" çipi görevi BUGÜNE erteliyor, kapı hemen
+// yeniden açılıyordu.
 const gunEkle = (gun) => {
-  const d = new Date()
-  d.setDate(d.getDate() + gun)
-  return d.toISOString().slice(0, 10)
+  const [y, ay, g] = bugunStr().split('-').map(Number)
+  return new Date(Date.UTC(y, ay - 1, g + gun)).toISOString().slice(0, 10)
 }
 const trTarih = (iso) => iso.split('-').reverse().join('.')
 

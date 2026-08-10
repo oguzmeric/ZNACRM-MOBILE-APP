@@ -38,7 +38,13 @@ export const KAPALI_DURUMLAR = GOREV_DURUMLARI.filter(d => d.grup === 'kapali').
 export const SEBEP_ZORUNLU_DURUMLAR = ['beklemede', 'bilgi_bekleniyor', 'iptal']
 
 // ─── Hesaplanan durumlar ────────────────────────────────────────────────────
-export const bugunStr = () => new Date().toISOString().slice(0, 10)
+// ⚠️ TR GÜNÜ: düz toISOString() UTC'ye göre keser → gece 00:00-03:00 arasında
+// "bugün" bir ÖNCEKİ günü gösteriyor, görev bir gün erken "gecikti" oluyordu.
+// Web'de Intl (Europe/Istanbul) kullanılıyor; burada Hermes'in Intl saat dilimi
+// desteği güvenilir olmadığı için sabit UTC+3 ofseti — Türkiye 2016'dan beri
+// yaz saati uygulamıyor, iki taraf aynı günü üretir.
+const TR_OFSET_MS = 3 * 60 * 60 * 1000
+export const bugunStr = () => new Date(Date.now() + TR_OFSET_MS).toISOString().slice(0, 10)
 
 // son_tarih kanonik; eski kayıtlar için bitis_tarih(i) fallback
 const sonTarihStr = (g) => {
@@ -57,14 +63,22 @@ export const etkinSonTarih = (g) => {
   if (!taban) return ''
   const ofset = Number(g?.toplamBeklemeGun) || 0
   if (ofset <= 0) return taban
-  const d = new Date(taban + 'T00:00:00')
-  d.setDate(d.getDate() + ofset)
-  return d.toISOString().slice(0, 10)
+  // ⚠️ Takvim aritmetiği UTC'de: yerel `new Date(...T00:00:00)` + toISOString
+  // ikilisi TR'de sonucu BİR GÜN GERİ kaydırıyordu.
+  const [y, ay, gun] = taban.split('-').map(Number)
+  if (!y || !ay || !gun) return taban
+  return new Date(Date.UTC(y, ay - 1, gun + ofset)).toISOString().slice(0, 10)
 }
 
+// ⚠️ Taslak (grup 'pasif') gecikmiş SAYILMAZ — ne açık ne kapalı olduğu için
+// "kapalı değilse gecikmiştir" kestirmesi onu da kırmızı işaretliyordu.
 export const gorevGecikti = (g) => {
   const t = sonTarihStr(g)
-  return !!t && !KAPALI_DURUMLAR.includes(g?.durum) && !gorevBekliyorMu(g) && etkinSonTarih(g) < bugunStr()
+  if (!t) return false
+  const grup = durumBilgi(g?.durum).grup
+  if (grup === 'kapali' || grup === 'pasif') return false
+  if (gorevBekliyorMu(g)) return false
+  return etkinSonTarih(g) < bugunStr()
 }
 
 export const gecikmeGunu = (g) => {
