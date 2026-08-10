@@ -163,3 +163,111 @@ export const izinIptal = async (id) => {
     .eq('id', id)
   if (error) throw error
 }
+
+// ---------- Avans talepleri (yalnız kendi) ----------
+// Akış web ile birebir: talep (bekliyor) → İK kararı → ÖDEME işareti → taksit
+// planı DB trigger'ı üretir → her ay taksit "kesildi" işaretlenir.
+// Karar/ödeme/taksit adımları MOBİLDE YOK (web, Abdullah Bey); personel burada
+// yalnız talep açar, listeler ve bekleyeni iptal eder.
+//
+// ⚠️ İzinden farkı: avans bildirimleri İSTEMCİDEN GÖNDERİLMEZ — DB trigger'ı
+// (tr_avans_bildir) yollar. Buradan ayrıca bildirim yazılırsa İK'ya ÇİFT
+// bildirim gider.
+
+export const AVANS_DURUM = {
+  bekliyor:   { isim: 'Bekliyor',   renk: '#f59e0b' },
+  onaylandi:  { isim: 'Onaylandı',  renk: '#10b981' },
+  reddedildi: { isim: 'Reddedildi', renk: '#dc2626' },
+  iptal:      { isim: 'İptal',      renk: '#6b7280' },
+}
+
+export const avansDurumBilgi = (id) =>
+  AVANS_DURUM[id] || { isim: id || '—', renk: '#6b7280' }
+
+export const TAKSIT_SECENEKLERI = [1, 2, 3, 4, 5, 6, 9, 12]
+
+export const tutarBicim = (t) =>
+  (Number(t) || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺'
+
+export const donemBicim = (d) => {
+  if (!d) return '—'
+  const t = new Date(String(d).length <= 10 ? `${d}T00:00:00` : d)
+  return isNaN(t) ? '—' : t.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
+}
+
+/** "9.000" / "9000,50" / "9000" → sayı (web ikService ile aynı kural). */
+export const tutarCoz = (metin) =>
+  Number(String(metin ?? '').replace(/\./g, '').replace(',', '.'))
+
+/** Kendi avans taleplerim + taksit planları. */
+export const avansTaleplerimiGetir = async (kullaniciId) => {
+  if (!kullaniciId) return []
+  const { data, error } = await supabase
+    .from('avans_talepleri')
+    .select(`
+      id, kullanici_id, tutar, taksit_sayisi, gerekce, durum,
+      onaylayan_id, onay_tarihi, karar_notu,
+      odeme_tarihi, odeyen_id, ilk_kesinti_donemi, olusturma_tarih,
+      avans_taksitleri ( id, sira, donem, tutar, kesinti_tarihi, kesen_id )
+    `)
+    .eq('kullanici_id', Number(kullaniciId))
+    .order('olusturma_tarih', { ascending: false })
+  if (error) { console.error('[avanslarim]', error.message); return [] }
+
+  const onaylayanIdler = [...new Set((data || []).map(r => r.onaylayan_id).filter(Boolean))]
+  let adMap = new Map()
+  if (onaylayanIdler.length) {
+    const { data: k } = await supabase.from('kullanicilar').select('id, ad').in('id', onaylayanIdler)
+    adMap = new Map((k || []).map(x => [Number(x.id), x.ad]))
+  }
+
+  // ⚠️ toCamel iç içe diziyi düzleştirmez (web dersi) — taksitleri elle çevir + sırala
+  return (data || []).map(r => {
+    const taksitler = arrayToCamel(r.avans_taksitleri || []).sort((a, b) => a.sira - b.sira)
+    const kesilen = taksitler.filter(t => t.kesintiTarihi)
+    const kesilenTutar = kesilen.reduce((s, t) => s + Number(t.tutar || 0), 0)
+    const { avansTaksitleri, ...temel } = toCamel(r)
+    return {
+      ...temel,
+      taksitler,
+      onaylayanAd: r.onaylayan_id ? (adMap.get(Number(r.onaylayan_id)) || null) : null,
+      kesilenTaksit: kesilen.length,
+      kesilenTutar,
+      // Ödenmemiş avansta borç DOĞMAMIŞTIR — plan yok, kalan da 0
+      kalanBorc: r.odeme_tarihi ? Number(r.tutar || 0) - kesilenTutar : 0,
+      sonrakiTaksit: taksitler.find(t => !t.kesintiTarihi) || null,
+    }
+  })
+}
+
+/** Yeni avans talebi — durum 'bekliyor'. Bildirimi DB trigger'ı gönderir. */
+export const avansTalepEkle = async ({ kullaniciId, tutar, taksitSayisi, gerekce }) => {
+  if (!kullaniciId) throw new Error('Oturum bulunamadı.')
+  const t = tutarCoz(tutar)
+  if (!Number.isFinite(t) || t <= 0) throw new Error('Geçerli bir avans tutarı girin.')
+  const taksit = Number(taksitSayisi) || 1
+  if (taksit < 1 || taksit > 12) throw new Error('Taksit sayısı 1–12 arasında olmalı.')
+
+  const { data, error } = await supabase
+    .from('avans_talepleri')
+    .insert({
+      kullanici_id: Number(kullaniciId),
+      tutar: t,
+      taksit_sayisi: taksit,
+      gerekce: (gerekce || '').trim() || null,
+      durum: 'bekliyor',
+    })
+    .select('id, tutar, taksit_sayisi, durum, olusturma_tarih')
+    .single()
+  if (error) throw error
+  return toCamel(data)
+}
+
+/** Kendi bekleyen avans talebini iptal et (RLS: kendi + durum='bekliyor'). */
+export const avansIptal = async (id) => {
+  const { error } = await supabase
+    .from('avans_talepleri')
+    .update({ durum: 'iptal' })
+    .eq('id', id)
+  if (error) throw error
+}
