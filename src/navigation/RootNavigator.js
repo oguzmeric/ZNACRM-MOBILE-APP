@@ -72,6 +72,7 @@ import TekliflerScreen from '../screens/TekliflerScreen'
 import TeklifDetayScreen from '../screens/TeklifDetayScreen'
 import YeniTeklifScreen from '../screens/YeniTeklifScreen'
 import MalzemeKullanScreen from '../screens/MalzemeKullanScreen'
+import ServisFaturaHazirlaScreen from '../screens/ServisFaturaHazirlaScreen'
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen'
 import AdminPersonelTakipScreen from '../screens/admin/AdminPersonelTakipScreen'
 import AdminPersonelDetayScreen from '../screens/admin/AdminPersonelDetayScreen'
@@ -209,6 +210,7 @@ export default function RootNavigator() {
             <Stack.Screen name="AdminAktiviteler" component={AdminAktivitelerScreen} options={{ title: 'Tüm Aktiviteler' }} />
             <Stack.Screen name="AdminPersonelStok" component={AdminPersonelStokScreen} options={{ title: 'Üzerindeki Stok' }} />
             <Stack.Screen name="ServisDetay" component={ServisTalebiDetayScreen} options={{ title: 'Servis Detayı' }} />
+            <Stack.Screen name="ServisFaturaHazirla" component={ServisFaturaHazirlaScreen} options={{ title: 'Servis Faturası' }} />
             <Stack.Screen name="Servisler" component={ServisTalepleriScreen} options={{ title: 'Servis Talepleri' }} />
             <Stack.Screen name="BakimIslerim" component={BakimIslerimScreen} options={{ title: 'Bakım İşlerim' }} />
             <Stack.Screen name="BakimYap" component={BakimYapScreen} options={{ title: 'Toplu Bakım' }} />
@@ -249,6 +251,7 @@ export default function RootNavigator() {
             <Stack.Screen name="YeniTopluBakim" component={YeniTopluBakimScreen} options={{ title: 'Yeni Toplu Bakım' }} />
             <Stack.Screen name="IzinBordro" component={IzinBordroScreen} options={{ title: 'İzin & Bordro' }} />
             <Stack.Screen name="MalzemeKullan" component={MalzemeKullanScreen} options={{ title: 'Sahada Kullan' }} />
+            <Stack.Screen name="ServisFaturaHazirla" component={ServisFaturaHazirlaScreen} options={{ title: 'Servis Faturası' }} />
             <Stack.Screen name="CihazDetay" component={CihazDetayScreen} options={{ title: 'Cihaz Detayı' }} />
             <Stack.Screen name="YeniCihaz" component={YeniCihazScreen} options={{ title: 'Yeni Cihaz Kaydı' }} />
             <Stack.Screen name="Stok" component={StokScreen} />

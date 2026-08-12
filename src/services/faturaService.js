@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { toCamel, toSnake } from '../lib/mapper'
 import { bildirimEkleDb } from './bildirimService'
 import { formEnvanterKalemleri } from './servisMalzemeService'
+import { faturaHesapla, kalemPayload, paraMetni } from '../lib/faturaHesap'
 
 // Servisin proforma fatura durumu (buton/rozet için)
 export const servisFaturaTalebiGetir = async (servisId) => {
@@ -19,7 +20,17 @@ export const servisFaturaTalebiGetir = async (servisId) => {
   return data?.[0] ? toCamel(data[0]) : null
 }
 
-export const servistenFaturaTalebiAc = async ({ servis, kullanici, not = '' }) => {
+/**
+ * Servisten proforma açar.
+ *
+ * @param kalemler  ServisFaturaHazirla ekranından gelen FİYATLI kalemler.
+ *   Verilirse tutarlar bunlardan hesaplanır (12.08.2026 akışı: fiyatı işi
+ *   yapan teknisyen girer, muhasebe hazır proforma alır).
+ *   Verilmezse ESKİ davranış: serviste kullanılan malzemeler fiyatsız taşınır
+ *   ve tutarı muhasebe kesim anında girer — web tarafı ve eski mobil
+ *   sürümler bu yoldan geliyor, bozulmamalı.
+ */
+export const servistenFaturaTalebiAc = async ({ servis, kullanici, not = '', kalemler = null }) => {
   // Zaten açık talep var mı? (uq_fatura_talep_acik_servis)
   const { data: mevcut } = await supabase
     .from('fatura_talepleri')
@@ -39,10 +50,24 @@ export const servistenFaturaTalebiAc = async ({ servis, kullanici, not = '' }) =
     m = data
   }
 
-  // Serviste kullanılan malzemeler (web + mobil S/N akışı birleşik) proformaya
-  // FİYATSIZ kalem olarak taşınır — muhasebe ne faturalanacağını görsün
-  // (FTL-2026-000025: bomboş proforma "hata" sanılmıştı). Fiyatı muhasebe girer.
-  const malzemeler = await formEnvanterKalemleri(servis.id).catch(() => [])
+  // Teknisyen fiyat girdiyse ONU kullan; yoksa serviste kullanılan malzemeleri
+  // fiyatsız taşı (FTL-2026-000025: bomboş proforma "hata" sanılmıştı).
+  const teknisyenGirdi = Array.isArray(kalemler) && kalemler.length > 0
+  const satirlar = teknisyenGirdi
+    ? kalemler.map(kalemPayload)
+    // ⚠️ parametre adı `mlz` — dıştaki `m` MÜŞTERİ künyesi, gölgelenmemeli
+    : (await formEnvanterKalemleri(servis.id).catch(() => [])).map((mlz) => ({
+      stokKodu: mlz.stokKodu || '',
+      urunAdi: mlz.seriNo ? `${mlz.urunAdi || ''} (S/N: ${mlz.seriNo})` : (mlz.urunAdi || ''),
+      aciklama: '',
+      miktar: Number(mlz.miktar) || 1,
+      birim: mlz.birim || 'Adet',
+      birimFiyat: 0, iskontoOran: 0, kdvOran: 20,
+      araToplam: 0, kdvTutar: 0, satirToplam: 0,
+    }))
+  const toplam = teknisyenGirdi
+    ? faturaHesapla(kalemler)
+    : { araToplam: 0, kdvToplam: 0, genelToplam: 0 }
 
   const payload = {
     servisTalepId: servis.id ? Number(servis.id) : null,
@@ -56,16 +81,10 @@ export const servistenFaturaTalebiAc = async ({ servis, kullanici, not = '' }) =
     email: m?.email || '',
     konu: servis.konu ? `Servis: ${servis.konu}` : 'Servis faturası',
     paraBirimi: 'TL',
-    kalemler: (malzemeler || []).map((m) => ({
-      stokKodu: m.stokKodu || '',
-      urunAdi: m.seriNo ? `${m.urunAdi || ''} (S/N: ${m.seriNo})` : (m.urunAdi || ''),
-      aciklama: '',
-      miktar: Number(m.miktar) || 1,
-      birim: m.birim || 'Adet',
-      birimFiyat: 0, iskontoOran: 0, kdvOran: 20,
-      araToplam: 0, kdvTutar: 0, satirToplam: 0,
-    })),
-    araToplam: 0, kdvToplam: 0, genelToplam: 0,
+    kalemler: satirlar,
+    araToplam: toplam.araToplam,
+    kdvToplam: toplam.kdvToplam,
+    genelToplam: toplam.genelToplam,
     durum: 'bekliyor',
     talepNotu: not || '',
     talepEdenId: kullanici?.id ?? null,
@@ -100,7 +119,11 @@ export const servistenFaturaTalebiAc = async ({ servis, kullanici, not = '' }) =
         aliciId,
         gonderenId: kullanici?.id,
         baslik: `Proforma fatura — ${kayit.firmaAdi}`,
-        mesaj: `${kayit.talepNo} · servisten · fatura kesilecek`,
+        // Tutar bildirimde görünsün: teknisyen fiyatladıysa muhasebe ne
+        // geldiğini listeye girmeden bilir
+        mesaj: teknisyenGirdi
+          ? `${kayit.talepNo} · ${satirlar.length} kalem · ${paraMetni(toplam.genelToplam)} · ${kullanici?.ad || 'teknisyen'} gönderdi`
+          : `${kayit.talepNo} · servisten · fatura kesilecek`,
         tip: 'uyari',
         link: '/fatura-talepleri',
         meta: { kaynak: 'fatura_talebi', talep_id: kayit.id },

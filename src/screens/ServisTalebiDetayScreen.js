@@ -67,7 +67,7 @@ import BelgePaylasModal from '../components/BelgePaylasModal'
 import { eksikCihazKayitlariGetir } from '../services/cihazKayitService'
 import ServisFormBilgileriCard from '../components/ServisFormBilgileriCard'
 import { arsivListele, arsivSignedUrl } from '../services/servisFormuArsivService'
-import { servistenFaturaTalebiAc, servisFaturaTalebiGetir } from '../services/faturaService'
+import { servisFaturaTalebiGetir } from '../services/faturaService'
 import * as FileSystem from 'expo-file-system/legacy'
 import * as Sharing from 'expo-sharing'
 
@@ -85,7 +85,6 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [faturaTalebi, setFaturaTalebi] = useState(null)  // servise açılan proforma
-  const [faturaMesgul, setFaturaMesgul] = useState(false)
   const [yeniNot, setYeniNot] = useState('')
   const [notKaydediliyor, setNotKaydediliyor] = useState(false)
   const [fotoYukleniyor, setFotoYukleniyor] = useState(false)
@@ -297,30 +296,15 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
     } finally { setCihazKaydediliyor(false) }
   }
 
-  // "Fatura Kesilecek" — proforma açar (muhasebe tutar/PDF/ödemeyi keserken girer)
+  // "Fatura Kesilecek" → hazırlık ekranı.
+  //
+  // 12.08.2026'ya kadar burada tek bir onay kutusu vardı ve proforma FİYATSIZ
+  // açılıyordu; faturayı kesen kişi ne yapıldığını, hangi malzemenin
+  // kullanıldığını görmeden tutar giriyordu. Artık işi yapan kişi kalemleri
+  // fiyatlayıp gönderiyor. Proforma AÇILMASI artık bu ekranın "Gönder"
+  // adımında oluyor — buradan sadece yönlendirme yapılır.
   const faturaKesilecek = () => {
-    if (faturaMesgul) return
-    Alert.alert(
-      'Fatura Kesilecek',
-      'Bu servis için proforma açılıp muhasebenin "Fatura Kesilecek" kuyruğuna eklensin mi? Serviste kullanılan malzemeler proformaya aktarılır; tutar/ödeme/PDF gerçek faturayı kesen muhasebe tarafından girilir.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Evet, işaretle',
-          onPress: async () => {
-            setFaturaMesgul(true)
-            try {
-              const sonuc = await servistenFaturaTalebiAc({ servis: talep, kullanici })
-              if (sonuc?._hata) { Alert.alert('Hata', sonuc._hata); return }
-              setFaturaTalebi(sonuc)
-              Alert.alert('Tamam', 'Fatura kesilecek olarak işaretlendi — proforma kuyruğuna eklendi.')
-            } finally {
-              setFaturaMesgul(false)
-            }
-          },
-        },
-      ],
-    )
+    navigation.navigate('ServisFaturaHazirla', { servisTalepId: talep.id })
   }
 
   const malzemeKaydet = async (plan) => {
@@ -1298,14 +1282,15 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
                     </Text>
                   </View>
                 )}
+                {/* Artık hazırlık ekranı açar; proforma o ekranın "Gönder"
+                    adımında oluşur — burada bekleme durumu kalmadı. */}
                 <TouchableOpacity
-                  style={[styles.formuAcBtn, { backgroundColor: '#0ea5e9', marginTop: 8, opacity: faturaMesgul ? 0.6 : 1 }]}
+                  style={[styles.formuAcBtn, { backgroundColor: '#0ea5e9', marginTop: 8 }]}
                   onPress={faturaKesilecek}
-                  disabled={faturaMesgul}
                   activeOpacity={0.88}
                 >
                   <Feather name="dollar-sign" size={18} color="#fff" />
-                  <Text style={styles.formuAcBtnText}>{faturaMesgul ? 'İşaretleniyor…' : 'Fatura Kesilecek'}</Text>
+                  <Text style={styles.formuAcBtnText}>Fatura Kesilecek</Text>
                 </TouchableOpacity>
               </>
             )}
