@@ -19,7 +19,11 @@ const SIRKET_BILGI = {
   },
   anadolunet: {
     firmaAdi: 'ANADOLUNET DİJİTAL YAPI A.Ş.',
-    adres: 'İ.O.S.B. KERESTECİLER SANAYİ SİTESİ 3B BLOK KAT:3 NO:3 BAŞAKŞEHİR/İSTANBUL',
+    // ⚠️ 12.08.2026 güncellendi. Web'de aynı künye src/lib/kurumsalKunye.js'te
+    // (crm-app) — ayrı repo olduğu için kod paylaşılamıyor. Adres/telefon
+    // değişikliğinde İKİSİ BİRDEN güncellenmeli, yoksa mobilden basılan form
+    // eski adresi taşımaya devam eder.
+    adres: 'ZİYA GÖKALP MAH. SÜLEYMAN DEMİREL BLV. THE OFFICE NO: 7 E İÇ KAPI NO: 136 BAŞAKŞEHİR/ İSTANBUL',
     iletisim: 'İLETİŞİM: (212) 549-9494 · FAX: (212) 671-7454',
     accent: '#1A1A1A',
     accentBg: '#F0F0F0',
