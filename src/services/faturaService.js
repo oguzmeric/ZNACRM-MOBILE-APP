@@ -9,6 +9,14 @@ import { bildirimEkleDb } from './bildirimService'
 import { formEnvanterKalemleri } from './servisMalzemeService'
 import { faturaHesapla, kalemPayload, paraMetni } from '../lib/faturaHesap'
 
+/**
+ * Bakım kapsamı = servisin yükümlülüğü "bakım" → bedel alınmaz (mig 282).
+ * ⚠️ Web'de aynı kural faturaTalepService.bakimKapsamiMi'de; ayrı repo
+ * olduğu için kod paylaşılamıyor, ikisi AYNI kalmalı.
+ */
+export const bakimKapsamiMi = (servis) =>
+  String(servis?.yukumluluk || '').trim().toLocaleLowerCase('tr') === 'bakim'
+
 // Servisin proforma fatura durumu (buton/rozet için)
 export const servisFaturaTalebiGetir = async (servisId) => {
   const { data } = await supabase
@@ -81,6 +89,12 @@ export const servistenFaturaTalebiAc = async ({ servis, kullanici, not = '', kal
     email: m?.email || '',
     konu: servis.konu ? `Servis: ${servis.konu}` : 'Servis faturası',
     paraBirimi: 'TL',
+    // BAKIM KAPSAMI (mig 282): yükümlülüğü "bakım" olan işte bedel alınmaz.
+    // Proforma bedelsiz açılır; muhasebe fatura no/tutar girmeden kapatabilir.
+    // Web tarafındaki faturaTalepService.bakimKapsamiMi ile AYNI kural.
+    ...(bakimKapsamiMi(servis)
+      ? { bedelsiz: true, bedelsizSebep: 'Bakım anlaşması kapsamında' }
+      : { bedelsiz: false, bedelsizSebep: null }),
     kalemler: satirlar,
     araToplam: toplam.araToplam,
     kdvToplam: toplam.kdvToplam,

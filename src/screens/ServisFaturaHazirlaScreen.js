@@ -20,7 +20,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { servisTalepGetir } from '../services/servisService'
 import { formEnvanterKalemleri } from '../services/servisMalzemeService'
-import { servistenFaturaTalebiAc } from '../services/faturaService'
+import { servistenFaturaTalebiAc, bakimKapsamiMi } from '../services/faturaService'
 import { faturaHesapla, paraMetni, sayi } from '../lib/faturaHesap'
 
 const KDV_SECENEK = [20, 18, 10, 1, 0]
@@ -67,6 +67,9 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
   useEffect(() => { yukle() }, [yukle])
 
   const hesap = useMemo(() => faturaHesapla(kalemler), [kalemler])
+  // Bakım anlaşması kapsamındaki işte bedel alınmaz (mig 282) — teknisyen
+  // boşuna fiyat girmesin, muhasebe de tutar beklemesin.
+  const bakimKapsami = bakimKapsamiMi(talep)
 
   const satirGuncelle = (anahtar, alan, deger) =>
     setKalemler(k => k.map(s => (s.anahtar === anahtar ? { ...s, [alan]: deger } : s)))
@@ -89,11 +92,12 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
       Alert.alert('Eksik satır', `${adsiz} satırda açıklama yazılmamış. Faturada ne görüneceğini yazın.`)
       return
     }
-    if (kalemler.length === 0) {
+    // ⚠️ Bakım kapsamında tutar ARANMAZ — bedel zaten alınmıyor.
+    if (!bakimKapsami && kalemler.length === 0) {
       Alert.alert('Kalem yok', 'En az bir kalem girin — işçilik satırı da ekleyebilirsiniz.')
       return
     }
-    if (hesap.genelToplam <= 0) {
+    if (!bakimKapsami && hesap.genelToplam <= 0) {
       Alert.alert('Tutar girilmemiş', 'Fatura tutarı sıfır görünüyor. En az bir kaleme fiyat girin.')
       return
     }
@@ -101,10 +105,12 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
     const devam = await new Promise(cevap => {
       const fiyatsiz = hesap.fiyatsizSatir
       Alert.alert(
-        'Muhasebeye Gönder',
-        `Genel toplam ${paraMetni(hesap.genelToplam)} (KDV dahil).` +
-        (fiyatsiz > 0 ? `\n\n⚠️ ${fiyatsiz} satırın fiyatı boş — bu satırlar 0 TL gidecek.` : '') +
-        '\n\nProforma açılıp fatura kesecek kişiye gönderilsin mi?',
+        bakimKapsami ? 'Bakım Kapsamında Gönder' : 'Muhasebeye Gönder',
+        (bakimKapsami
+          ? 'Bu iş bakım anlaşması kapsamında — bedel alınmıyor.\n\nKullanılan malzemeler kayıt için gönderilecek, tutar istenmeyecek.'
+          : `Genel toplam ${paraMetni(hesap.genelToplam)} (KDV dahil).`
+            + (fiyatsiz > 0 ? `\n\n⚠️ ${fiyatsiz} satırın fiyatı boş — bu satırlar 0 TL gidecek.` : ''))
+        + '\n\nProforma açılıp fatura kesecek kişiye gönderilsin mi?',
         [
           { text: 'Vazgeç', style: 'cancel', onPress: () => cevap(false) },
           { text: 'Gönder', onPress: () => cevap(true) },
@@ -171,10 +177,23 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
             )}
           </View>
 
+          {/* Bakım kapsamı bandı — fiyat girmesi gerekmediğini net söyler */}
+          {bakimKapsami && (
+            <View style={[s.kart, { borderColor: '#0ea5e9', backgroundColor: 'rgba(14,165,233,0.10)' }]}>
+              <Text style={[s.kartBaslik, { color: '#0ea5e9' }]}>BAKIM ANLAŞMASI KAPSAMINDA</Text>
+              <Text style={s.govde}>
+                Bu iş bakım anlaşması kapsamında — müşteriden bedel alınmıyor.
+                Fiyat girmenize gerek yok; kullanılan malzemeler kayıt için gönderilir.
+              </Text>
+            </View>
+          )}
+
           {/* Kalemler */}
           <View style={s.kart}>
             <View style={s.satirArasi}>
-              <Text style={s.kartBaslik}>FATURA KALEMLERİ</Text>
+              <Text style={s.kartBaslik}>
+                {bakimKapsami ? 'KULLANILAN MALZEMELER' : 'FATURA KALEMLERİ'}
+              </Text>
               <Text style={s.altMetin}>{kalemler.length} satır</Text>
             </View>
 
@@ -257,7 +276,8 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Toplam */}
+          {/* Toplam — bakim kapsaminda gosterilmez (bedel yok) */}
+          {!bakimKapsami && (
           <View style={s.kart}>
             <Text style={s.kartBaslik}>TOPLAM</Text>
             <View style={s.toplamSatir}>
@@ -282,6 +302,7 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
               </Text>
             )}
           </View>
+          )}
 
           {/* Muhasebeye not */}
           <View style={s.kart}>
@@ -306,7 +327,7 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
               : (
                 <>
                   <Feather name="send" size={17} color="#fff" />
-                  <Text style={s.gonderMetin}>Muhasebeye Gönder</Text>
+                  <Text style={s.gonderMetin}>{bakimKapsami ? 'Bakım Kapsamında Gönder' : 'Muhasebeye Gönder'}</Text>
                 </>
               )}
           </TouchableOpacity>
