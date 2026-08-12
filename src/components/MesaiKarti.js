@@ -48,6 +48,9 @@ const kilitliMi = (dk) => dk >= KILIT_BASLANGIC_DK && dk < KILIT_BITIS_DK
 // ELLE bitirir, unutulursa gece 02:00'da yedek cron kapatır.
 const FAZLA_BASLANGIC_DK = 19 * 60
 const fazlaPenceresiMi = (dk) => dk >= FAZLA_BASLANGIC_DK
+// Saat biçimleyici modül seviyesinde: her render'da yeniden oluşmasın ve
+// bileşen içinde 'aşağıda tanımlı ama yukarıda kullanılıyor' tuzağı doğmasın.
+const saatMetni = (iso) => new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
 
 export default function MesaiKarti() {
   const { colors } = useTheme()
@@ -58,6 +61,8 @@ export default function MesaiKarti() {
   const [meshgul, setMeshgul] = useState(false)
   const [izin, izinIste] = useCameraPermissions()
   const okundu = useRef(false)
+  // Mesai başlatmada senkron çift dokunma kilidi — bkz. konumAlVeGiris
+  const girisKilidi = useRef(false)
 
   const yenile = async () => {
     try { setAcik(await acikMesaiGetir()) } catch {}
@@ -92,6 +97,12 @@ export default function MesaiKarti() {
   }
 
   const konumAlVeGiris = async (qr_payload, zorla = false) => {
+    // ⚠️ SENKRON KİLİT (12.08.2026). setMeshgul(true) asenkron: buton ancak bir
+    // sonraki render'da pasifleşir, o aralıkta gelen ikinci dokunuş kapıdan
+    // geçip İKİNCİ mesai kaydı açardı. useState tek başına yetmez —
+    // aynı desen web'de 7 mükerrer teklif üretmişti.
+    if (girisKilidi.current) return
+    girisKilidi.current = true
     setMeshgul(true)
     try {
       const konumIzin = await Location.requestForegroundPermissionsAsync()
@@ -117,9 +128,27 @@ export default function MesaiKarti() {
           [{ text: 'İptal', style: 'cancel' }, { text: 'Evet', onPress: () => konumAlVeGiris(qr_payload, true) }])
         return
       }
+      // ⚠️ 12.08.2026: eski metin "Zaten mesaidesin — Kapatıp yenisini açayım
+      // mı? [İptal] [Evet]" idi. Personel bunu "başlatılamadı, tekrar dene"
+      // sanıp Evet'e basıyordu → açık kayıt kapanıp yenisi açılıyor, ilk kayıt
+      // 0 dakikalık çöp oluyordu (Emin Erdem 12.08 · Irmak İnan 06.08, 19-20 sn).
+      // Artık: mesai zaten AÇIK olduğu net söyleniyor, sonucu yazıyor ve
+      // yeniden başlatma yıkıcı seçenek olarak İKİNCİ sırada.
       if (cvp.hata === 'zaten_acik') {
-        Alert.alert('Zaten mesaidesin', 'Kapatıp yenisini açayım mı?',
-          [{ text: 'İptal', style: 'cancel' }, { text: 'Evet', onPress: () => konumAlVeGiris(qr_payload, true) }])
+        const basladi = acik?.giris_zamani ? saatMetni(acik.giris_zamani) : null
+        Alert.alert(
+          'Mesain zaten açık',
+          (basladi ? `Mesain ${basladi}'de başlamış ve şu an devam ediyor.` : 'Şu an açık bir mesain var.')
+          + '\n\nYeniden başlatman gerekmiyor. Yeniden başlatırsan mevcut kayıt kapanır ve süre sıfırdan işlemeye başlar.',
+          [
+            { text: 'Tamam, devam ediyorum', style: 'cancel' },
+            {
+              text: 'Yine de yeniden başlat',
+              style: 'destructive',
+              onPress: () => konumAlVeGiris(qr_payload, true),
+            },
+          ],
+        )
         return
       }
       if (cvp.hata === 'cok_uzak') {
@@ -137,7 +166,7 @@ export default function MesaiKarti() {
         return
       }
       Alert.alert('Hata', cvp.hata ?? 'Bilinmeyen hata')
-    } finally { setMeshgul(false) }
+    } finally { girisKilidi.current = false; setMeshgul(false) }
   }
 
   const qrIslendi = ({ data }) => {
@@ -194,7 +223,6 @@ export default function MesaiKarti() {
     : kilitli ? '19:00'
     : fazlaPencere ? 'Fazla Mesai'
     : 'Başla'
-  const saatMetni = (iso) => new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
   const altYazi = fazlaAcik
     ? `Fazla mesai · başlangıç ${saatMetni(acik.giris_zamani)} · bitirmeyi unutma`
     : acik
