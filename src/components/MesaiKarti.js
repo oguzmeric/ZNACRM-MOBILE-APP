@@ -6,7 +6,7 @@
 // 19:00'dan sonra tekrar aktifleşir. Buton her durumda GÖRÜNÜR kalır, neden
 // basılamadığı üstünde yazar (kullanıcı isteği).
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, TouchableOpacity, Alert, Linking, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity, Alert, Linking, ActivityIndicator, Modal, StyleSheet } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as Location from 'expo-location'
 import { CameraView, useCameraPermissions } from 'expo-camera'
@@ -58,6 +58,7 @@ export default function MesaiKarti() {
   const [acik, setAcik] = useState(null)
   const [_tick, setTick] = useState(0)
   const [qrAcik, setQrAcik] = useState(false)
+  const [kameraHazir, setKameraHazir] = useState(false)
   const [meshgul, setMeshgul] = useState(false)
   const [izin, izinIste] = useCameraPermissions()
   const okundu = useRef(false)
@@ -88,11 +89,12 @@ export default function MesaiKarti() {
   }, [])
 
   const qrOku = async () => {
-    if (!izin?.granted) {
-      const r = await izinIste()
-      if (!r.granted) { Alert.alert('Kamera İzni', 'Kamera izni verilmedi.'); return }
-    }
     okundu.current = false
+    setKameraHazir(false)
+    // ⚠️ İzin YOKSA da ekranı AÇIYORUZ: modal içinde ne yapılacağı yazıyor.
+    // Eskiden burada Alert basılıp dönülüyordu, "bir daha sorma" demiş
+    // kullanıcı hiçbir çıkış yolu göremiyordu.
+    if (!izin?.granted && izin?.canAskAgain !== false) await izinIste().catch(() => {})
     setQrAcik(true)
   }
 
@@ -190,20 +192,78 @@ export default function MesaiKarti() {
     ])
   }
 
-  if (qrAcik) {
-    return (
-      <View style={{ height: 380, borderRadius: 16, overflow: 'hidden', marginBottom: 12, backgroundColor: '#000' }}>
-        <CameraView style={{ flex: 1 }} barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={qrIslendi} />
-        <TouchableOpacity onPress={() => setQrAcik(false)}
-          style={{ position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 }}>
-          <Text style={{ color: '#fff', fontWeight: '600' }}>× Kapat</Text>
-        </TouchableOpacity>
-        <View style={{ position: 'absolute', bottom: 16, left: 16, right: 16, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10, padding: 10 }}>
-          <Text style={{ color: '#fff', fontSize: 13, textAlign: 'center' }}>Ofisin QR kodunu kamerayla okut</Text>
-        </View>
+  /**
+   * QR OKUTMA — TAM EKRAN MODAL (12.08.2026 saha arızası).
+   *
+   * ⚠️ Eskiden kamera, kartın içinde `borderRadius:16 + overflow:'hidden'`
+   * olan 380px'lik bir kutuda gösteriliyordu. Android'de expo-camera
+   * önizlemesi ayrı bir yüzey katmanında çizilir; üstüne konan yuvarlatma
+   * maskesi bazı cihazlarda o katmanı tamamen gizler ve kullanıcı SİYAH
+   * DİKDÖRTGEN görür (Gurbet Çiftçi'nin cihazında böyle oldu).
+   *
+   * Uygulamadaki diğer tarayıcılar (QuickScanner, TaraScreen) zaten tam ekran
+   * `absoluteFill` kullanıyor ve hiç sorun çıkarmadı — desen onlarla eşitlendi.
+   * Tam ekran QR'ı okutmayı da kolaylaştırır.
+   */
+  const qrEkrani = (
+    <Modal visible={qrAcik} animationType="slide" statusBarTranslucent
+      onRequestClose={() => setQrAcik(false)}>
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        {!izin ? (
+          <View style={qrOrta}><ActivityIndicator color="#fff" /></View>
+        ) : !izin.granted ? (
+          // İzin yoksa siyah ekran YERİNE ne yapılacağı yazsın. "Bir daha
+          // sorma" denmişse tekrar istemek sessizce başarısız olur — o durumda
+          // tek çıkış sistem ayarlarıdır.
+          <View style={qrOrta}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 8 }}>
+              Kamera izni gerekli
+            </Text>
+            <Text style={{ color: '#cbd5e1', fontSize: 13, textAlign: 'center', marginBottom: 20 }}>
+              Mesai başlatmak için ofisteki QR kodu okutman gerekiyor.
+            </Text>
+            <TouchableOpacity
+              onPress={() => (izin.canAskAgain ? izinIste() : Linking.openSettings())}
+              style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 }}>
+              <Text style={{ color: '#fff', fontWeight: '700' }}>
+                {izin.canAskAgain ? 'İzin Ver' : 'Ayarları Aç'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setQrAcik(false)}
+              style={{ marginTop: 12, paddingHorizontal: 24, paddingVertical: 12 }}>
+              <Text style={{ color: '#94a3b8', fontWeight: '600' }}>Vazgeç</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <CameraView
+              style={StyleSheet.absoluteFill}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={qrIslendi}
+              onCameraReady={() => setKameraHazir(true)}
+            />
+            {/* Kamera açılana kadar geçen 1-2 saniye "bozuk" sanılmasın */}
+            {!kameraHazir && (
+              <View style={[StyleSheet.absoluteFill, qrOrta]} pointerEvents="none">
+                <ActivityIndicator color="#fff" />
+                <Text style={{ color: '#cbd5e1', fontSize: 13, marginTop: 10 }}>Kamera açılıyor…</Text>
+              </View>
+            )}
+            <TouchableOpacity onPress={() => setQrAcik(false)}
+              style={{ position: 'absolute', top: 48, right: 16, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 }}>
+              <Text style={{ color: '#fff', fontWeight: '600' }}>× Kapat</Text>
+            </TouchableOpacity>
+            <View style={{ position: 'absolute', bottom: 40, left: 20, right: 20, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10, padding: 12 }}>
+              <Text style={{ color: '#fff', fontSize: 14, textAlign: 'center' }}>
+                Ofisin QR kodunu kamerayla okut
+              </Text>
+            </View>
+          </>
+        )}
       </View>
-    )
-  }
+    </Modal>
+  )
 
   // Buton HER ZAMAN görünür; basılamıyorsa nedeni altta yazar.
   // (_tick 30sn'de bir arttığı için kilit penceresi kendiliğinden güncellenir.)
@@ -264,6 +324,8 @@ export default function MesaiKarti() {
   }
 
   return (
+    <>
+    {qrAcik && qrEkrani}
     <View style={{
       backgroundColor: kartBg,
       borderRadius: 14,
@@ -339,5 +401,8 @@ export default function MesaiKarti() {
         }
       </TouchableOpacity>
     </View>
+    </>
   )
 }
+
+const qrOrta = { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }
