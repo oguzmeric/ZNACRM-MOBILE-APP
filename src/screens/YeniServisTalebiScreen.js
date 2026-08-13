@@ -26,7 +26,7 @@ import { musterileriGetir } from '../services/musteriService'
 import { musteriKisileriniGetir } from '../services/musteriKisiService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { musteriCihazlariniGetir } from '../services/stokKalemiService'
-import { servisTalepEkle, servisTalepGuncelle, sonrakiTalepNo } from '../services/servisService'
+import { servisTalepEkle, servisTalepGuncelle, sonrakiTalepNo, aktifKonulariGetir } from '../services/servisService'
 import { malzemePlanEkle } from '../services/servisMalzemeService'
 import { servisEkiYukle } from '../services/servisEkService'
 import { trIcerir } from '../utils/trSearch'
@@ -48,6 +48,9 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
   const [musteri, setMusteri] = useState(null)
   const [kisi, setKisi] = useState(null)
   const [anaTur, setAnaTur] = useState(duzenle?.anaTur || 'ariza')
+  // Konu başlıkları sabit listeden (web mig 285) — serbest metin kapandı
+  const [konular, setKonular] = useState([])
+  useEffect(() => { aktifKonulariGetir().then(setKonular) }, [])
   const [altKategori, setAltKategori] = useState(duzenle?.altKategori || null)
   const [konu, setKonu] = useState(duzenle?.konu || '')
   const [aciklama, setAciklama] = useState(duzenle?.aciklama || '')
@@ -441,15 +444,36 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
           </Text>
         </TouchableOpacity>
 
-        {/* Konu */}
+        {/* Konu — SABİT LİSTE (web mig 285). Serbest metin kapandı: konu,
+            rapora ariza_kodu olarak kopyalanıyor ve upuzun açıklamalar
+            kategorilenemiyordu. Detay Açıklama alanına yazılır. */}
         <Text style={[styles.label, { color: colors.textMuted }]}>Konu *</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
-          value={konu}
-          onChangeText={setKonu}
-          placeholder="Kısa başlık"
-          placeholderTextColor={colors.textFaded}
-        />
+        <View style={styles.chipRow}>
+          {konular.map((k) => (
+            <TouchableOpacity
+              key={k.id}
+              style={[
+                styles.chip,
+                { backgroundColor: colors.surface, borderColor: colors.borderStrong },
+                konu === k.ad && { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+              ]}
+              onPress={() => setKonu(k.ad)}
+            >
+              <Text style={[styles.chipText, { color: colors.textSecondary }, konu === k.ad && { color: '#fff' }]}>
+                {k.ad}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          {/* Düzenlemede eski serbest-metin konu listede yoksa kaybolmasın */}
+          {!!konu && konular.length > 0 && !konular.some((k) => k.ad === konu) && (
+            <TouchableOpacity
+              style={[styles.chip, { backgroundColor: '#2563eb', borderColor: '#2563eb' }]}
+              onPress={() => {}}
+            >
+              <Text style={[styles.chipText, { color: '#fff' }]}>{konu}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Açıklama */}
         <Text style={[styles.label, { color: colors.textMuted }]}>Açıklama</Text>

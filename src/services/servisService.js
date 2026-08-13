@@ -274,3 +274,16 @@ export const tamamlananTalepler = async () => {
 export const servisTalepSil = async (id) => {
   await supabase.from('servis_talepleri').delete().eq('id', id)
 }
+
+// Servis konu başlıkları — SABİT LİSTE (web mig 285 ile aynı tablo).
+// Konu artık serbest metin değil; detay Açıklama alanına yazılır.
+export const aktifKonulariGetir = async () => {
+  const { data, error } = await supabase
+    .from('servis_konulari')
+    .select('id, ad, sira')
+    .eq('aktif', true)
+    .order('sira')
+    .order('ad')
+  if (error) { console.error('[aktifKonulariGetir]', error.message); return [] }
+  return arrayToCamel(data)
+}
