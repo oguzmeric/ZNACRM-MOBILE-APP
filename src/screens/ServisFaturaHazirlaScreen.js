@@ -216,11 +216,11 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
                         value={k.urunAdi}
                         onChangeText={v => satirGuncelle(k.anahtar, 'urunAdi', v)}
                         placeholder="İşçilik / açıklama"
-                        placeholderTextColor={colors.textTertiary}
+                        placeholderTextColor={colors.textMuted}
                       />
                     )}
                     <TouchableOpacity onPress={() => satirSil(k.anahtar)} style={s.silDugme} hitSlop={8}>
-                      <Feather name="x" size={16} color={colors.textTertiary} />
+                      <Feather name="x" size={16} color={colors.textMuted} />
                     </TouchableOpacity>
                   </View>
 
@@ -235,7 +235,7 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
                         onChangeText={v => satirGuncelle(k.anahtar, 'miktar', v)}
                         keyboardType="decimal-pad"
                         placeholder="1"
-                        placeholderTextColor={colors.textTertiary}
+                        placeholderTextColor={colors.textMuted}
                       />
                     </View>
                     <View style={[s.girdiKutu, { flex: 1.4 }]}>
@@ -246,7 +246,7 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
                         onChangeText={v => satirGuncelle(k.anahtar, 'birimFiyat', v)}
                         keyboardType="decimal-pad"
                         placeholder="0,00"
-                        placeholderTextColor={colors.textTertiary}
+                        placeholderTextColor={colors.textMuted}
                       />
                     </View>
                   </View>
@@ -312,7 +312,7 @@ export default function ServisFaturaHazirlaScreen({ route, navigation }) {
               value={not}
               onChangeText={setNot}
               placeholder="Faturayı kesecek kişiye iletmek istediğiniz not…"
-              placeholderTextColor={colors.textTertiary}
+              placeholderTextColor={colors.textMuted}
               multiline
             />
           </View>
@@ -344,28 +344,28 @@ const stiller = (c) => StyleSheet.create({
     borderWidth: 1, borderColor: c.border,
   },
   kartBaslik: {
-    fontSize: 11, fontWeight: '700', color: c.textTertiary,
+    fontSize: 11, fontWeight: '700', color: c.textMuted,
     letterSpacing: 0.6, marginBottom: 8,
   },
   satirArasi: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  konu: { fontSize: 15, fontWeight: '600', color: c.text, marginBottom: 2 },
+  konu: { fontSize: 15, fontWeight: '600', color: c.textPrimary, marginBottom: 2 },
   altMetin: { fontSize: 12, color: c.textSecondary },
-  etiket: { fontSize: 11, fontWeight: '600', color: c.textTertiary, marginTop: 10, marginBottom: 3 },
-  govde: { fontSize: 13, color: c.text, lineHeight: 19 },
+  etiket: { fontSize: 11, fontWeight: '600', color: c.textMuted, marginTop: 10, marginBottom: 3 },
+  govde: { fontSize: 13, color: c.textPrimary, lineHeight: 19 },
   uyariMetin: { fontSize: 12, color: '#B77516', lineHeight: 18, marginTop: 8 },
 
   kalem: { borderTopWidth: 1, borderTopColor: c.border, paddingTop: 10, marginTop: 10 },
   kalemBaslikSatir: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  kalemAd: { flex: 1, fontSize: 14, fontWeight: '600', color: c.text },
+  kalemAd: { flex: 1, fontSize: 14, fontWeight: '600', color: c.textPrimary },
   silDugme: { padding: 4 },
-  stokKod: { fontSize: 11, color: c.textTertiary, marginTop: 2 },
+  stokKod: { fontSize: 11, color: c.textMuted, marginTop: 2 },
 
   girdiSatir: { flexDirection: 'row', gap: 10, marginTop: 8 },
   girdiKutu: { flex: 1 },
-  girdiEtiket: { fontSize: 11, color: c.textTertiary, marginBottom: 4 },
+  girdiEtiket: { fontSize: 11, color: c.textMuted, marginBottom: 4 },
   girdi: {
     borderWidth: 1, borderColor: c.border, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, color: c.text,
+    paddingHorizontal: 10, paddingVertical: 8, fontSize: 15, color: c.textPrimary,
     backgroundColor: c.background,
   },
   adGirdi: { flex: 1, fontWeight: '600' },
@@ -380,13 +380,13 @@ const stiller = (c) => StyleSheet.create({
   kdvDugmeSecili: { backgroundColor: c.primary, borderColor: c.primary },
   kdvMetin: { fontSize: 11, color: c.textSecondary },
   kdvMetinSecili: { color: '#fff', fontWeight: '700' },
-  satirToplam: { fontSize: 14, fontWeight: '700', color: c.text },
+  satirToplam: { fontSize: 14, fontWeight: '700', color: c.textPrimary },
 
   toplamSatir: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
   toplamEtiket: { fontSize: 13, color: c.textSecondary },
-  toplamDeger: { fontSize: 13, color: c.text, fontWeight: '600' },
+  toplamDeger: { fontSize: 13, color: c.textPrimary, fontWeight: '600' },
   genelSatir: { borderTopWidth: 1, borderTopColor: c.border, marginTop: 6, paddingTop: 8 },
-  genelEtiket: { fontSize: 15, fontWeight: '700', color: c.text },
+  genelEtiket: { fontSize: 15, fontWeight: '700', color: c.textPrimary },
   genelDeger: { fontSize: 17, fontWeight: '800', color: c.primary },
 
   ekleDugme: {
