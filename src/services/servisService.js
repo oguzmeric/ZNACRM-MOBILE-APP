@@ -1,19 +1,54 @@
 import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 
-export const servisTalepleriniGetir = async () => {
-  const data = await tumSayfalariCek('servis_talepleri', (q) =>
-    q.order('olusturma_tarihi', { ascending: false })
-  )
-  return arrayToCamel(data)
+/**
+ * LİSTE kolonları — ⚠️ `select('*')` KULLANMA.
+ *
+ * servis_talepleri tablosunda `personel_imza` (base64 imza) ve dolu form
+ * alanları var. Filtresiz `select('*')` her kaydın imzasını da indiriyordu;
+ * kayıt sayısı büyüdükçe istemcinin 5 sn'lik fetch bütçesi aşılıyor,
+ * tumSayfalariCek hatada sessizce `break` ettiği için ekran BOŞ kalıyordu
+ * ("Tümü sekmesi yüklenmiyor" — 14.08).
+ *
+ * Buradaki alanlar ServisTalepleriScreen'in gerçekten kullandıklarıdır
+ * (+ filtre/sıralama için gerekli olanlar).
+ */
+const LISTE_KOLONLARI = [
+  'id', 'talep_no', 'konu', 'durum', 'aciliyet', 'ana_tur',
+  'firma_adi', 'musteri_ad', 'planli_tarih',
+  'atanan_kullanici_id', 'atanan_kullanici_ad', 'olusturma_tarihi',
+].join(',')
+
+// Liste için makul üst sınır — sahada tarih sırasına göre en yeniler önemli.
+const LISTE_LIMIT = 400
+
+/**
+ * Liste sorgusu — hafif kolon seti + limit.
+ *
+ * ⚠️ Kolon whitelist'i PostgREST'te YANLIŞ AD = 400 + BOŞ LİSTE demek (sessiz).
+ * Bu yüzden hata gelirse `select('*')`e düşülür: liste yavaş da olsa çalışır,
+ * kullanıcı boş ekranla kalmaz. Hata `console.warn` ile iz bırakır.
+ */
+const listeCek = async (filtreKur = (q) => q) => {
+  const kur = (secim) =>
+    filtreKur(supabase.from('servis_talepleri').select(secim))
+      .order('olusturma_tarihi', { ascending: false })
+      .order('id', { ascending: false })   // tiebreaker
+      .limit(LISTE_LIMIT)
+
+  const { data, error } = await kur(LISTE_KOLONLARI)
+  if (!error) return arrayToCamel(data ?? [])
+
+  console.warn('[servis listesi] kolon seti reddedildi, select(*) ile tekrar:', error.message)
+  const { data: hepsi, error: hata2 } = await kur('*')
+  if (hata2) throw new Error(hata2.message)
+  return arrayToCamel(hepsi ?? [])
 }
 
-export const banaAtananTalepler = async (kullaniciId) => {
-  const data = await tumSayfalariCek('servis_talepleri', (q) =>
-    q.eq('atanan_kullanici_id', kullaniciId).order('olusturma_tarihi', { ascending: false })
-  )
-  return arrayToCamel(data)
-}
+export const servisTalepleriniGetir = async () => listeCek()
+
+export const banaAtananTalepler = async (kullaniciId) =>
+  listeCek((q) => q.eq('atanan_kullanici_id', kullaniciId))
 
 // Kapalı sayılan durumlar — aktif sayım/listelerden hariç
 export const KAPALI_DURUMLAR = '(tamamlandi,onaylandi,iptal)'

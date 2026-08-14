@@ -44,27 +44,38 @@ export default function ServisTalepleriScreen({ navigation, route }) {
   const [aktifSekme, setAktifSekme] = useState(ilkSekme)
   const [talepler, setTalepler] = useState([])
   const [loading, setLoading] = useState(true)
+  const [hata, setHata] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
   const [acikUyariGosterildi, setAcikUyariGosterildi] = useState(false)
   const [acikSayisi, setAcikSayisi] = useState(0)
 
+  // ⚠️ Hata YUTULMAZ. Eskiden try/catch yoktu: sorgu patlayınca setTalepler hiç
+  // çağrılmıyor, ekran sessizce boş kalıyordu ve kullanıcı "yüklenmiyor" diyordu
+  // ama sebebini göremiyordu (14.08 "Tümü sekmesi" vakası).
   const yukle = useCallback(async () => {
     if (!kullanici) return
-    let veri = []
-    if (aktifSekme === 'bana') {
-      veri = await banaAtananTalepler(kullanici.id)
-    } else if (aktifSekme === 'acik') {
-      // Bana atanmış + henüz kapanmamış olanlar
-      const benim = await banaAtananTalepler(kullanici.id)
-      veri = (benim ?? []).filter((t) => !kapaliMi(t))
-    } else if (aktifSekme === 'tamamlanan') {
-      // Bana atanmış + kapanmış (tamamlanmış/onaylanmış/iptal) olanlar
-      const benim = await banaAtananTalepler(kullanici.id)
-      veri = (benim ?? []).filter((t) => kapaliMi(t))
-    } else {
-      veri = await servisTalepleriniGetir()
+    try {
+      let veri = []
+      if (aktifSekme === 'bana') {
+        veri = await banaAtananTalepler(kullanici.id)
+      } else if (aktifSekme === 'acik') {
+        // Bana atanmış + henüz kapanmamış olanlar
+        const benim = await banaAtananTalepler(kullanici.id)
+        veri = (benim ?? []).filter((t) => !kapaliMi(t))
+      } else if (aktifSekme === 'tamamlanan') {
+        // Bana atanmış + kapanmış (tamamlanmış/onaylanmış/iptal) olanlar
+        const benim = await banaAtananTalepler(kullanici.id)
+        veri = (benim ?? []).filter((t) => kapaliMi(t))
+      } else {
+        veri = await servisTalepleriniGetir()
+      }
+      setTalepler(veri ?? [])
+      setHata(null)
+    } catch (e) {
+      console.warn('[servis talepleri] yükleme hatası:', e?.message)
+      setHata(e?.message || 'Liste yüklenemedi')
+      setTalepler([])
     }
-    setTalepler(veri ?? [])
   }, [aktifSekme, kullanici])
 
   // Bana atanmış açık servis sayısı — banner ve popup için
@@ -146,6 +157,15 @@ export default function ServisTalepleriScreen({ navigation, route }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />
           }
           ListEmptyComponent={
+            hata ? (
+              // Boş liste ile HATA ayrı şeyler — kullanıcı "kayıt yok" mu
+              // "yüklenemedi" mi bilmeli. Aşağı çekince tekrar denenir.
+              <EmptyState
+                ikon="alert-triangle"
+                baslik="Liste yüklenemedi"
+                mesaj={`${hata}\n\nAşağı çekerek tekrar deneyin.`}
+              />
+            ) : (
             <EmptyState
               ikon="tool"
               baslik={
@@ -167,6 +187,7 @@ export default function ServisTalepleriScreen({ navigation, route }) {
                       : 'Yeni talep oluşturarak başla'
               }
             />
+            )
           }
           renderItem={({ item }) => {
             const tur = turBul(item.anaTur)
