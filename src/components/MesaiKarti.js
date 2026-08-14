@@ -41,13 +41,30 @@ function istanbulDakika() {
   return simdi.getHours() * 60 + simdi.getMinutes()
 }
 
-const kilitliMi = (dk) => dk >= KILIT_BASLANGIC_DK && dk < KILIT_BITIS_DK
+// HAFTA SONU = hafta içi 19:00 sonrası akışın AYNISI (kullanıcı kararı 14.08):
+// QR istenmez, kayıt 'fazla' (ekstra mesai) tipiyle açılır, elle bitirilir.
+// Sunucu (mesai-giris) aynı kuralı uygular — burası yalnız ekran davranışı.
+function istanbulHaftaSonuMu() {
+  try {
+    const gun = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Istanbul', weekday: 'short',
+    }).format(new Date())
+    return gun === 'Sat' || gun === 'Sun'
+  } catch {
+    const g = new Date().getDay()
+    return g === 0 || g === 6
+  }
+}
+
+// 18:30-19:00 kilidi hafta içi içindir — hafta sonu cron kapanışı 'fazla' tipe
+// dokunmadığından kilit uygulanmaz (sunucuyla aynı kural).
+const kilitliMi = (dk) => !istanbulHaftaSonuMu() && dk >= KILIT_BASLANGIC_DK && dk < KILIT_BITIS_DK
 
 // FAZLA MESAİ (mig 252): 19:00 ve sonrasında başlatılan çalışma ayrı tutulur ve
 // ayrı ücretlendirilir. Normal mesainin aksine 18:30 cron'u dokunmaz; personel
 // ELLE bitirir, unutulursa gece 02:00'da yedek cron kapatır.
 const FAZLA_BASLANGIC_DK = 19 * 60
-const fazlaPenceresiMi = (dk) => dk >= FAZLA_BASLANGIC_DK
+const fazlaPenceresiMi = (dk) => dk >= FAZLA_BASLANGIC_DK || istanbulHaftaSonuMu()
 // Saat biçimleyici modül seviyesinde: her render'da yeniden oluşmasın ve
 // bileşen içinde 'aşağıda tanımlı ama yukarıda kullanılıyor' tuzağı doğmasın.
 const saatMetni = (iso) => new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
@@ -186,7 +203,11 @@ export default function MesaiKarti() {
   // (mesai-giris edge fn ile birlikte değişti). QR adımı kalkınca tek tık
   // mesai açmasın diye onay sorusu var.
   const fazlaMesaiBaslat = () => {
-    Alert.alert('Fazla mesai başlat', 'Şimdi başlatılan çalışma FAZLA MESAİ olarak kaydedilir ve bitişini sen kapatırsın. Başlatılsın mı?', [
+    Alert.alert(
+      istanbulHaftaSonuMu() ? 'Hafta sonu mesaisi başlat' : 'Fazla mesai başlat',
+      istanbulHaftaSonuMu()
+        ? 'Hafta sonu çalışması EKSTRA MESAİ olarak kaydedilir ve bitişini sen kapatırsın. Başlatılsın mı?'
+        : 'Şimdi başlatılan çalışma FAZLA MESAİ olarak kaydedilir ve bitişini sen kapatırsın. Başlatılsın mı?', [
       { text: 'Vazgeç', style: 'cancel' },
       { text: 'Başlat', onPress: () => konumAlVeGiris(null) },
     ])
@@ -281,7 +302,7 @@ export default function MesaiKarti() {
   const butonEtiket = fazlaAcik ? 'Bitir'
     : acik ? 'Mesaide'
     : kilitli ? '19:00'
-    : fazlaPencere ? 'Fazla Mesai'
+    : fazlaPencere ? (istanbulHaftaSonuMu() ? 'Mesai Başlat' : 'Fazla Mesai')
     : 'Başla'
   const altYazi = fazlaAcik
     ? `Fazla mesai · başlangıç ${saatMetni(acik.giris_zamani)} · bitirmeyi unutma`
@@ -290,7 +311,7 @@ export default function MesaiKarti() {
       : kilitli
         ? 'Mesai 18:30\'da kapandı · 19:00\'dan sonra başlatabilirsin'
         : fazlaPencere
-          ? 'Şimdi başlatılan mesai FAZLA MESAİ sayılır · bitişini sen kapatırsın'
+          ? (istanbulHaftaSonuMu() ? 'Hafta sonu çalışması EKSTRA MESAİ olarak işlenir · bitişini sen kapatırsın' : 'Şimdi başlatılan mesai FAZLA MESAİ sayılır · bitişini sen kapatırsın')
           : 'Bugün henüz başlamadın · geçmişi gör →'
 
   // Fazla mesaiyi elle kapat. Konum best-effort: alınamazsa kayıt yine kapanır,
