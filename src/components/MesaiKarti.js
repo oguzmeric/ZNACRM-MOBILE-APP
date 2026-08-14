@@ -41,8 +41,10 @@ function istanbulDakika() {
   return simdi.getHours() * 60 + simdi.getMinutes()
 }
 
-// HAFTA SONU = hafta içi 19:00 sonrası akışın AYNISI (kullanıcı kararı 14.08):
-// QR istenmez, kayıt 'fazla' (ekstra mesai) tipiyle açılır, elle bitirilir.
+// HAFTA SONU = hafta içi ile AYNI işleme (kullanıcı kararı 14.08, revize):
+// kayıt normal mesai olarak açılır ('ekstra' etiketi yok, ücret aynı), 18:30
+// cron'u hafta içi gibi kapatır, 19:00+ yine fazla mesai kuralına girer.
+// Tek fark QR istenmemesi (ofis kapalı, personel sahada).
 // Sunucu (mesai-giris) aynı kuralı uygular — burası yalnız ekran davranışı.
 function istanbulHaftaSonuMu() {
   try {
@@ -56,9 +58,10 @@ function istanbulHaftaSonuMu() {
   }
 }
 
-// 18:30-19:00 kilidi hafta içi içindir — hafta sonu cron kapanışı 'fazla' tipe
-// dokunmadığından kilit uygulanmaz (sunucuyla aynı kural).
-const kilitliMi = (dk) => !istanbulHaftaSonuMu() && dk >= KILIT_BASLANGIC_DK && dk < KILIT_BITIS_DK
+// 18:30-19:00 kilidi: cron kapanışının hemen ardından yeniden başlatmayı önler.
+// Hafta sonu kayıtları da aynı cron'la kapandığından kilit her gün geçerli
+// (sunucuyla aynı kural).
+const kilitliMi = (dk) => dk >= KILIT_BASLANGIC_DK && dk < KILIT_BITIS_DK
 
 // FAZLA MESAİ (mig 252): 19:00 ve sonrasında başlatılan çalışma ayrı tutulur ve
 // ayrı ücretlendirilir. Normal mesainin aksine 18:30 cron'u dokunmaz; personel
@@ -203,11 +206,14 @@ export default function MesaiKarti() {
   // (mesai-giris edge fn ile birlikte değişti). QR adımı kalkınca tek tık
   // mesai açmasın diye onay sorusu var.
   const fazlaMesaiBaslat = () => {
+    // 19:00+ her gün fazla mesaidir; hafta sonu GÜNDÜZ ise normal mesai
+    // gibi işlenir (aynı ücret) — metin buna göre seçilir.
+    const fazlaSaat = istanbulDakika() >= FAZLA_BASLANGIC_DK
     Alert.alert(
-      istanbulHaftaSonuMu() ? 'Hafta sonu mesaisi başlat' : 'Fazla mesai başlat',
-      istanbulHaftaSonuMu()
-        ? 'Hafta sonu çalışması EKSTRA MESAİ olarak kaydedilir ve bitişini sen kapatırsın. Başlatılsın mı?'
-        : 'Şimdi başlatılan çalışma FAZLA MESAİ olarak kaydedilir ve bitişini sen kapatırsın. Başlatılsın mı?', [
+      fazlaSaat ? 'Fazla mesai başlat' : 'Hafta sonu mesaisi başlat',
+      fazlaSaat
+        ? 'Şimdi başlatılan çalışma FAZLA MESAİ olarak kaydedilir ve bitişini sen kapatırsın. Başlatılsın mı?'
+        : 'Hafta sonu mesaisi normal mesai olarak işlenir ve 18:30\'da otomatik kapanır. Başlatılsın mı?', [
       { text: 'Vazgeç', style: 'cancel' },
       { text: 'Başlat', onPress: () => konumAlVeGiris(null) },
     ])
@@ -298,11 +304,17 @@ export default function MesaiKarti() {
   const kartBorder = fazlaAcik ? 'rgba(245,158,11,0.40)' : acik ? 'rgba(34,197,94,0.35)' : colors.border
 
   // Fazla mesaide buton AKTİF kalır ve "Bitir" olur (normal mesaide Bitir yok).
-  const butonPasif = meshgul || (!!acik && !fazlaAcik) || kilitli
+  // 18:30-19:00 kilidi yalnız BAŞLATMAYI kilitler — açık fazla mesaiyi
+  // bitirmeyi engellememeli.
+  const butonPasif = meshgul || (!!acik && !fazlaAcik) || (kilitli && !fazlaAcik)
+  // 19:00+ her gün FAZLA; hafta sonu gündüz NORMAL işlenir (QR'sız tek fark).
+  const fazlaSaatte = suAnDk >= FAZLA_BASLANGIC_DK
+  const haftaSonu = istanbulHaftaSonuMu()
   const butonEtiket = fazlaAcik ? 'Bitir'
     : acik ? 'Mesaide'
     : kilitli ? '19:00'
-    : fazlaPencere ? (istanbulHaftaSonuMu() ? 'Mesai Başlat' : 'Fazla Mesai')
+    : fazlaSaatte ? 'Fazla Mesai'
+    : haftaSonu ? 'Mesai Başlat'
     : 'Başla'
   const altYazi = fazlaAcik
     ? `Fazla mesai · başlangıç ${saatMetni(acik.giris_zamani)} · bitirmeyi unutma`
@@ -310,9 +322,11 @@ export default function MesaiKarti() {
       ? `Başlangıç ${saatMetni(acik.giris_zamani)} · 18:30'da otomatik kapanır`
       : kilitli
         ? 'Mesai 18:30\'da kapandı · 19:00\'dan sonra başlatabilirsin'
-        : fazlaPencere
-          ? (istanbulHaftaSonuMu() ? 'Hafta sonu çalışması EKSTRA MESAİ olarak işlenir · bitişini sen kapatırsın' : 'Şimdi başlatılan mesai FAZLA MESAİ sayılır · bitişini sen kapatırsın')
-          : 'Bugün henüz başlamadın · geçmişi gör →'
+        : fazlaSaatte
+          ? 'Şimdi başlatılan mesai FAZLA MESAİ sayılır · bitişini sen kapatırsın'
+          : haftaSonu
+            ? 'Hafta sonu mesaisi QR\'sız başlar · normal mesai olarak işlenir'
+            : 'Bugün henüz başlamadın · geçmişi gör →'
 
   // Fazla mesaiyi elle kapat. Konum best-effort: alınamazsa kayıt yine kapanır,
   // çünkü asıl amaç bitiş SAATİNİ doğru yazmak.
