@@ -4,8 +4,8 @@
 // ActivityIndicator → uygulama. Üç ayrı görüntü, arada kopukluk; kullanıcı
 // "takıldı mı?" diye düşünüyordu.
 //
-// Şimdi: aynı zemin, aynı logo, logonun etrafında dönen ince bir halka.
-// Kullanıcı tek bir açılış görür.
+// Şimdi: aynı zemin, beyaz madalyon içinde logo, etrafında dönen ince halka,
+// altında web giriş sayfasındaki slogan. Kullanıcı tek bir açılış görür.
 //
 // ⚠️ ARKA PLAN SABİT '#0a0f1e' — colors.bg DEĞİL. Native splash rengi
 // app.json'da sabit; açık temadaki kullanıcıda tema rengi kullanılsaydı splash
@@ -15,23 +15,32 @@
 // yeni native modül gerektirmez, OTA güncellemesiyle sahaya iner
 // (yeni expo-* paketi eski build'e inince uygulama çöküyor).
 //
-// ⚠️ LOGO TAM DAİRE (borderRadius = boyutun yarısı). Bu yalnız biçim tercihi
-// değil: assets/logo.jpeg ŞEFFAF DEĞİL, köşelerinde gri bir kutu taşıyor.
-// Daireye kırpılınca o köşeler kayboluyor — app.json'daki splash görselini
-// PNG'ye çevirmek için yeni build beklemeye gerek kalmıyor.
+// ⚠️ LOGO BEYAZ MADALYON İÇİNDE, resizeMode="contain".
+// assets/logo.jpeg YATAY bir dikdörtgen (ZNA + TEKNOLOJİ yan yana, ~1.76:1) ve
+// şeffaf değil. Daireye "cover" ile kırpılınca ortası kalıp "ZN" görünüyordu.
+// Beyaz daire hem logonun kendi beyaz zeminiyle kaynaşıyor hem tamamını
+// gösteriyor.
+//
+// ⚠️ SİSTEM FONTU — web'deki 'Bricolage Grotesque' DEĞİL. Özel font açılış
+// sırasında yüklenir; yüklenene kadar yazı sistem fontuyla çıkıp sonra ZIPLAR,
+// yani düzeltmeye çalıştığımız kopukluk geri gelir. Ayrıca expo-font kurulu
+// değil (yeni native modül → yeni build). Bricolage giriş ekranına planlandı.
+//
+// ⚠️ "ZNA Teknoloji" alt yazısı BİLEREK YOK: logonun kendisi zaten
+// "ZNA TEKNOLOJİ" yazıyor, altına tekrar yazmak fazlalıktı.
 import { useEffect, useRef } from 'react'
 import { View, Image, Text, Animated, Easing, StyleSheet } from 'react-native'
 
 const ZEMIN = '#0a0f1e'
-const LOGO = 96
-const HALKA = 124
+const HALKA = 148
+const MADALYON = 120
 
 export default function AcilisEkrani() {
   const donus = useRef(new Animated.Value(0)).current
   const belirginlik = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
-    // Logo yumuşak belirir — native splash ile aramızdaki ölçü farkını yumuşatır
+    // Yumuşak beliriş — native splash ile aramızdaki ölçü farkını yumuşatır
     Animated.timing(belirginlik, {
       toValue: 1,
       duration: 300,
@@ -63,15 +72,19 @@ export default function AcilisEkrani() {
         <View style={stil.halkaKutu}>
           {/* Soluk çember sabit, üstündeki mavi yay döner */}
           <Animated.View style={[stil.halka, { transform: [{ rotate: aci }] }]} />
-          <Image
-            source={require('../../assets/logo.jpeg')}
-            style={stil.logo}
-            resizeMode="cover"
-          />
+          <View style={stil.madalyon}>
+            <Image
+              source={require('../../assets/logo.jpeg')}
+              style={stil.logo}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
-        <Text style={stil.marka}>ZNA Teknoloji</Text>
-        <Text style={stil.altMarka}>Yönetim Sistemi</Text>
+        <Text style={stil.slogan}>
+          Saha. Servis. Çözüm.{'\n'}
+          <Text style={stil.sloganVurgu}>Tek panelde.</Text>
+        </Text>
       </Animated.View>
     </View>
   )
@@ -83,6 +96,7 @@ const stil = StyleSheet.create({
     backgroundColor: ZEMIN,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 24,
   },
   orta: { alignItems: 'center' },
   halkaKutu: {
@@ -90,7 +104,7 @@ const stil = StyleSheet.create({
     height: HALKA,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 26,
   },
   halka: {
     position: 'absolute',
@@ -101,22 +115,23 @@ const stil = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.07)',
     borderTopColor: '#2563eb',
   },
-  logo: {
-    width: LOGO,
-    height: LOGO,
-    // ⚠️ Tam daire — köşelerdeki gri kutuyu kırpar (yukarıdaki nota bakın)
-    borderRadius: LOGO / 2,
+  madalyon: {
+    width: MADALYON,
+    height: MADALYON,
+    borderRadius: MADALYON / 2,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  marka: {
+  // Logo ~1.76:1 yatay; contain ile bu kutuya oranı bozulmadan oturur
+  logo: { width: 96, height: 56 },
+  slogan: {
     color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontSize: 19,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    lineHeight: 24,
+    textAlign: 'center',
   },
-  altMarka: {
-    color: '#64748b',
-    fontSize: 12.5,
-    fontWeight: '400',
-    marginTop: 3,
-  },
+  sloganVurgu: { color: '#60a5fa' },
 })
