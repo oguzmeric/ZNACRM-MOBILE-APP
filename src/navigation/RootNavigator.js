@@ -4,7 +4,7 @@ import { NavigationContainer, DefaultTheme, createNavigationContainerRef } from 
 export const navigationRef = createNavigationContainerRef()
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-import { ActivityIndicator, View } from 'react-native'
+import AcilisEkrani from '../components/AcilisEkrani'
 import { Feather } from '@expo/vector-icons'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -148,13 +148,9 @@ export default function RootNavigator() {
     headerBackTitle: '',
   }
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', backgroundColor: colors.bg }}>
-        <ActivityIndicator color={colors.textPrimary} />
-      </View>
-    )
-  }
+  // Native splash'in kesintisiz devamı — boş ekran + spinner yerine markalı
+  // açılış. Ayrıntı ve gerekçe: src/components/AcilisEkrani.js
+  if (loading) return <AcilisEkrani />
 
   const navKey = !kullanici ? 'auth' : adminModu ? 'admin' : 'teknisyen'
 
