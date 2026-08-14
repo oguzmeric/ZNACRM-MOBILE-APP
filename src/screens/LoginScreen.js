@@ -74,7 +74,7 @@ export default function LoginScreen({ navigation }) {
             <View style={styles.logoRing}>
               <View style={styles.logoInner}>
                 <Image
-                  source={require('../../assets/logo.jpeg')}
+                  source={require('../../assets/logo-zna.png')}
                   style={styles.logoImg}
                   resizeMode="contain"
                 />
@@ -224,12 +224,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  logoImg: { width: 68, height: 68 },
+  // ⚠️ Logo YATAY (2.38:1). Kare kutu + varsayılan "cover" logoyu kırpıp
+  // ortadaki "ZN"yi gösteriyordu; oranına uygun kutu + contain şart.
+  logoImg: { width: 70, height: 30 },
   brandTitle: {
     color: '#fff',
     fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: -0.3,
+    // Marka fontu (web giriş sayfasıyla aynı). fontWeight BİLEREK yok:
+    // fontFamily verilince RN'de ağırlık dosyadan gelir, ikisi birlikte
+    // Android'de yanlış varyant seçtirir.
+    fontFamily: 'BricolageGrotesque_800ExtraBold',
+    letterSpacing: -0.5,
   },
   brandSubtitle: {
     color: '#94a3b8',

@@ -15,6 +15,9 @@ import { toplantiHatirlaticilariniYenile } from './src/lib/toplantiHatirlatici'
 import { bildirimLinkHedefi } from './src/lib/bildirimLink'
 import GecikmisGorevKapisi from './src/components/GecikmisGorevKapisi'
 import { dikeyKilitle } from './src/lib/ekranYonu'
+import { useFonts } from 'expo-font'
+import { BricolageGrotesque_800ExtraBold } from '@expo-google-fonts/bricolage-grotesque'
+import AcilisEkrani from './src/components/AcilisEkrani'
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
@@ -164,6 +167,16 @@ export default Sentry.wrap(function App() {
   // NOT: eski build'lerde expo-screen-orientation native tarafı yoktur —
   // lib/ekranYonu içindeki try/catch sessizce geçer, çökme olmaz.
   useEffect(() => { dikeyKilitle().catch(() => {}) }, [])
+
+  // Marka fontu (web giriş sayfasındaki 'Bricolage Grotesque').
+  // ⚠️ YALNIZ giriş ekranında kullanılır — açılış ekranı SİSTEM FONTUYLA çizilir.
+  // Sebebi: font burada yüklenene kadar geçen sürede özel fontlu yazı sistem
+  // fontuyla çıkıp sonra ZIPLAR; açılış ekranında bu, düzeltmeye çalıştığımız
+  // kopukluğun aynısını yaratırdı.
+  // ⚠️ Font yüklenirken de AcilisEkrani gösteriliyor: beyaz/boş kare olmasın.
+  // Hata olursa (fontError) uygulamayı KİLİTLEME — sistem fontuyla devam et.
+  const [fontYuklendi, fontHata] = useFonts({ BricolageGrotesque_800ExtraBold })
+  if (!fontYuklendi && !fontHata) return <AcilisEkrani />
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -16,10 +16,14 @@
 // (yeni expo-* paketi eski build'e inince uygulama çöküyor).
 //
 // ⚠️ LOGO BEYAZ MADALYON İÇİNDE, resizeMode="contain".
-// assets/logo.jpeg YATAY bir dikdörtgen (ZNA + TEKNOLOJİ yan yana, ~1.76:1) ve
-// şeffaf değil. Daireye "cover" ile kırpılınca ortası kalıp "ZN" görünüyordu.
-// Beyaz daire hem logonun kendi beyaz zeminiyle kaynaşıyor hem tamamını
-// gösteriyor.
+// Logo YATAY bir dikdörtgen (ZNA + TEKNOLOJİ yan yana). Daireye "cover" ile
+// kırpılınca ortası kalıp "ZN" görünüyordu. Beyaz daire hem logonun kendi beyaz
+// zeminiyle kaynaşıyor hem tamamını gösteriyor.
+//
+// ⚠️ KAYNAK logo.jpeg DEĞİL, logo-zna.png. Ham JPEG'in içeriği 873x483 tuvalde
+// 776x326; çevresinde EŞİT OLMAYAN beyaz boşluk var (üstte 116px, altta 43px).
+// Doğrudan kullanılınca logo madalyonun içinde AŞAĞI KAYIYOR ve olduğundan
+// küçük görünüyordu. logo-zna.png bu boşluk kırpılmış hâli (oran 2.38).
 //
 // ⚠️ SİSTEM FONTU — web'deki 'Bricolage Grotesque' DEĞİL. Özel font açılış
 // sırasında yüklenir; yüklenene kadar yazı sistem fontuyla çıkıp sonra ZIPLAR,
@@ -74,7 +78,7 @@ export default function AcilisEkrani() {
           <Animated.View style={[stil.halka, { transform: [{ rotate: aci }] }]} />
           <View style={stil.madalyon}>
             <Image
-              source={require('../../assets/logo.jpeg')}
+              source={require('../../assets/logo-zna.png')}
               style={stil.logo}
               resizeMode="contain"
             />
@@ -123,8 +127,8 @@ const stil = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Logo ~1.76:1 yatay; contain ile bu kutuya oranı bozulmadan oturur
-  logo: { width: 96, height: 56 },
+  // Logo 2.38:1 yatay (kırpılmış hâli); contain ile oranı bozulmadan oturur
+  logo: { width: 98, height: 42 },
   slogan: {
     color: '#ffffff',
     fontSize: 19,

@@ -2,14 +2,14 @@
   "expo": {
     "name": "ZNA CRM",
     "slug": "crm-mobile",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "default",
-    "icon": "./assets/logo.jpeg",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "primaryColor": "#2563eb",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/logo.jpeg",
+      "image": "./assets/splash-zna.png",
       "resizeMode": "contain",
       "backgroundColor": "#0a0f1e"
     },
@@ -21,12 +21,13 @@
         "NSPhotoLibraryUsageDescription": "Servis raporlarına foto eklemek için galeri erişimi gerekir.",
         "NSLocationWhenInUseUsageDescription": "Cihazın takıldığı lokasyonu kaydetmek için konum gerekir.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "2"
     },
     "android": {
       "package": "com.crm.mobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.jpeg",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0f1e"
       },
       "splash": {
@@ -42,7 +43,8 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -93,7 +95,8 @@
           "organization": "oguzmeric"
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-font"
     ],
     "extra": {
       "eas": {
