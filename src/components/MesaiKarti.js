@@ -49,13 +49,13 @@ function istanbulDakika() {
   return simdi.getHours() * 60 + simdi.getMinutes()
 }
 
-// HAFTA SONU ücretlendirmede hafta içiyle AYNI (kullanıcı kararı 14.08):
-// kayıt normal mesai olarak açılır — 'ekstra' etiketi yok, ücret aynı.
+// HAFTA SONU = FAZLA MESAİ (kullanıcı kararı 15.08 — 14.08'deki "ücret aynı,
+// normal işlensin" kararının YERİNİ ALDI). Saat ne olursa olsun tip='fazla'.
 // FARKLAR: (1) QR istenmez (ofis kapalı, personel sahada),
 //          (2) ELLE bitirilir ve gün içinde tekrar başlatılabilir (14.08 revize).
 // 18:30 cron'u yine yedek olarak durur: personel kapatmayı unutursa kayıt
-// sonsuza kadar açık kalmasın diye. 19:00+ her gün fazla mesai kuralına girer.
-// Sunucu (mesai-giris) aynı kuralı uygular — burası yalnız ekran davranışı.
+// sonsuza kadar açık kalmasın diye. Hafta içi 19:00+ kuralı DEĞİŞMEDİ.
+// ⚠️ Tipi SUNUCU yazar (mesai-giris); burası yalnız ekran davranışı.
 function istanbulHaftaSonuMu(tarih = new Date()) {
   try {
     const gun = new Intl.DateTimeFormat('en-GB', {
@@ -224,15 +224,15 @@ export default function MesaiKarti() {
   // (mesai-giris edge fn ile birlikte değişti). QR adımı kalkınca tek tık
   // mesai açmasın diye onay sorusu var.
   const fazlaMesaiBaslat = () => {
-    // 19:00+ her gün fazla mesaidir; hafta sonu GÜNDÜZ ise normal mesai
-    // gibi işlenir (aynı ücret) — metin buna göre seçilir.
-    const fazlaSaat = istanbulDakika() >= FAZLA_BASLANGIC_DK
+    // 15.08 kuralı: hafta sonu çalışması da FAZLA MESAİ olarak kaydedilir
+    // (saat ne olursa olsun). Hafta içi 19:00+ zaten fazlaydı.
+    const haftaSonuGunu = istanbulHaftaSonuMu()
     Alert.alert(
-      fazlaSaat ? 'Fazla mesai başlat' : 'Hafta sonu mesaisi başlat',
-      fazlaSaat
-        ? 'Şimdi başlatılan çalışma FAZLA MESAİ olarak kaydedilir ve bitişini sen kapatırsın. Başlatılsın mı?'
-        : 'Hafta sonu mesaisi normal mesai olarak işlenir. İş bitince BİTİR ile kapat; '
-          + 'gün içinde başka işe gidersen tekrar başlatabilirsin, süreler toplanır. Başlatılsın mı?', [
+      haftaSonuGunu ? 'Hafta sonu mesaisi başlat' : 'Fazla mesai başlat',
+      haftaSonuGunu
+        ? 'Hafta sonu çalışması FAZLA MESAİ olarak kaydedilir. İş bitince BİTİR ile kapat; '
+          + 'gün içinde başka işe gidersen tekrar başlatabilirsin, süreler toplanır. Başlatılsın mı?'
+        : 'Şimdi başlatılan çalışma FAZLA MESAİ olarak kaydedilir ve bitişini sen kapatırsın. Başlatılsın mı?', [
       { text: 'Vazgeç', style: 'cancel' },
       { text: 'Başlat', onPress: () => konumAlVeGiris(null) },
     ])
@@ -316,45 +316,52 @@ export default function MesaiKarti() {
   const suAnDk = istanbulDakika()
   const kilitli = kilitliMi(suAnDk)
   const fazlaPencere = fazlaPenceresiMi(suAnDk)
-  const fazlaAcik = acik?.tip === 'fazla'
+
+  // ⚠️ HAFTA SONU KAYDI TİPTEN DEĞİL, GÜNDEN ANLAŞILIR (15.08).
+  // Artık hafta sonu kaydı da tip='fazla' geliyor (mesai-giris değişti), bu
+  // yüzden `tip === 'fazla'` ile ayırt edilemez — ayırmazsak kart hafta sonu
+  // mesaisine "Fazla mesaide" der. Kaydın BAŞLADIĞI güne bakıyoruz (Cmt 23:00
+  // başlayıp Paz 01:00'da duran kayıt hâlâ hafta sonu mesaisidir).
+  const haftaSonuAcik = !!acik && girisHaftaSonuMu(acik.giris_zamani)
+  const fazlaAcik = acik?.tip === 'fazla' && !haftaSonuAcik   // hafta içi akşam mesaisi
+  // İkisi de fazla mesai olarak ücretlendirilir → aynı turuncu vurgu.
+  const vurgulu = fazlaAcik || haftaSonuAcik
 
   // Fazla mesai turuncu, normal mesai yeşil — ekipte "hangisindeyim" sorusu olmasın
-  const kartBg = fazlaAcik ? 'rgba(245,158,11,0.12)' : acik ? 'rgba(34,197,94,0.10)' : colors.surface
-  const kartBorder = fazlaAcik ? 'rgba(245,158,11,0.40)' : acik ? 'rgba(34,197,94,0.35)' : colors.border
+  const kartBg = vurgulu ? 'rgba(245,158,11,0.12)' : acik ? 'rgba(34,197,94,0.10)' : colors.surface
+  const kartBorder = vurgulu ? 'rgba(245,158,11,0.40)' : acik ? 'rgba(34,197,94,0.35)' : colors.border
 
   // ⚠️ HAFTA SONU MESAİSİ ELLE BİTİRİLİR (14.08 saha talebi).
   // Teknisyenler hafta sonu gün içinde parça parça çalışıyor (ör. Alp Aslan
   // 08:30–11:30). Kayıt 18:30 cron'una kadar açık kalınca 3 saatlik çalışma
   // 10 saat görünüyordu. Artık fazla mesai gibi elle kapatılabiliyor.
   // Sunucu tarafı zaten hazırdı: mesai-cikis edge fn tip AYRIMI YAPMIYOR.
-  const haftaSonuAcik = !!acik && !fazlaAcik && girisHaftaSonuMu(acik.giris_zamani)
   const elleBitir = fazlaAcik || haftaSonuAcik
 
   // Elle bitirilebilen mesaide buton AKTİF kalır ve "Bitir" olur.
   // 18:30-19:00 kilidi yalnız BAŞLATMAYI kilitler — açık kaydı bitirmeyi değil.
   const butonPasif = meshgul || (!!acik && !elleBitir) || (kilitli && !elleBitir)
-  // 19:00+ her gün FAZLA; hafta sonu gündüz NORMAL işlenir (QR'sız tek fark).
+  // 15.08 kuralı: HAFTA SONU her saat fazla mesai; hafta içi 19:00+ fazla.
   const fazlaSaatte = suAnDk >= FAZLA_BASLANGIC_DK
   const haftaSonu = istanbulHaftaSonuMu()
   const butonEtiket = elleBitir ? 'Bitir'
     : acik ? 'Mesaide'
     : kilitli ? '19:00'
-    : fazlaSaatte ? 'Fazla Mesai'
-    : haftaSonu ? 'Mesai Başlat'
+    : (fazlaSaatte || haftaSonu) ? 'Fazla Mesai'
     : 'Başla'
   const altYazi = fazlaAcik
     ? `Fazla mesai · başlangıç ${saatMetni(acik.giris_zamani)} · bitirmeyi unutma`
     : haftaSonuAcik
       // Hafta sonu: iş bitince kapat, aynı gün yeniden başlatabilir
-      ? `Hafta sonu mesaisi · başlangıç ${saatMetni(acik.giris_zamani)} · iş bitince kapat`
+      ? `Hafta sonu mesaisi (fazla) · başlangıç ${saatMetni(acik.giris_zamani)} · iş bitince kapat`
       : acik
         ? `Başlangıç ${saatMetni(acik.giris_zamani)} · 18:30'da otomatik kapanır`
         : kilitli
           ? 'Mesai 18:30\'da kapandı · 19:00\'dan sonra başlatabilirsin'
-          : fazlaSaatte
-            ? 'Şimdi başlatılan mesai FAZLA MESAİ sayılır · bitişini sen kapatırsın'
-            : haftaSonu
-              ? 'Hafta sonu · QR\'sız başlar, bitince sen kapatırsın · gün içinde tekrar başlatabilirsin'
+          : haftaSonu
+            ? 'Hafta sonu · FAZLA MESAİ sayılır · QR\'sız başlar, bitince sen kapatırsın · gün içinde tekrar başlatabilirsin'
+            : fazlaSaatte
+              ? 'Şimdi başlatılan mesai FAZLA MESAİ sayılır · bitişini sen kapatırsın'
               : 'Bugün henüz başlamadın · geçmişi gör →'
 
   // Açık mesaiyi elle kapat (fazla mesai + hafta sonu mesaisi).
@@ -363,9 +370,11 @@ export default function MesaiKarti() {
   const mesaiElleBitir = () => {
     // Hafta sonu: gün içinde birden çok iş olabildiği için "tekrar başlatabilirsin"
     // bilgisi veriliyor — personel kapatmaktan çekinmesin.
-    const haftaSonuKaydi = !!acik && acik.tip !== 'fazla' && girisHaftaSonuMu(acik.giris_zamani)
+    // ⚠️ Tipe BAKMA: 15.08'den beri hafta sonu kaydı da tip='fazla' geliyor,
+    // ayrım kaydın başladığı günden yapılır (yukarıdaki haftaSonuAcik ile aynı kural).
+    const haftaSonuKaydi = !!acik && girisHaftaSonuMu(acik.giris_zamani)
     Alert.alert(
-      haftaSonuKaydi ? 'Mesaiyi bitir' : 'Fazla mesaiyi bitir',
+      haftaSonuKaydi ? 'Hafta sonu mesaisini bitir' : 'Fazla mesaiyi bitir',
       haftaSonuKaydi
         ? 'Bu mesai kapatılsın mı? Bugün yeni bir işe gidersen tekrar başlatabilirsin; süreler toplanır.'
         : 'Mesai şimdi kapatılsın mı?', [
@@ -419,12 +428,18 @@ export default function MesaiKarti() {
         activeOpacity={0.7}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}
       >
+        {/* Hafta sonu da fazla mesai sayıldığı için aynı turuncu vurgu; ikon
+            ayrışıyor: akşam mesaisi ay, hafta sonu takvim. */}
         <View style={{
           width: 40, height: 40, borderRadius: 10,
-          backgroundColor: fazlaAcik ? '#f59e0b' : acik ? colors.success : colors.surfaceDark,
+          backgroundColor: vurgulu ? '#f59e0b' : acik ? colors.success : colors.surfaceDark,
           alignItems: 'center', justifyContent: 'center',
         }}>
-          <Feather name={fazlaAcik ? 'moon' : 'clock'} size={20} color={acik ? '#fff' : colors.textMuted} />
+          <Feather
+            name={haftaSonuAcik ? 'calendar' : fazlaAcik ? 'moon' : 'clock'}
+            size={20}
+            color={acik ? '#fff' : colors.textMuted}
+          />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
