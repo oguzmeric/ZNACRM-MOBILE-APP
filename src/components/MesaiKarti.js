@@ -1,10 +1,18 @@
 // Mesai giriş kartı — kompakt tek-satır varyant, tema uyumlu.
 //
-// NOT (2026-07-22): "Bitir" butonu KALDIRILDI. Mesai 18:30'da sunucudaki cron
-// (mesai_otomatik_kapat) ile kendiliğinden kapanır. Kapanır kapanmaz yeniden
-// başlatılabilmesini engellemek için 18:30–19:00 arası "Başla" pasiftir;
-// 19:00'dan sonra tekrar aktifleşir. Buton her durumda GÖRÜNÜR kalır, neden
-// basılamadığı üstünde yazar (kullanıcı isteği).
+// NOT (2026-07-22): HAFTA İÇİ normal mesaide "Bitir" butonu YOK. Mesai 18:30'da
+// sunucudaki cron (mesai_otomatik_kapat) ile kendiliğinden kapanır. Kapanır
+// kapanmaz yeniden başlatılabilmesini engellemek için 18:30–19:00 arası "Başla"
+// pasiftir; 19:00'dan sonra tekrar aktifleşir. Buton her durumda GÖRÜNÜR kalır,
+// neden basılamadığı üstünde yazar (kullanıcı isteği).
+//
+// NOT (2026-08-14): HAFTA SONU bunun İSTİSNASI — "Bitir" butonu VAR ve aynı gün
+// birden çok kez başla/bitir yapılabilir. Teknisyen hafta sonu gün içinde parça
+// parça işe gidiyor (ör. 08:30–11:30, sonra 14:00–16:00); tek kayıt + 18:30
+// kapanışı 3 saatlik çalışmayı 10 saat gösteriyordu.
+// Sunucu tarafı zaten destekliyordu: mesai-cikis tip ayrımı yapmıyor ve tek
+// kısıt `mesai_aktif_tek` (AYNI ANDA tek açık kayıt) — kapalı kayıt sayısı
+// sınırsız, yani süreler toplanır.
 import { useEffect, useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, Alert, Linking, ActivityIndicator, Modal, StyleSheet } from 'react-native'
 import { Feather } from '@expo/vector-icons'
@@ -41,21 +49,31 @@ function istanbulDakika() {
   return simdi.getHours() * 60 + simdi.getMinutes()
 }
 
-// HAFTA SONU = hafta içi ile AYNI işleme (kullanıcı kararı 14.08, revize):
-// kayıt normal mesai olarak açılır ('ekstra' etiketi yok, ücret aynı), 18:30
-// cron'u hafta içi gibi kapatır, 19:00+ yine fazla mesai kuralına girer.
-// Tek fark QR istenmemesi (ofis kapalı, personel sahada).
+// HAFTA SONU ücretlendirmede hafta içiyle AYNI (kullanıcı kararı 14.08):
+// kayıt normal mesai olarak açılır — 'ekstra' etiketi yok, ücret aynı.
+// FARKLAR: (1) QR istenmez (ofis kapalı, personel sahada),
+//          (2) ELLE bitirilir ve gün içinde tekrar başlatılabilir (14.08 revize).
+// 18:30 cron'u yine yedek olarak durur: personel kapatmayı unutursa kayıt
+// sonsuza kadar açık kalmasın diye. 19:00+ her gün fazla mesai kuralına girer.
 // Sunucu (mesai-giris) aynı kuralı uygular — burası yalnız ekran davranışı.
-function istanbulHaftaSonuMu() {
+function istanbulHaftaSonuMu(tarih = new Date()) {
   try {
     const gun = new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Europe/Istanbul', weekday: 'short',
-    }).format(new Date())
+    }).format(tarih)
     return gun === 'Sat' || gun === 'Sun'
   } catch {
-    const g = new Date().getDay()
+    const g = tarih.getDay()
     return g === 0 || g === 6
   }
+}
+
+// Açık kaydın BAŞLADIĞI gün hafta sonu mu? "Şu an" değil başlangıç önemli:
+// Cumartesi 23:00 başlayan kayıt Pazar 01:00'da hâlâ hafta sonu mesaisidir.
+const girisHaftaSonuMu = (iso) => {
+  if (!iso) return false
+  const t = new Date(iso)
+  return isNaN(t) ? false : istanbulHaftaSonuMu(t)
 }
 
 // 18:30-19:00 kilidi: cron kapanışının hemen ardından yeniden başlatmayı önler.
@@ -213,7 +231,8 @@ export default function MesaiKarti() {
       fazlaSaat ? 'Fazla mesai başlat' : 'Hafta sonu mesaisi başlat',
       fazlaSaat
         ? 'Şimdi başlatılan çalışma FAZLA MESAİ olarak kaydedilir ve bitişini sen kapatırsın. Başlatılsın mı?'
-        : 'Hafta sonu mesaisi normal mesai olarak işlenir ve 18:30\'da otomatik kapanır. Başlatılsın mı?', [
+        : 'Hafta sonu mesaisi normal mesai olarak işlenir. İş bitince BİTİR ile kapat; '
+          + 'gün içinde başka işe gidersen tekrar başlatabilirsin, süreler toplanır. Başlatılsın mı?', [
       { text: 'Vazgeç', style: 'cancel' },
       { text: 'Başlat', onPress: () => konumAlVeGiris(null) },
     ])
@@ -303,14 +322,21 @@ export default function MesaiKarti() {
   const kartBg = fazlaAcik ? 'rgba(245,158,11,0.12)' : acik ? 'rgba(34,197,94,0.10)' : colors.surface
   const kartBorder = fazlaAcik ? 'rgba(245,158,11,0.40)' : acik ? 'rgba(34,197,94,0.35)' : colors.border
 
-  // Fazla mesaide buton AKTİF kalır ve "Bitir" olur (normal mesaide Bitir yok).
-  // 18:30-19:00 kilidi yalnız BAŞLATMAYI kilitler — açık fazla mesaiyi
-  // bitirmeyi engellememeli.
-  const butonPasif = meshgul || (!!acik && !fazlaAcik) || (kilitli && !fazlaAcik)
+  // ⚠️ HAFTA SONU MESAİSİ ELLE BİTİRİLİR (14.08 saha talebi).
+  // Teknisyenler hafta sonu gün içinde parça parça çalışıyor (ör. Alp Aslan
+  // 08:30–11:30). Kayıt 18:30 cron'una kadar açık kalınca 3 saatlik çalışma
+  // 10 saat görünüyordu. Artık fazla mesai gibi elle kapatılabiliyor.
+  // Sunucu tarafı zaten hazırdı: mesai-cikis edge fn tip AYRIMI YAPMIYOR.
+  const haftaSonuAcik = !!acik && !fazlaAcik && girisHaftaSonuMu(acik.giris_zamani)
+  const elleBitir = fazlaAcik || haftaSonuAcik
+
+  // Elle bitirilebilen mesaide buton AKTİF kalır ve "Bitir" olur.
+  // 18:30-19:00 kilidi yalnız BAŞLATMAYI kilitler — açık kaydı bitirmeyi değil.
+  const butonPasif = meshgul || (!!acik && !elleBitir) || (kilitli && !elleBitir)
   // 19:00+ her gün FAZLA; hafta sonu gündüz NORMAL işlenir (QR'sız tek fark).
   const fazlaSaatte = suAnDk >= FAZLA_BASLANGIC_DK
   const haftaSonu = istanbulHaftaSonuMu()
-  const butonEtiket = fazlaAcik ? 'Bitir'
+  const butonEtiket = elleBitir ? 'Bitir'
     : acik ? 'Mesaide'
     : kilitli ? '19:00'
     : fazlaSaatte ? 'Fazla Mesai'
@@ -318,20 +344,31 @@ export default function MesaiKarti() {
     : 'Başla'
   const altYazi = fazlaAcik
     ? `Fazla mesai · başlangıç ${saatMetni(acik.giris_zamani)} · bitirmeyi unutma`
-    : acik
-      ? `Başlangıç ${saatMetni(acik.giris_zamani)} · 18:30'da otomatik kapanır`
-      : kilitli
-        ? 'Mesai 18:30\'da kapandı · 19:00\'dan sonra başlatabilirsin'
-        : fazlaSaatte
-          ? 'Şimdi başlatılan mesai FAZLA MESAİ sayılır · bitişini sen kapatırsın'
-          : haftaSonu
-            ? 'Hafta sonu mesaisi QR\'sız başlar · normal mesai olarak işlenir'
-            : 'Bugün henüz başlamadın · geçmişi gör →'
+    : haftaSonuAcik
+      // Hafta sonu: iş bitince kapat, aynı gün yeniden başlatabilir
+      ? `Hafta sonu mesaisi · başlangıç ${saatMetni(acik.giris_zamani)} · iş bitince kapat`
+      : acik
+        ? `Başlangıç ${saatMetni(acik.giris_zamani)} · 18:30'da otomatik kapanır`
+        : kilitli
+          ? 'Mesai 18:30\'da kapandı · 19:00\'dan sonra başlatabilirsin'
+          : fazlaSaatte
+            ? 'Şimdi başlatılan mesai FAZLA MESAİ sayılır · bitişini sen kapatırsın'
+            : haftaSonu
+              ? 'Hafta sonu · QR\'sız başlar, bitince sen kapatırsın · gün içinde tekrar başlatabilirsin'
+              : 'Bugün henüz başlamadın · geçmişi gör →'
 
-  // Fazla mesaiyi elle kapat. Konum best-effort: alınamazsa kayıt yine kapanır,
-  // çünkü asıl amaç bitiş SAATİNİ doğru yazmak.
-  const fazlaMesaiBitir = () => {
-    Alert.alert('Fazla mesaiyi bitir', 'Mesai şimdi kapatılsın mı?', [
+  // Açık mesaiyi elle kapat (fazla mesai + hafta sonu mesaisi).
+  // Konum best-effort: alınamazsa kayıt yine kapanır, çünkü asıl amaç bitiş
+  // SAATİNİ doğru yazmak.
+  const mesaiElleBitir = () => {
+    // Hafta sonu: gün içinde birden çok iş olabildiği için "tekrar başlatabilirsin"
+    // bilgisi veriliyor — personel kapatmaktan çekinmesin.
+    const haftaSonuKaydi = !!acik && acik.tip !== 'fazla' && girisHaftaSonuMu(acik.giris_zamani)
+    Alert.alert(
+      haftaSonuKaydi ? 'Mesaiyi bitir' : 'Fazla mesaiyi bitir',
+      haftaSonuKaydi
+        ? 'Bu mesai kapatılsın mı? Bugün yeni bir işe gidersen tekrar başlatabilirsin; süreler toplanır.'
+        : 'Mesai şimdi kapatılsın mı?', [
       { text: 'Vazgeç', style: 'cancel' },
       {
         text: 'Bitir',
@@ -346,8 +383,11 @@ export default function MesaiKarti() {
             const cvp = await mesaiyiBitir({ lat, lng })
             if (cvp?.ok) {
               const dk = Number(cvp.sure_dakika ?? 0)
-              Alert.alert('Fazla mesai kapatıldı',
-                dk > 0 ? `Süre: ${Math.floor(dk / 60)} sa ${dk % 60} dk` : 'Kayıt kapatıldı.')
+              const sure = dk > 0 ? `Süre: ${Math.floor(dk / 60)} sa ${dk % 60} dk` : 'Kayıt kapatıldı.'
+              Alert.alert(
+                haftaSonuKaydi ? 'Mesai kapatıldı' : 'Fazla mesai kapatıldı',
+                haftaSonuKaydi ? `${sure}\n\nYeni işe gidersen tekrar başlatabilirsin.` : sure,
+              )
               yenile()
             } else {
               Alert.alert('Hata', cvp?.hata ?? 'Mesai kapatılamadı.')
@@ -389,6 +429,7 @@ export default function MesaiKarti() {
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>
             {fazlaAcik ? `Fazla mesaide · ${sureFormat(acik.giris_zamani)}`
+              : haftaSonuAcik ? `Hafta sonu mesaisi · ${sureFormat(acik.giris_zamani)}`
               : acik ? `Mesaide · ${sureFormat(acik.giris_zamani)}`
               : 'Mesai'}
           </Text>
@@ -398,11 +439,12 @@ export default function MesaiKarti() {
         </View>
       </TouchableOpacity>
 
-      {/* Sağ — normal mesaide yalnız "Başla" (QR + 18:30'da otomatik kapanır),
+      {/* Sağ — hafta içi normal mesaide yalnız "Başla" (QR + 18:30 cron kapatır),
           19:00 sonrası "Fazla Mesai" (QR'SIZ, onayla başlar),
-          fazla mesaide "Bitir" (elle kapatılır). */}
+          fazla mesai VE hafta sonu mesaisinde "Bitir" (elle kapatılır;
+          hafta sonu aynı gün tekrar başlatılabilir). */}
       <TouchableOpacity
-        onPress={fazlaAcik ? fazlaMesaiBitir : fazlaPencere ? fazlaMesaiBaslat : qrOku}
+        onPress={elleBitir ? mesaiElleBitir : fazlaPencere ? fazlaMesaiBaslat : qrOku}
         disabled={butonPasif}
         activeOpacity={0.8}
         style={{
