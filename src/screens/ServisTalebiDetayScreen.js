@@ -111,6 +111,10 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [yeniSnKaydi, setYeniSnKaydi] = useState(null)  // bağımsız SN üretim kaydı
   const [snUretiliyor, setSnUretiliyor] = useState(false)
 
+  // 🔴 Form Bilgileri'nde kaydedilmemiş değişiklik var mı (17.08 veri kaybı vakası).
+  // Kart bunu bildirir; ekran hem GERİ ÇIKIŞTA hem SERVİSİ KAPATIRKEN uyarır.
+  const [formKirli, setFormKirli] = useState(false)
+
   // İmza
   const [imzaModalOpen, setImzaModalOpen] = useState(false)
 
@@ -125,6 +129,25 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const [gecmisAcik, setGecmisAcik] = useState(false)
   const [fotoOnizleUrl, setFotoOnizleUrl] = useState(null)
   const [paylasAcik, setPaylasAcik] = useState(false)
+
+  // 🔴 GERİ ÇIKIŞ KORUMASI (17.08): "Kaydet" düğmesi uzun formun en altında;
+  // teknisyen doldurup kaydırmadan geri çıkınca yazdıkları sessizce uçuyordu.
+  // Depocu web'den elle girmek zorunda kalıyordu. Artık çıkış SORULUYOR.
+  useEffect(() => {
+    if (!formKirli) return
+    const cikar = navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault()
+      Alert.alert(
+        'Kaydedilmemiş form bilgisi var',
+        'Form Bilgileri kartında kaydetmediğin değişiklikler var. Çıkarsan bu bilgiler KAYBOLUR ve servis raporunda eksik çıkar.',
+        [
+          { text: 'Kalıp Kaydedeyim', style: 'cancel' },
+          { text: 'Yine de çık', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+        ],
+      )
+    })
+    return cikar
+  }, [navigation, formKirli])
 
   const yukleArsiv = useCallback(async () => {
     if (!talep?.id) return
@@ -392,8 +415,21 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
   const durumDegistir = async (yeniDurum) => {
     if (yeniDurum === talep?.durum) return
 
-    // "Tamamlandı" için: (1.5) S/N cihaz teknik bilgisi + (2) müşteri imzası
+    // "Tamamlandı" için: (0) kaydedilmemiş form + (1.5) S/N teknik bilgisi + (2) imza
     if (yeniDurum === 'tamamlandi') {
+      // (0) 🔴 EN KRİTİK KAPI (17.08): Form Bilgileri kaydedilmeden servis
+      //     kapanırsa servis raporu EKSİK basılıyor ve depocu web'den elle
+      //     doldurmak zorunda kalıyor. Kapatmayı ENGELLEMİYORUZ (saha akışı
+      //     tıkanmasın) ama teknisyen bilerek geçsin.
+      if (formKirli) {
+        Alert.alert(
+          'Form Bilgileri Kaydedilmedi',
+          'Form Bilgileri kartında kaydetmediğin değişiklikler var. Şimdi kapatırsan bu bilgiler KAYBOLUR ve servis raporu eksik çıkar.\n\nÖnce "Form Bilgilerini Kaydet"e bas.',
+          [{ text: 'Tamam, kaydedeyim' }]
+        )
+        return
+      }
+
       // (1) Eksik teslim alma kapısı KALDIRILDI (28.07): servis içinden teslim
       //     alma adımı istenmiyor. Malzeme planı artık yalnızca "ne götüreceğim"
       //     listesi; zimmet TARA ile, kullanım "Kullan" ekranından yürüyor.
@@ -1188,10 +1224,11 @@ export default function ServisTalebiDetayScreen({ route, navigation }) {
         {/* Form Bilgileri — servis raporu (form çıktısı) alanları, web ile aynı */}
         <ServisFormBilgileriCard
           talep={talep}
+          onKirliDegisti={setFormKirli}
           onKaydet={async (alanlar) => {
             const guncel = await servisTalepGuncelle(talep.id, alanlar)
             if (guncel) setTalep(guncel)
-            else throw new Error('Kaydedilemedi')
+            else throw new Error('Sunucuya yazılamadı (bağlantı veya yetki sorunu)')
           }}
         />
 
