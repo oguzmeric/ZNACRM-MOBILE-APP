@@ -14,7 +14,7 @@
       "backgroundColor": "#0a0f1e"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.zna.crmmobile",
       "infoPlist": {
         "NSCameraUsageDescription": "Ürün barkod ve seri numaralarını okumak için kamera gerekir.",
