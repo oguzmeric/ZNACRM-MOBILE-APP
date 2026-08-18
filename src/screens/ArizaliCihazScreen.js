@@ -132,10 +132,26 @@ export default function ArizaliCihazScreen({ navigation, route }) {
   }
 
   const kaydet = async () => {
-    if (!seriNo.trim()) { Alert.alert('Eksik', 'Seri numarası girin veya taratın.'); return }
     if (!musteriId) { Alert.alert('Eksik', 'Müşteri seçin.'); return }
     if (islem === 'ariza' && !form.arizaNedeni.trim()) { Alert.alert('Eksik', 'Arıza nedenini yazın.'); return }
+    // SN OPSİYONEL (18.08): barkodsuz/etiketsiz ürünler de girilebilsin.
+    // Boşsa cihaz adı şart (kayıt tanımsız kalmasın) + yanlışlıkla boş
+    // geçilmesin diye tek onay sorulur. DB'de boş SN null gider, çakışmaz.
+    if (!seriNo.trim()) {
+      if (!form.cihazAdi.trim()) {
+        Alert.alert('Eksik', 'SN girilmediyse en azından cihaz adını yazın (örn. IP Kamera).')
+        return
+      }
+      Alert.alert('Barkodsuz kayıt', 'Seri numarası olmadan kaydedilecek. Devam edilsin mi?', [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'SN\'siz Kaydet', onPress: () => kaydetDevam() },
+      ])
+      return
+    }
+    await kaydetDevam()
+  }
 
+  const kaydetDevam = async () => {
     setKaydediliyor(true)
     try {
       if (mevcutCihaz) {
@@ -228,8 +244,11 @@ export default function ArizaliCihazScreen({ navigation, route }) {
           })}
         </View>
 
-        {/* SN */}
-        {etiket('Seri Numarası', true)}
+        {/* SN — opsiyonel (18.08): barkodsuz ürün SN'siz kaydedilebilir */}
+        {etiket('Seri Numarası')}
+        <Text style={{ color: colors.textMuted, fontSize: 11, marginBottom: 4 }}>
+          Barkodsuz/etiketsiz üründe boş bırakabilirsiniz — kayıt SN'siz açılır.
+        </Text>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ flex: 1 }}>
             {input(seriNo, (v) => { setSeriNo(v); setMevcutCihaz(null) }, 'SN yaz veya taratın', {
