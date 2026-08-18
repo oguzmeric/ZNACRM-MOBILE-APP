@@ -25,6 +25,7 @@
     },
     "android": {
       "package": "com.crm.mobile",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0f1e"

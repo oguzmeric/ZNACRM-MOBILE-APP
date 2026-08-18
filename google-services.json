@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "518249170112",
+    "project_id": "zna-crm-213e3",
+    "storage_bucket": "zna-crm-213e3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:518249170112:android:39db8d4beddbad978b5925",
+        "android_client_info": {
+          "package_name": "com.crm.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrCBpaeJRjEeadf4sfYP5dEsDi1dJcKP0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
