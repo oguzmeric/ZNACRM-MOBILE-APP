@@ -62,7 +62,7 @@
   "overrides": {
     "shell-quote": "^1.10.0",
     "tar": "^7.5.22",
-    "brace-expansion": "^5.0.9",
+    "brace-expansion": "2.0.1",
     "fast-uri": "^3.1.0"
   }
 }
