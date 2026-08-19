@@ -63,9 +63,15 @@ export const banaAtananAktifTalepSayisi = async (kullaniciId) => {
   return count ?? 0
 }
 
+// ⚠️ LISTE_KOLONLARI ŞART (19.08 ölçümü): tablo 178 satır ama 33 MB —
+// personel_imza (ort. 126 kB) + musteri_imza (ort. 72 kB) base64 satırda
+// duruyor, tablonun %97'si bu iki kolon. Bu üç fonksiyon tumSayfalariCek
+// üzerinden select('*') yapıyordu; her satırda ~200 kB imza iniyordu ve
+// sorgunun DB ortalaması 1160 ms'ydi. Liste ekranları imzayı hiç göstermiyor.
 export const acikTalepler = async () => {
   const data = await tumSayfalariCek('servis_talepleri', (q) =>
-    q.not('durum', 'in', KAPALI_DURUMLAR).order('olusturma_tarihi', { ascending: false })
+    q.not('durum', 'in', KAPALI_DURUMLAR).order('olusturma_tarihi', { ascending: false }),
+    LISTE_KOLONLARI
   )
   return arrayToCamel(data)
 }
@@ -272,7 +278,8 @@ export const notEkle = async (id, metin, kullaniciAd) => {
 // Admin: atanmamış servis talepleri — durum='bekliyor' olanlar
 export const atanmamisTalepler = async () => {
   const data = await tumSayfalariCek('servis_talepleri', (q) =>
-    q.eq('durum', 'bekliyor').order('olusturma_tarihi', { ascending: false })
+    q.eq('durum', 'bekliyor').order('olusturma_tarihi', { ascending: false }),
+    LISTE_KOLONLARI
   )
   return arrayToCamel(data)
 }
@@ -301,7 +308,8 @@ export const servisAta = async (id, kullanici, atayanAd) => {
 // Admin: onay kuyruğu — teknisyenin tamamladığı servisler
 export const tamamlananTalepler = async () => {
   const data = await tumSayfalariCek('servis_talepleri', (q) =>
-    q.eq('durum', 'tamamlandi').order('guncelleme_tarihi', { ascending: false })
+    q.eq('durum', 'tamamlandi').order('guncelleme_tarihi', { ascending: false }),
+    LISTE_KOLONLARI
   )
   return arrayToCamel(data)
 }

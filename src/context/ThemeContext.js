@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { darkColors, lightColors } from '../theme'
@@ -34,7 +34,7 @@ export const ThemeProvider = ({ children }) => {
     })()
   }, [])
 
-  const modDegistir = async (yeni) => {
+  const modDegistir = useCallback(async (yeni) => {
     const hedef = yeni ?? (mod === 'gece' ? 'gunduz' : 'gece')
     setMod(hedef)
     try {
@@ -42,9 +42,17 @@ export const ThemeProvider = ({ children }) => {
     } catch (e) {
       console.warn('[Theme] Mod kaydedilemedi', e)
     }
-  }
+  }, [mod])
 
   const colors = mod === 'gunduz' ? lightColors : darkColors
+
+  // ⚠️ useMemo ŞART: useTheme() 101 dosyada kullanılıyor. Inline value her
+  // render'da yeni nesne üretip 101 tüketiciyi birden yeniden çizdiriyordu
+  // (19.08 performans denetimi).
+  const deger = useMemo(
+    () => ({ mod, colors, modDegistir, yukleniyor }),
+    [mod, colors, modDegistir, yukleniyor],
+  )
 
   // Tema yüklenmediyse ekrana hiçbir şey çizme — flicker önlemi
   if (mod === null) {
@@ -52,7 +60,7 @@ export const ThemeProvider = ({ children }) => {
   }
 
   return (
-    <ThemeContext.Provider value={{ mod, colors, modDegistir, yukleniyor }}>
+    <ThemeContext.Provider value={deger}>
       {children}
     </ThemeContext.Provider>
   )

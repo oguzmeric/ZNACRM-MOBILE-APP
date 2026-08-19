@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import {
   View,
   Text,
@@ -76,7 +76,8 @@ export default function ServisTalepleriScreen({ navigation, route }) {
       setHata(e?.message || 'Liste yüklenemedi')
       setTalepler([])
     }
-  }, [aktifSekme, kullanici])
+  // ⚠️ kullanici?.id: nesne referansı foreground'da değişiyor (19.08).
+  }, [aktifSekme, kullanici?.id])
 
   // Bana atanmış açık servis sayısı — banner ve popup için
   useEffect(() => {
@@ -103,12 +104,19 @@ export default function ServisTalepleriScreen({ navigation, route }) {
     })()
   }, [kullanici])
 
-  useEffect(() => {
-    setLoading(true)
-    yukle().finally(() => setLoading(false))
-  }, [yukle])
-
-  useFocusEffect(useCallback(() => { yukle() }, [yukle]))
+  // ⚠️ TEK yükleme noktası (19.08 performans denetimi).
+  // Eskiden useEffect + useFocusEffect birlikte vardı: aynı sorgu mount'ta
+  // İKİ KEZ gidiyordu. useFocusEffect zaten mount'ta da çalışır.
+  // Ayrıca setLoading(true) koşulsuzdu; her sekmeye dönüşte liste sökülüp
+  // spinner geliyordu — "sekmeler arası çok bekletiyor" şikayeti buydu.
+  // Artık spinner YALNIZ ilk yüklemede; sonraki tazelemeler sessiz.
+  const ilkYuklemeRef = useRef(true)
+  useFocusEffect(
+    useCallback(() => {
+      if (ilkYuklemeRef.current) setLoading(true)
+      yukle().finally(() => { setLoading(false); ilkYuklemeRef.current = false })
+    }, [yukle])
+  )
 
   const onRefresh = async () => {
     setRefreshing(true)

@@ -88,7 +88,8 @@ export default function HomeScreen({ navigation }) {
     setOkunmamisSayisi(b)
     setOkunmamisMesaj(msj || 0)
     setDemoGecikmisSayisi((dz || []).filter(z => z.beklenenIadeTarihi && new Date(z.beklenenIadeTarihi) < new Date()).length)
-  }, [kullanici])
+  // ⚠️ kullanici?.id: nesne referansı foreground'da değişiyor (19.08).
+  }, [kullanici?.id])
 
   // Realtime — yeni bildirim gelince badge anlık artsın
   useEffect(() => {
@@ -103,13 +104,14 @@ export default function HomeScreen({ navigation }) {
     if (!kullanici?.id) return
     const harita = await kullaniciMenuYetkileri(kullanici.id)
     setYetki(harita)
-  }, [kullanici])
+  }, [kullanici?.id])
 
   // Web "Modül erişimleri" (kullanicilar.moduller) + mobil-özel gizleme (menu_yetkileri)
   // birlikte: webde yetki verilmeyen modül mobilde de görünmez (Yunus vakası)
   const gorunur = (anahtar) => menuGorunurMu(anahtar, kullanici, yetki)
 
-  useEffect(() => { sayilariYukle(); yetkiYukle() }, [sayilariYukle, yetkiYukle])
+  // ⚠️ useEffect kaldırıldı: useFocusEffect mount'ta da çalışır, ikisi birden
+  // aynı 5 sorguyu İKİ KEZ gönderiyordu (19.08 performans denetimi).
   useFocusEffect(useCallback(() => { sayilariYukle(); yetkiYukle() }, [sayilariYukle, yetkiYukle]))
 
   return (

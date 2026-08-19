@@ -1,9 +1,26 @@
 import { supabase, tumSayfalariCek } from '../lib/supabase'
 import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 
+// LİSTE kolonları: `notlar` + `yorumlar` jsonb HARİÇ — web bu dersi çoktan
+// almış (crm-app gorevService: "mobil not/foto geçmişi büyüdükçe listeyi
+// şişiriyordu"), mobil hâlâ select('*') ile o jsonb'leri indiriyordu; liste
+// ekranı bu alanları hiç okumuyor (19.08 performans denetimi). Detay ekranı
+// gorevGetir(id) ile tam kaydı alır. Yeni kolon eklerken web'dekiyle birlikte
+// buraya da ekle.
+const GOREV_LISTE_KOLONLARI = `id, baslik, aciklama, durum, oncelik, atanan_id, atanan_ad,
+  olusturan_ad, bitis_tarihi, tamamlanma_tarihi, firma_adi, musteri_id, olusturma_tarih,
+  musteri_adi, atanan, son_tarih, lokasyon_id, gorusme_id, servis_talep_id,
+  baslama_tarih, bitis_tarih, devam_sebep, ekip,
+  gorev_no, ust_gorev_id, seviye, olusturan_id, kategori_id, ilerleme, ilerleme_modu,
+  kabul_durumu, red_sebebi, onay_gerekli, onaylayici_id, onay_durumu, gizlilik,
+  gozlemciler, zorunlu, tamamlama_kurali, bagimli_gorev_id, bagimlilik_turu, etiketler,
+  teklif_id, siparis_id, kesif_id, atama_turu, devreden_id, durum_sebebi, bitis_saat,
+  bekleme_baslangic, toplam_bekleme_gun`
+
 export const gorevleriGetir = async () => {
   const data = await tumSayfalariCek('gorevler', (q) =>
-    q.order('olusturma_tarih', { ascending: false })
+    q.order('olusturma_tarih', { ascending: false }),
+    GOREV_LISTE_KOLONLARI
   )
   return arrayToCamel(data)
 }
@@ -12,7 +29,8 @@ export const banaAtananGorevler = async (kullaniciId) => {
   // Birincil atanan VEYA ekip üyesi olan görevler
   const data = await tumSayfalariCek('gorevler', (q) =>
     q.or(`atanan_id.eq.${kullaniciId},ekip.cs.{${kullaniciId}}`)
-     .order('olusturma_tarih', { ascending: false })
+     .order('olusturma_tarih', { ascending: false }),
+    GOREV_LISTE_KOLONLARI
   )
   return arrayToCamel(data)
 }
@@ -30,7 +48,8 @@ export const banaAtananAktifGorevSayisi = async (kullaniciId) => {
 
 export const atadigimGorevler = async (kullaniciAd) => {
   const data = await tumSayfalariCek('gorevler', (q) =>
-    q.eq('olusturan_ad', kullaniciAd).order('olusturma_tarih', { ascending: false })
+    q.eq('olusturan_ad', kullaniciAd).order('olusturma_tarih', { ascending: false }),
+    GOREV_LISTE_KOLONLARI
   )
   return arrayToCamel(data)
 }

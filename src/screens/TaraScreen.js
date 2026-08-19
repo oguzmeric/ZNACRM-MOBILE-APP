@@ -16,6 +16,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as Haptics from 'expo-haptics'
 import { Feather } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useIsFocused } from '@react-navigation/native'
 import { useTheme } from '../context/ThemeContext'
 import { kalemAra, modellerOzetiniGetir, serileriTopluEkle } from '../services/stokKalemiService'
 import { cihazGetirSeriNo } from '../services/musteriCihazService'
@@ -41,6 +42,13 @@ const BARKOD_TIPLERI = [
 export default function TaraScreen({ navigation }) {
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()
+  // ⚠️ Sekme odaktan çıkınca kamera SÖKÜLMELİ (19.08 performans denetimi).
+  // Tab navigator ekranı bir kez mount ettikten sonra unmount etmiyor; koşul
+  // olmadığı için kullanıcı Tara'ya bir kez girdikten sonra uygulamanın geri
+  // kalanında da kamera frame üretmeye, her karede 13 barkod tipini taramaya
+  // ve tarama çizgisi animasyonunu döndürmeye devam ediyordu. "Uygulama komple
+  // kasıyor" şikayetinin birinci nedeni buydu.
+  const odakli = useIsFocused()
   const [permission, requestPermission] = useCameraPermissions()
   const [scanning, setScanning] = useState(true)
   const [aranıyor, setAraniyor] = useState(false)
@@ -57,12 +65,18 @@ export default function TaraScreen({ navigation }) {
   const [eklenenSayisi, setEklenenSayisi] = useState(0)
   const [musteriCihazSonuc, setMusteriCihazSonuc] = useState(null) // { cihaz, firma } — belirgin kart
 
-  // İlk açılışta modelleri yükle (sürekli mod için)
+  // Model listesi SADECE seçici açılınca yüklenir.
+  // ⚠️ Eskiden mount'ta çekiliyordu: "Tara" sekmesine basıldığı anda kamera
+  // başlatılırken aynı anda iki tam tablo (stok_urunler + stok_kalemleri,
+  // select('*'), limitsiz) iniyor ve JS thread'inde satır satır dönüştürülüyordu
+  // — kamera önizlemesiyle yarışarak sekme açılışını kilitliyordu (19.08).
+  // Bu veri yalnız "sürekli mod" model seçicisinde gerekiyor.
   useEffect(() => {
+    if (!modelPickerAcik || modeller.length > 0) return
     modellerOzetiniGetir()
       .then((l) => setModeller((l ?? []).filter((m) => m.tip === 'seri')))
       .catch((e) => console.warn('[modeller]', e?.message))
-  }, [])
+  }, [modelPickerAcik, modeller.length])
   const sonOkunan = useRef(null)
   const sonOkunanZaman = useRef(0)
   const debounceRef = useRef(null)
@@ -94,9 +108,10 @@ export default function TaraScreen({ navigation }) {
     }
   }, [permission])
 
-  // Tarama çizgisi animasyonu — sadece scanning aktifken çalışır
+  // Tarama çizgisi animasyonu — sadece ekran ODAKTAYKEN ve scanning aktifken.
+  // `odakli` koşulu olmadan sekme değişince de dönmeye devam ediyordu.
   useEffect(() => {
-    if (!scanning || aranıyor) {
+    if (!odakli || !scanning || aranıyor) {
       scanLineAnim.stopAnimation()
       return
     }
@@ -118,7 +133,7 @@ export default function TaraScreen({ navigation }) {
     )
     loop.start()
     return () => loop.stop()
-  }, [scanning, aranıyor])
+  }, [odakli, scanning, aranıyor])
 
   const kodIsle = async (kod) => {
     if (!kod?.trim() || aranıyor) return
@@ -261,14 +276,16 @@ export default function TaraScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <CameraView
-        style={StyleSheet.absoluteFill}
-        facing="back"
-        enableTorch={torch}
-        zoom={zoom}
-        onBarcodeScanned={scanning ? onBarcodeScanned : undefined}
-        barcodeScannerSettings={{ barcodeTypes: BARKOD_TIPLERI }}
-      />
+      {odakli && (
+        <CameraView
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          enableTorch={torch}
+          zoom={zoom}
+          onBarcodeScanned={scanning ? onBarcodeScanned : undefined}
+          barcodeScannerSettings={{ barcodeTypes: BARKOD_TIPLERI }}
+        />
+      )}
 
       {/* Üst bar: info + torch */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>

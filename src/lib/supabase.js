@@ -82,19 +82,39 @@ if (typeof AppState?.addEventListener === 'function') {
 }
 
 // Supabase 1000 satır limitini aşmak için sayfalama yardımcısı
-export const tumSayfalariCek = async (tablo, sorguKur = (q) => q) => {
+//
+// ⚠️ `kolonlar` PARAMETRESİ ÖNEMLİ (19.08 performans ölçümü):
+// Burası eskiden her çağrıda `select('*')` yapıyordu ve 19 yerden çağrılıyor.
+// Ölçüm: servis_talepleri tablosu 178 satır ama 33 MB — çünkü `personel_imza`
+// (ort. 126 kB) ve `musteri_imza` (ort. 72 kB) base64 imzalar satırda duruyor;
+// tablonun %97'si bu iki kolon. `select('*')` liste çekerken satır başına
+// ~200 kB imza indiriyordu, hâlbuki liste ekranı imzaları HİÇ göstermiyor.
+// DB tarafında bu sorgunun ortalaması 1160 ms, toplam 613 saniye.
+//
+// Varsayılan '*' bırakıldı ki mevcut 19 çağrı davranışını değiştirmesin;
+// ağır tablolarda çağıran taraf kolon listesi verir.
+export const tumSayfalariCek = async (tablo, sorguKur = (q) => q, kolonlar = '*') => {
   const SAYFA = 1000
   let tumKayitlar = []
   let baslangic = 0
+  let secim = kolonlar
   while (true) {
     // id tiebreaker: benzersiz olmayan kolona göre sıralamada (örn. toplu import
     // kayıtlarında aynı olusturma_tarih) .range() sayfaları arasında satır
     // tekrarı/atlaması olur — son sıralama anahtarı olarak id determinizmi sağlar.
-    const query = sorguKur(supabase.from(tablo).select('*'))
+    const query = sorguKur(supabase.from(tablo).select(secim))
       .order('id', { ascending: false })
       .range(baslangic, baslangic + SAYFA - 1)
     const { data, error } = await query
     if (error) {
+      // ⚠️ Kolon whitelist'inde YANLIŞ AD = PostgREST 400 + boş liste (sessiz).
+      // Bir kez '*' ile tekrar dene: liste ağır da olsa gelsin, kullanıcı boş
+      // ekranla kalmasın. Uyarı iz bırakır ki yanlış ad fark edilsin.
+      if (secim !== '*') {
+        console.warn(`[${tablo}] kolon seti reddedildi, select(*) ile tekrar:`, error.message)
+        secim = '*'
+        continue
+      }
       console.error(`[${tablo}] sayfa hata:`, error.message)
       break
     }

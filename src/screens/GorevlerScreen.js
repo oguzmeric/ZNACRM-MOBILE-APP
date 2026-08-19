@@ -48,17 +48,20 @@ export default function GorevlerScreen({ navigation }) {
     else if (aktifSekme === 'atadigim') veri = await atadigimGorevler(kullanici.ad)
     else veri = await gorevleriGetir()
     setGorevler(veri ?? [])
-  }, [aktifSekme, kullanici])
+  // ⚠️ id+ad yeterli: nesne referansı foreground'da değişiyor (19.08).
+  }, [aktifSekme, kullanici?.id, kullanici?.ad])
 
-  useEffect(() => {
-    setLoading(true)
-    yukle().finally(() => setLoading(false))
-  }, [yukle])
-
-  // Ekrana her dönüşte yenile (yeni görev eklendiğinde liste güncellensin)
+  // ⚠️ TEK yükleme noktası (19.08 performans denetimi).
+  // Eskiden useEffect + useFocusEffect birlikte vardı: aynı sorgu mount'ta
+  // İKİ KEZ gidiyordu. useFocusEffect zaten mount'ta da çalışır.
+  // Ayrıca setLoading(true) koşulsuzdu; her sekmeye dönüşte liste sökülüp
+  // spinner geliyordu — "sekmeler arası çok bekletiyor" şikayeti buydu.
+  // Artık spinner YALNIZ ilk yüklemede; sonraki tazelemeler sessiz.
+  const ilkYuklemeRef = useRef(true)
   useFocusEffect(
     useCallback(() => {
-      yukle()
+      if (ilkYuklemeRef.current) setLoading(true)
+      yukle().finally(() => { setLoading(false); ilkYuklemeRef.current = false })
     }, [yukle])
   )
 

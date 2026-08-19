@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { AppState } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Sentry from '@sentry/react-native'
@@ -40,7 +40,17 @@ export const AuthProvider = ({ children }) => {
         .single()
       if (data && kullaniciIdRef.current === id) {
         const guncel = toCamel(data)
-        setKullanici((onceki) => ({ ...onceki, ...guncel }))
+        // ⚠️ REFERANSI GEREKSİZ YERE DEĞİŞTİRME (19.08 performans denetimi).
+        // Bu fonksiyon uygulama her öne geldiğinde çalışıyor. Eskiden koşulsuz
+        // yeni nesne üretiyordu; `kullanici` bağımlılığı taşıyan tüm ekranların
+        // `yukle` fonksiyonu yeniden oluşuyor, useFocusEffect ateşleniyor ve
+        // birkaç ekran birden spinner'a düşüp yeniden sorgulanıyordu. Telefonu
+        // cebinden çıkarmak tam bir yeniden yükleme fırtınası başlatıyordu.
+        setKullanici((onceki) => {
+          const yeni = { ...onceki, ...guncel }
+          if (onceki && JSON.stringify(onceki) === JSON.stringify(yeni)) return onceki
+          return yeni
+        })
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(guncel))
       }
     } catch (e) {
@@ -98,7 +108,10 @@ export const AuthProvider = ({ children }) => {
     return () => abone.remove()
   }, [])
 
-  const modDegistir = async (yeniMod) => {
+  // ⚠️ Bu üç fonksiyon useCallback ile sarılı: aksi halde her render'da yeni
+  // referans üretir, aşağıdaki useMemo hiç tutmaz ve 49 tüketici yine her
+  // seferinde yeniden çizilir.
+  const modDegistir = useCallback(async (yeniMod) => {
     if (yeniMod !== 'admin' && yeniMod !== 'teknisyen') return
     setMod(yeniMod)
     try {
@@ -106,9 +119,9 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {
       console.warn('[Auth] Mod kaydedilemedi', e)
     }
-  }
+  }, [])
 
-  const girisYap = async (kullaniciAdi, sifre) => {
+  const girisYap = useCallback(async (kullaniciAdi, sifre) => {
     const bulunan = await kullaniciGirisKontrol(kullaniciAdi?.trim(), sifre)
     if (!bulunan) return false
     const guncel = { ...bulunan, durum: 'cevrimici' }
@@ -118,9 +131,9 @@ export const AuthProvider = ({ children }) => {
     // Push token kaydı (best-effort)
     pushTokenKaydet(bulunan.id).catch((e) => console.warn('[push token]', e?.message))
     return true
-  }
+  }, [])
 
-  const cikisYap = async () => {
+  const cikisYap = useCallback(async () => {
     if (kullanici?.id) {
       kullaniciDurumGuncelle(kullanici.id, 'cevrimdisi').catch(() => {})
       // Bu cihazın push token'ını sil (signOut'tan ÖNCE — auth lazım)
@@ -132,15 +145,21 @@ export const AuthProvider = ({ children }) => {
     setMod('teknisyen')
     await AsyncStorage.removeItem(STORAGE_KEY)
     await AsyncStorage.removeItem(MODE_KEY)
-  }
+  }, [kullanici?.id])
 
   // Veritabanından kullanıcı bilgisini yeniden çek (foto değişmesi, unvan değişmesi vb. durumlarda)
-  const kullaniciyiTazele = () => profilTazele(kullanici?.id)
+  const kullaniciyiTazele = useCallback(() => profilTazele(kullanici?.id), [kullanici?.id])
+
+  // ⚠️ useMemo ŞART: useAuth() 49 dosyada kullanılıyor. Inline `value={{...}}`
+  // her render'da yeni nesne üretiyordu ve bu 49 tüketicinin TAMAMINI yeniden
+  // çizdiriyordu (19.08 performans denetimi).
+  const deger = useMemo(
+    () => ({ kullanici, loading, mod, modDegistir, girisYap, cikisYap, kullaniciyiTazele }),
+    [kullanici, loading, mod, modDegistir, girisYap, cikisYap, kullaniciyiTazele],
+  )
 
   return (
-    <AuthContext.Provider
-      value={{ kullanici, loading, mod, modDegistir, girisYap, cikisYap, kullaniciyiTazele }}
-    >
+    <AuthContext.Provider value={deger}>
       {children}
     </AuthContext.Provider>
   )

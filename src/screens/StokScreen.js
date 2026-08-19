@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -112,13 +112,43 @@ export default function StokScreen({ navigation }) {
     return () => clearTimeout(t)
   }, [arama, yukle])
 
-  useFocusEffect(useCallback(() => { yukle() }, [yukle]))
+  // ⚠️ Odak effect'i BİLEREK `yukle`ye değil ref'e bağlı (19.08 denetimi):
+  // `yukle` deps'inde `arama` var, her karakterde kimliği değişiyor ve ekran
+  // odaktayken useFocusEffect'i ANINDA yeniden ateşliyordu — 300 ms'lik
+  // debounce tamamen baypas olup her tuş vuruşunda tam sorgu gidiyordu
+  // ("stok ararken kasıyor"). Ref kalıbı GorusmelerScreen'dekiyle aynı.
+  const yukleRef = useRef(yukle)
+  useEffect(() => { yukleRef.current = yukle })
+  useFocusEffect(useCallback(() => { yukleRef.current() }, []))
 
   const onRefresh = async () => {
     setRefreshing(true)
     await yukle()
     setRefreshing(false)
   }
+
+  // ⚠️ FlatList data'sı için useMemo (19.08 denetimi): filtre inline yazılınca
+  // her render'da yeni dizi referansı üretiyor ve FlatList tüm görünür
+  // hücreleri yeniden çiziyordu.
+  const modellerFiltreli = useMemo(() => {
+    return (modeller ?? []).filter((m) => {
+      if (!arama.trim()) return true
+      const metin = trIcerir([m.stokKodu, m.stokAdi, m.marka, m.model], arama)
+      // Akıllı eşleşme VEYA metin — etiketlenmemiş ürünler kaybolmasın
+      if (cozum?.akilli) {
+        const bilgi = baglam?.kodBilgi?.get(m.stokKodu)
+        const akilli = bilgi
+          ? urunEslesiyorMu(
+              { id: bilgi.id, kategoriId: bilgi.kategoriId },
+              cozum, baglam.kategoriler, baglam.urunOzellikMap,
+              () => trIcerir([m.stokKodu, m.stokAdi, m.marka, m.model], cozum.kalan),
+            )
+          : false
+        return akilli || metin
+      }
+      return metin
+    })
+  }, [modeller, arama, cozum, baglam])
 
   return (
     <ScreenContainer>
@@ -185,23 +215,7 @@ export default function StokScreen({ navigation }) {
         <ActivityIndicator color={colors.textPrimary} style={{ marginTop: 32 }} />
       ) : (aktifSekme === 'modeller' || aktifSekme === 'depoda') ? (
         <FlatList
-          data={(modeller ?? []).filter((m) => {
-            if (!arama.trim()) return true
-            const metin = trIcerir([m.stokKodu, m.stokAdi, m.marka, m.model], arama)
-            // Akıllı eşleşme VEYA metin — etiketlenmemiş ürünler kaybolmasın
-            if (cozum?.akilli) {
-              const bilgi = baglam?.kodBilgi?.get(m.stokKodu)
-              const akilli = bilgi
-                ? urunEslesiyorMu(
-                    { id: bilgi.id, kategoriId: bilgi.kategoriId },
-                    cozum, baglam.kategoriler, baglam.urunOzellikMap,
-                    () => trIcerir([m.stokKodu, m.stokAdi, m.marka, m.model], cozum.kalan),
-                  )
-                : false
-              return akilli || metin
-            }
-            return metin
-          })}
+          data={modellerFiltreli}
           keyExtractor={(m) => m.stokKodu}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />}

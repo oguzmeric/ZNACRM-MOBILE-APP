@@ -100,6 +100,12 @@ function TeknisyenTabs() {
       tabBar={(props) => <MagicTabBar {...props} />}
       screenOptions={() => ({
         headerShown: false,
+        // ⚠️ freezeOnBlur (19.08 performans denetimi): sekmeler bir kez açılınca
+        // ASLA unmount olmuyor. Bu ayar olmadan altı ekran birden canlı kalıyor
+        // ve odak dışındayken bile render/realtime/timer işlemeye devam ediyor.
+        // react-native-screens ile odak dışı ekranın render'ı dondurulur —
+        // state korunur, geri dönüşte yeniden yükleme olmaz.
+        freezeOnBlur: true,
         headerStyle: { backgroundColor: colors.bg },
         headerTitleStyle: { color: colors.textPrimary, fontWeight: '700' },
         headerTintColor: colors.textPrimary,
