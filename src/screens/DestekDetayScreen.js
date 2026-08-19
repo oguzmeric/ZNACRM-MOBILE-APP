@@ -132,28 +132,44 @@ export default function DestekDetayScreen({ route, navigation }) {
           )}
         </View>
 
-        {/* Sohbet akışı — her yanıt ayrı mesaj (mig 222), üzerine yazılmaz */}
+        {/* Sohbet akışı — her yanıt ayrı mesaj (mig 222), üzerine yazılmaz.
+            ⚠️ marginTop + gap (19.08 kullanıcı bildirimi): talep bloğunun altında
+            ve balonlar arasında boşluk yoktu; yanıtlar talep kutusuna ve
+            birbirine yapışık/üst üste binmiş görünüyordu. Araya "Yanıtlar"
+            ayracı da kondu ki talep ile yazışma görsel olarak ayrılsın. */}
         {mesajlar.length > 0 ? (
-          <View style={{ gap: 8, marginBottom: 12 }}>
-            {mesajlar.map((m) => {
-              const benim = String(m.yazarId ?? '') === String(kullanici?.id ?? '')
-              const destekten = Number(m.yazarId) === DESTEK_YONETICISI_ID
-              return (
-                <View key={m.id} style={{ alignItems: benim ? 'flex-end' : 'flex-start' }}>
-                  <View style={{
-                    maxWidth: '85%', padding: 10, borderRadius: 12,
-                    backgroundColor: benim ? 'rgba(59,130,246,0.14)' : colors.surface,
-                    borderWidth: 1, borderColor: benim ? 'rgba(59,130,246,0.3)' : colors.border,
-                  }}>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: destekten ? '#3b82f6' : colors.textMuted, marginBottom: 3 }}>
-                      {destekten ? '🛠 Destek' : (m.yazarAd || 'Kullanıcı')}
-                      {m.olusturmaTarih ? ` · ${tarihSaatFormat(m.olusturmaTarih)}` : ''}
-                    </Text>
-                    <Text style={{ color: colors.textPrimary, fontSize: 14, lineHeight: 20 }}>{m.mesaj}</Text>
+          <View style={{ marginTop: 18, marginBottom: 12 }}>
+            <Text style={{
+              fontSize: 11, fontWeight: '800', letterSpacing: 0.6,
+              color: colors.textFaded, marginBottom: 8, textTransform: 'uppercase',
+            }}>
+              Yanıtlar
+            </Text>
+            <View style={{ gap: 10 }}>
+              {mesajlar.map((m) => {
+                const benim = String(m.yazarId ?? '') === String(kullanici?.id ?? '')
+                const destekten = Number(m.yazarId) === DESTEK_YONETICISI_ID
+                return (
+                  <View key={m.id} style={{ alignItems: benim ? 'flex-end' : 'flex-start' }}>
+                    <View style={{
+                      maxWidth: '85%', paddingHorizontal: 12, paddingVertical: 10,
+                      borderRadius: 12,
+                      // Kuyruk hissi: kendi mesajında sağ alt, karşı tarafta sol alt köşe düz
+                      borderBottomRightRadius: benim ? 4 : 12,
+                      borderBottomLeftRadius: benim ? 12 : 4,
+                      backgroundColor: benim ? 'rgba(59,130,246,0.14)' : colors.surface,
+                      borderWidth: 1, borderColor: benim ? 'rgba(59,130,246,0.3)' : colors.border,
+                    }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: destekten ? '#3b82f6' : colors.textMuted, marginBottom: 4 }}>
+                        {destekten ? '🛠 Destek' : (m.yazarAd || 'Kullanıcı')}
+                        {m.olusturmaTarih ? ` · ${tarihSaatFormat(m.olusturmaTarih)}` : ''}
+                      </Text>
+                      <Text style={{ color: colors.textPrimary, fontSize: 14, lineHeight: 20 }}>{m.mesaj}</Text>
+                    </View>
                   </View>
-                </View>
-              )
-            })}
+                )
+              })}
+            </View>
           </View>
         ) : (
           <View style={[styles.bekleniyor, { backgroundColor: colors.surface, borderColor: colors.border }]}>
