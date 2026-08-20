@@ -228,6 +228,14 @@ export default function ServisTalepleriScreen({ navigation, route }) {
                   </Text>
                 )}
 
+                {/* Lokasyon — teknisyen NEREYE gideceğini karttan görsün (20.08
+                    saha isteği); boşsa satır hiç yer kaplamaz, başlık şişmez. */}
+                {!!(item.lokasyon || '').trim() && (
+                  <Text style={[styles.lokasyon, { color: colors.textFaded }]} numberOfLines={1}>
+                    📍 {item.lokasyon.trim()}
+                  </Text>
+                )}
+
                 <Text style={[styles.altMeta, { color: colors.textFaded }]} numberOfLines={1}>
                   {[
                     aciliyet && `${aciliyet.ikon} ${aciliyet.isim}`,
@@ -293,6 +301,7 @@ const styles = StyleSheet.create({
 
   firma: { color: '#fff', fontSize: 14, fontWeight: '700', marginTop: 4 },
   konu: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
+  lokasyon: { fontSize: 11.5, marginTop: 2 },
   altMeta: { color: '#64748b', fontSize: 11, marginTop: 4 },
 
   empty: { color: '#64748b', textAlign: 'center', marginTop: 40 },

@@ -16,6 +16,9 @@ import { toCamel, arrayToCamel, toSnake } from '../lib/mapper'
 const LISTE_KOLONLARI = [
   'id', 'talep_no', 'konu', 'durum', 'aciliyet', 'ana_tur',
   'firma_adi', 'musteri_ad', 'planli_tarih',
+  // lokasyon: kart üzerinde gösterilir (20.08 saha isteği — teknisyen nereye
+  // gideceğini görmek için detaya girmek zorunda kalıyordu)
+  'lokasyon',
   'atanan_kullanici_id', 'atanan_kullanici_ad', 'olusturma_tarihi',
 ].join(',')
 
