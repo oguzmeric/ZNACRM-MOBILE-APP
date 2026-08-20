@@ -205,6 +205,39 @@ export const teknisyenStoktariniGetir = async (teknisyenId) => {
   return arrayToCamel(data)
 }
 
+// Teknisyenin SAHAYA TAKTIĞI kalemler — servis_kalem_kullanimi 'kullanildi'
+// kayıtları (Depom > Taktıklarım sekmesi, 21.08). Talep no/firma ikinci sorguyla
+// eşlenir (embed FK adı riskine girilmez — servisMalzemeService uMap deseni).
+export const teknisyeninTaktiklari = async (kullaniciId) => {
+  const { data, error } = await supabase
+    .from('servis_kalem_kullanimi')
+    .select('id, tarih, servis_talep_id, stok_kalemleri (seri_no, stok_kodu, marka, model)')
+    .eq('kullanici_id', kullaniciId)
+    .eq('durum', 'kullanildi')
+    .order('tarih', { ascending: false })
+    .limit(300)
+  if (error) { console.warn('[teknisyeninTaktiklari]', error.message); return [] }
+  const satirlar = data ?? []
+  const talepIds = [...new Set(satirlar.map((r) => r.servis_talep_id).filter(Boolean))]
+  let tMap = new Map()
+  if (talepIds.length) {
+    const { data: talepler } = await supabase
+      .from('servis_talepleri').select('id, talep_no, firma_adi').in('id', talepIds)
+    tMap = new Map((talepler ?? []).map((t) => [t.id, t]))
+  }
+  return satirlar.map((r) => ({
+    id: r.id,
+    tarih: r.tarih,
+    servisTalepId: r.servis_talep_id,
+    seriNo: r.stok_kalemleri?.seri_no ?? '',
+    stokKodu: r.stok_kalemleri?.stok_kodu ?? '',
+    marka: r.stok_kalemleri?.marka ?? '',
+    model: r.stok_kalemleri?.model ?? '',
+    talepNo: tMap.get(r.servis_talep_id)?.talep_no ?? '',
+    firmaAdi: tMap.get(r.servis_talep_id)?.firma_adi ?? '',
+  }))
+}
+
 // S/N veya barkod ile arama (Tara ekranı için)
 export const kalemAra = async (kod) => {
   if (!kod?.trim()) return null
