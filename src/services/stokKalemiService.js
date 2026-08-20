@@ -190,11 +190,17 @@ export const lokasyonCihazlariniGetir = async (musteriLokasyonId) => {
   return arrayToCamel(data)
 }
 
-// Teknisyenin üzerindeki ürünler (zimmetli)
+// Teknisyenin üzerindeki ürünler (zimmetli).
+// 'arizada' da DAHİL (21.08 "Depom" isteği): teknisyen üzerindeki arızalı kalem
+// de onun taşıdığı maldır — yalnız 'teknisyende' listelenince unutulan arızalılar
+// görünmez kalıyordu. Kolonlar dar (select(*) yasağı, 19.08 perf paketi).
 export const teknisyenStoktariniGetir = async (teknisyenId) => {
-  const data = await tumSayfalariCek('stok_kalemleri', (q) =>
-    q.eq('teknisyen_id', teknisyenId).eq('durum', 'teknisyende')
-      .or('silindi.is.null,silindi.eq.false').order('guncelleme_tarih', { ascending: false })
+  const data = await tumSayfalariCek(
+    'stok_kalemleri',
+    (q) =>
+      q.eq('teknisyen_id', teknisyenId).in('durum', ['teknisyende', 'arizada'])
+        .or('silindi.is.null,silindi.eq.false').order('guncelleme_tarih', { ascending: false }),
+    'id, seri_no, barkod, stok_kodu, marka, model, durum, guncelleme_tarih'
   )
   return arrayToCamel(data)
 }

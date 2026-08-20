@@ -15,8 +15,11 @@ import { useTheme } from '../../context/ThemeContext'
 import { teknisyenStoktariniGetir } from '../../services/stokKalemiService'
 import { trIcerir } from '../../utils/trSearch'
 
+// İKİ KAPIDAN açılır (21.08): admin listesinden (kullaniciId + ad) VE
+// teknisyenin kendi "Depom" kartından (kisisel: true) — kişi üzerindeki
+// S/N'li kalemleri ('teknisyende' + 'arizada') listeler.
 export default function AdminPersonelStokScreen({ route, navigation }) {
-  const { kullaniciId, ad } = route.params
+  const { kullaniciId, ad, kisisel } = route.params ?? {}
   const { colors } = useTheme()
   const [stok, setStok] = useState([])
   const [loading, setLoading] = useState(true)
@@ -24,8 +27,8 @@ export default function AdminPersonelStokScreen({ route, navigation }) {
   const [arama, setArama] = useState('')
 
   useEffect(() => {
-    navigation.setOptions({ title: ad ? `${ad} — Stok` : 'Üzerindeki Stok' })
-  }, [navigation, ad])
+    navigation.setOptions({ title: kisisel ? 'Depom' : ad ? `${ad} — Stok` : 'Üzerindeki Stok' })
+  }, [navigation, ad, kisisel])
 
   const yukle = useCallback(async () => {
     const veri = await teknisyenStoktariniGetir(kullaniciId)
@@ -83,7 +86,11 @@ export default function AdminPersonelStokScreen({ route, navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />}
         ListEmptyComponent={
           <Text style={[styles.bos, { color: colors.textFaded }]}>
-            {arama ? 'Eşleşen kalem yok.' : 'Personelde stok bulunmuyor.'}
+            {arama
+              ? 'Eşleşen kalem yok.'
+              : kisisel
+                ? 'Üzerinde kayıtlı malzeme yok. Depodan S/N okutarak aldığın ürünler burada listelenir.'
+                : 'Personelde stok bulunmuyor.'}
           </Text>
         }
         renderItem={({ item }) => (
@@ -105,6 +112,11 @@ export default function AdminPersonelStokScreen({ route, navigation }) {
                 </Text>
               )}
             </View>
+            {/* Üzerindeki ARIZALI kalem gözden kaçmasın — liste artık iki durumu
+                da kapsıyor ('teknisyende' + 'arizada') */}
+            {item.durum === 'arizada' && (
+              <Text style={styles.arizaliRozet}>⚠ Arızalı</Text>
+            )}
             <Feather name="chevron-right" size={16} color={colors.textFaded} />
           </TouchableOpacity>
         )}
@@ -137,5 +149,6 @@ const styles = StyleSheet.create({
   },
   ad: { fontSize: 14, fontWeight: '700' },
   alt: { fontSize: 11, marginTop: 2 },
+  arizaliRozet: { fontSize: 10.5, fontWeight: '800', color: '#f59e0b', marginRight: 8 },
   bos: { fontSize: 13, fontStyle: 'italic', textAlign: 'center', paddingVertical: 24 },
 })

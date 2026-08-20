@@ -211,6 +211,8 @@ export default function RootNavigator() {
             <Stack.Screen name="AdminMenuYetkileri" component={AdminMenuYetkileriScreen} options={{ title: 'Menü Yetkileri' }} />
             <Stack.Screen name="AdminAktiviteler" component={AdminAktivitelerScreen} options={{ title: 'Tüm Aktiviteler' }} />
             <Stack.Screen name="AdminPersonelStok" component={AdminPersonelStokScreen} options={{ title: 'Üzerindeki Stok' }} />
+            {/* Depom = aynı ekranın KİŞİSEL kapısı (kisisel: true param'ıyla) */}
+            <Stack.Screen name="Depom" component={AdminPersonelStokScreen} options={{ title: 'Depom' }} />
             <Stack.Screen name="ServisDetay" component={ServisTalebiDetayScreen} options={{ title: 'Servis Detayı' }} />
             <Stack.Screen name="ServisFaturaHazirla" component={ServisFaturaHazirlaScreen} options={{ title: 'Servis Faturası' }} />
             <Stack.Screen name="Servisler" component={ServisTalepleriScreen} options={{ title: 'Servis Talepleri' }} />
@@ -257,6 +259,8 @@ export default function RootNavigator() {
             <Stack.Screen name="CihazDetay" component={CihazDetayScreen} options={{ title: 'Cihaz Detayı' }} />
             <Stack.Screen name="YeniCihaz" component={YeniCihazScreen} options={{ title: 'Yeni Cihaz Kaydı' }} />
             <Stack.Screen name="Stok" component={StokScreen} />
+            {/* Depom — teknisyenin üzerindeki S/N'li malzemeler (21.08 saha isteği) */}
+            <Stack.Screen name="Depom" component={AdminPersonelStokScreen} options={{ title: 'Depom', headerShown: true }} />
             <Stack.Screen name="Mobiltek" component={MobiltekScreen} options={{ title: 'Mobiltek', headerShown: true }} />
             <Stack.Screen name="AracRota" component={AracRotaScreen} options={{ title: 'Rota Geçmişi', headerShown: true }} />
             <Stack.Screen name="KullaniciSozlesmesi" component={SozlesmeEkrani} options={{ title: 'Kullanıcı Sözleşmesi', headerShown: true }} />

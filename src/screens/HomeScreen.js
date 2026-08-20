@@ -243,6 +243,9 @@ export default function HomeScreen({ navigation }) {
             {
               baslik: 'DEPO',
               items: [
+                // Depom KOŞULSUZ (21.08): üzerindeki malzeme kişiseldir, modül
+                // yetkisine bakılmaz — boşsa ekran açıklayıcı boş durum gösterir.
+                { t: 'Depom', i: <Feather name="archive" size={20} color="#f97316" />, nav: 'Depom', params: { kullaniciId: kullanici?.id, kisisel: true } },
                 gorunur('stok') && { t: 'Stok', i: <Feather name="package" size={20} color="#22c55e" />, nav: 'Stok' },
                 gorunur('demolar') && { t: 'Demo Takip', i: <Feather name="box" size={20} color="#a855f7" />, nav: 'Demolar', badge: demoGecikmisSayisi },
               ].filter(Boolean),
@@ -297,7 +300,7 @@ export default function HomeScreen({ navigation }) {
                         title={item.t}
                         icon={item.i}
                         badge={item.badge}
-                        onPress={() => navigation.navigate(item.nav)}
+                        onPress={() => navigation.navigate(item.nav, item.params)}
                       />
                     ))}
                   </View>
