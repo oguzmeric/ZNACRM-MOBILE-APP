@@ -90,9 +90,11 @@ export default function MusteriTalepDetayScreen({ route }) {
     setOnayIsleniyor(true)
     try {
       await talepOnayVer(talep.id, onay)
+      // ⚠️ musteri_onay BOOLEAN (mig 320): null=sorulmadı, true=onaylandı,
+      // false=başlangıç/ret (ret ayrımı durumdan okunur).
       setTalep((t) => ({
         ...t,
-        musteriOnay: onay ? 'onaylandi' : 'ret',
+        musteriOnay: onay,
         durum: onay ? t.durum : 'devam_ediyor',
       }))
       if (!onay) {
@@ -266,7 +268,9 @@ export default function MusteriTalepDetayScreen({ route }) {
         )}
 
         {/* Müşteri onayı — iş tamamlandığında */}
-        {talep.durum === 'tamamlandi' && !talep.musteriOnay && (
+        {/* musteri_onay == null → onay hiç sorulmamış (personel açılışlı
+            taleplerde false başlar; onlara onay sorusu gösterilmez — web ile aynı) */}
+        {talep.durum === 'tamamlandi' && talep.musteriOnay == null && (
           <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
             <Text style={[styles.bolumBaslik, { color: colors.primary }]}>İŞ TAMAMLANDI — ONAYINIZ GEREKİYOR</Text>
             <Text style={[styles.aciklama, { color: colors.textSecondary, marginBottom: 12 }]}>
@@ -296,7 +300,7 @@ export default function MusteriTalepDetayScreen({ route }) {
         )}
 
         {/* Değerlendirme — onay sonrası */}
-        {talep.musteriOnay === 'onaylandi' && !talep.degerlendirmePuan && (
+        {talep.musteriOnay === true && !talep.degerlendirmePuan && (
           <View style={[styles.kart, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.bolumBaslik, { color: colors.textMuted }]}>HİZMETİ DEĞERLENDİRİN</Text>
             <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
