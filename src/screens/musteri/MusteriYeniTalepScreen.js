@@ -10,11 +10,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet,
-  Alert, Image, KeyboardAvoidingView, Platform,
+  Alert, Image,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import ScreenContainer from '../../components/ScreenContainer'
+import SecimPicker from '../../components/SecimPicker'
 import TarihSec from '../../components/TarihSec'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
@@ -41,6 +42,8 @@ export default function MusteriYeniTalepScreen({ navigation }) {
   const [anaTur, setAnaTur] = useState('')
   const [altKategori, setAltKategori] = useState('')
   const [konu, setKonu] = useState('')
+  // Konu dropdown'unda "Diğer — elle yaz" seçilirse serbest metin buradan gelir
+  const [konuManuel, setKonuManuel] = useState('')
   const [aciklama, setAciklama] = useState('')
   const [lokasyonId, setLokasyonId] = useState(null)
   const [lokasyonMetin, setLokasyonMetin] = useState('')
@@ -94,11 +97,14 @@ export default function MusteriYeniTalepScreen({ navigation }) {
     }
   }, [])
 
+  // Seçilen ya da elle yazılan konu — tek kaynak
+  const etkinKonu = konu === '__manuel' ? konuManuel.trim() : konu
+
   const gonder = async () => {
     if (gonderiliyor) return
     if (!anaTur) { Alert.alert('Eksik bilgi', 'Talep türü seçiniz.'); return }
     if (altKategoriler.length > 0 && !altKategori) { Alert.alert('Eksik bilgi', 'Alt kategori seçiniz.'); return }
-    if (!konu) { Alert.alert('Eksik bilgi', 'Konu başlığı seçiniz.'); return }
+    if (!etkinKonu) { Alert.alert('Eksik bilgi', 'Konu başlığı seçiniz ya da yazınız.'); return }
     if (!aciklama.trim()) { Alert.alert('Eksik bilgi', 'Açıklama giriniz.'); return }
     if (!kullanici?.musteriId) {
       Alert.alert('Hesap sorunu', 'Hesabınız bir müşteri kartına bağlı değil. Lütfen bizimle iletişime geçin.')
@@ -124,7 +130,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
         firmaAdi: kullanici.firmaAdi || '',
         anaTur,
         altKategori,
-        konu,
+        konu: etkinKonu,
         lokasyon: lokasyonBirlesik,
         lokasyonId: lokasyonId || null,
         cihazTuru: cihazTuru.trim(),
@@ -191,12 +197,15 @@ export default function MusteriYeniTalepScreen({ navigation }) {
 
   return (
     <ScreenContainer>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      {/* ⚠️ Klavye alanı KAPATMASIN (21.08 saha bildirimi): KAV'ın sabit offset
+          tahmini kırılgandı — iOS'ta ScrollView'un yerel klavye inset'i kullanılır,
+          odaklanan alan otomatik görünür kalır. Android zaten resize modunda. */}
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="interactive"
       >
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
 
         {/* Tür */}
         <Text style={[styles.etiket, { color: colors.textMuted }]}>TALEP TÜRÜ *</Text>
@@ -226,32 +235,37 @@ export default function MusteriYeniTalepScreen({ navigation }) {
           })}
         </View>
 
-        {/* Alt kategori */}
+        {/* Alt kategori — dropdown (21.08: çip yığını kalabalıktı) */}
         {altKategoriler.length > 0 && (
           <>
             <Text style={[styles.etiket, { color: colors.textMuted }]}>ALT KATEGORİ *</Text>
-            <View style={styles.cipSarma}>
-              {altKategoriler.map((k) => (
-                <TouchableOpacity key={k.id} style={cipStil(altKategori === k.id)} onPress={() => setAltKategori(k.id)} activeOpacity={0.8}>
-                  <Text style={cipYazi(altKategori === k.id)}>{k.isim}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <SecimPicker
+              deger={altKategori}
+              onSec={setAltKategori}
+              secenekler={altKategoriler.map((k) => ({ id: k.id, isim: k.isim }))}
+              placeholder="Alt kategori seçin…"
+            />
           </>
         )}
 
-        {/* Konu — sabit liste (mig 285) */}
+        {/* Konu — sabit liste (mig 285) dropdown + elle yazma (21.08 isteği) */}
         <Text style={[styles.etiket, { color: colors.textMuted }]}>KONU BAŞLIĞI *</Text>
-        <View style={styles.cipSarma}>
-          {konular.map((k) => (
-            <TouchableOpacity key={k.id} style={cipStil(konu === k.ad)} onPress={() => setKonu(k.ad)} activeOpacity={0.8}>
-              <Text style={cipYazi(konu === k.ad)}>{k.ad}</Text>
-            </TouchableOpacity>
-          ))}
-          {konular.length === 0 && (
-            <Text style={{ color: colors.textFaded, fontSize: 12 }}>Konu listesi yükleniyor…</Text>
-          )}
-        </View>
+        <SecimPicker
+          deger={konu}
+          onSec={setKonu}
+          secenekler={konular.map((k) => k.ad)}
+          placeholder="Konu seçin…"
+          ekstraSecenek={{ etiket: 'Diğer — elle yaz', deger: '__manuel', ikon: 'edit-2' }}
+        />
+        {konu === '__manuel' && (
+          <TextInput
+            style={[styles.girdi, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface, marginTop: 8 }]}
+            placeholder="Konu başlığını yazın…"
+            placeholderTextColor={colors.textMuted}
+            value={konuManuel}
+            onChangeText={setKonuManuel}
+          />
+        )}
 
         {/* Açıklama */}
         <Text style={[styles.etiket, { color: colors.textMuted }]}>AÇIKLAMA *</Text>
@@ -264,19 +278,19 @@ export default function MusteriYeniTalepScreen({ navigation }) {
           multiline
         />
 
-        {/* Lokasyon */}
+        {/* Lokasyon — tanımlı liste varsa dropdown (Bayrampaşa 55 lokasyon —
+            çip yığını ekranı yutar), yoksa serbest metin */}
         <Text style={[styles.etiket, { color: colors.textMuted }]}>LOKASYON</Text>
         {lokasyonlar.length > 0 ? (
-          <View style={styles.cipSarma}>
-            <TouchableOpacity style={cipStil(lokasyonId == null)} onPress={() => setLokasyonId(null)} activeOpacity={0.8}>
-              <Text style={cipYazi(lokasyonId == null)}>Belirtmeden gönder</Text>
-            </TouchableOpacity>
-            {lokasyonlar.map((l) => (
-              <TouchableOpacity key={l.id} style={cipStil(String(lokasyonId) === String(l.id))} onPress={() => setLokasyonId(l.id)} activeOpacity={0.8}>
-                <Text style={cipYazi(String(lokasyonId) === String(l.id))}>{l.ad}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <SecimPicker
+            deger={lokasyonId != null ? String(lokasyonId) : ''}
+            onSec={(v) => setLokasyonId(v === '' ? null : v)}
+            secenekler={[
+              { id: '', isim: '— Lokasyon belirtmeden gönder —' },
+              ...lokasyonlar.map((l) => ({ id: String(l.id), isim: l.ad })),
+            ]}
+            placeholder="Lokasyon seçin…"
+          />
         ) : (
           <TextInput
             style={[styles.girdi, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface }]}
@@ -406,7 +420,6 @@ export default function MusteriYeniTalepScreen({ navigation }) {
           <Text style={styles.gonderText}>{gonderiliyor ? 'Gönderiliyor…' : 'Talebi Gönder'}</Text>
         </TouchableOpacity>
       </ScrollView>
-      </KeyboardAvoidingView>
     </ScreenContainer>
   )
 }

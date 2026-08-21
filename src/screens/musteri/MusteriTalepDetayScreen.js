@@ -6,7 +6,7 @@
 import { useCallback, useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet,
-  RefreshControl, Alert, Linking, KeyboardAvoidingView, Platform,
+  RefreshControl, Alert, Linking,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
@@ -168,13 +168,13 @@ export default function MusteriTalepDetayScreen({ route }) {
 
   return (
     <ScreenContainer>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
+      {/* Klavye alanı kapatmasın (21.08): iOS yerel klavye inset'i — KAV'ın
+          sabit offset tahmini kırılgandı. Android resize modunda zaten uyumlu. */}
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="interactive"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />}
       >
         {/* Üst blok */}
@@ -440,7 +440,6 @@ export default function MusteriTalepDetayScreen({ route }) {
           </View>
         )}
       </ScrollView>
-      </KeyboardAvoidingView>
     </ScreenContainer>
   )
 }

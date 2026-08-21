@@ -5,10 +5,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View, Text, FlatList, ScrollView, TouchableOpacity, TextInput, StyleSheet,
-  Image, Alert, KeyboardAvoidingView, Platform,
+  Image, Alert,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import ScreenContainer from '../../components/ScreenContainer'
+import SecimPicker from '../../components/SecimPicker'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import {
@@ -149,12 +150,12 @@ export default function MusteriTeklifIsteScreen({ navigation }) {
   if (asama === 'sepet') {
     return (
       <ScreenContainer>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        <ScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: 60 }}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="interactive"
         >
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
           <TouchableOpacity style={styles.geriSatir} onPress={() => setAsama('katalog')} activeOpacity={0.7}>
             <Feather name="arrow-left" size={16} color={colors.primary} />
             <Text style={[styles.geriText, { color: colors.primary }]}>Kataloğa dön</Text>
@@ -236,7 +237,6 @@ export default function MusteriTeklifIsteScreen({ navigation }) {
             <Text style={styles.gonderText}>{gonderiliyor ? 'Gönderiliyor…' : 'Teklif talebi gönder'}</Text>
           </TouchableOpacity>
         </ScrollView>
-        </KeyboardAvoidingView>
       </ScreenContainer>
     )
   }
@@ -261,44 +261,20 @@ export default function MusteriTeklifIsteScreen({ navigation }) {
         )}
       </View>
 
+      {/* Kategori — dropdown (21.08: yatay çip şeridi kesiliyordu, seçenekler
+          ekran dışında kalıyordu) */}
       {kokKategoriler.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0 }}
-          contentContainerStyle={styles.kategoriSatir}
-        >
-          <TouchableOpacity
-            style={[styles.cip, {
-              backgroundColor: seciliKategori == null ? `${colors.primary}22` : colors.surface,
-              borderColor: seciliKategori == null ? colors.primary : colors.border,
-            }]}
-            onPress={() => setSeciliKategori(null)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.cipYazi, { color: seciliKategori == null ? colors.primary : colors.textSecondary }]}>
-              Tümü ({urunler.length})
-            </Text>
-          </TouchableOpacity>
-          {kokKategoriler.map((k) => {
-            const secili = seciliKategori === k.id
-            return (
-              <TouchableOpacity
-                key={k.id}
-                style={[styles.cip, {
-                  backgroundColor: secili ? `${colors.primary}22` : colors.surface,
-                  borderColor: secili ? colors.primary : colors.border,
-                }]}
-                onPress={() => setSeciliKategori(secili ? null : k.id)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.cipYazi, { color: secili ? colors.primary : colors.textSecondary }]}>
-                  {k.ad} ({k.adet})
-                </Text>
-              </TouchableOpacity>
-            )
-          })}
-        </ScrollView>
+        <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
+          <SecimPicker
+            deger={seciliKategori != null ? String(seciliKategori) : ''}
+            onSec={(v) => setSeciliKategori(v === '' ? null : Number(v))}
+            secenekler={[
+              { id: '', isim: `Tüm kategoriler (${urunler.length})` },
+              ...kokKategoriler.map((k) => ({ id: String(k.id), isim: `${k.ad} (${k.adet})` })),
+            ]}
+            placeholder="Kategori seçin…"
+          />
+        </View>
       )}
 
       <FlatList
