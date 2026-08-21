@@ -266,6 +266,20 @@ export const kalemAra = async (kod) => {
       .maybeSingle()
     if (ci) return toCamel(ci)
   }
+
+  // 3. deneme — NORMALIZE eşleşme (mig 321, 21.08 "webden eklenen görünmüyor"
+  // vakası): DB'de 203 kayıt TİRELİ seri_no taşıyor; etiketten tiresiz okunan
+  // kod eq/ilike-tam ile BULUNAMIYORDU. RPC iki tarafı da upper+alfasayısal
+  // anahtara indirger (tire/boşluk/kasa farkı yutulur). RPC ayrıca
+  // musteri_cihazlari'na da bakar; burada yalnız 'stok' dalı kullanılır
+  // (kontrat: bu fonksiyon stok kalemi döner) — cihaz dalı cihazGetirSeriNo'da.
+  try {
+    const { data: rpc, error } = await supabase.rpc('stok_sn_ara', { p_kod: k })
+    if (error) console.warn('[kalemAra] stok_sn_ara:', error.message)
+    if (rpc?.kaynak === 'stok' && rpc?.kayit) return toCamel(rpc.kayit)
+  } catch (e) {
+    console.warn('[kalemAra] stok_sn_ara beklenmedik:', e?.message)
+  }
   return null
 }
 
@@ -672,8 +686,11 @@ export const tumSeriNumaralarıSet = async () => {
   const set = new Set()
   // DİKKAT: tumSayfalariCek imzası (tablo, sorguKur) — önceki callback'li çağrı
   // supabase.from(<fonksiyon>) üretip sessizce boş dönüyordu (duplicate kontrolü ölüydü).
+  // ⚠️ silindi NULL-toleranslı (21.08): kodun geri kalanı or(is.null,eq.false)
+  // okur; buradaki eq(false) NULL satırları dışlayıp webden ekleneni
+  // "kayıtsız" gösterirdi (bugün NULL 0 ama asimetri kapatıldı).
   const rows = await tumSayfalariCek('stok_kalemleri', (q) =>
-    q.eq('silindi', false).not('seri_no', 'is', null)
+    q.or('silindi.is.null,silindi.eq.false').not('seri_no', 'is', null)
   )
   for (const r of rows || []) {
     if (r.seri_no) set.add(String(r.seri_no).toLocaleLowerCase('tr'))

@@ -36,12 +36,31 @@ export const musteriCihazlariGetir = async (musteriId) => {
 }
 
 export const cihazGetirSeriNo = async (seriNo) => {
+  const k = String(seriNo ?? '').trim()
+  if (!k) return null
+  // ⚠️ 21.08 düzeltmeleri: (1) % _ escape — SN'deki '_' joker sayılıp yanlış
+  // kaydı buluyordu; (2) limit(1) — çoklu eşleşmede maybeSingle PostgREST
+  // hatası verip SESSİZCE "bulunamadı"ya düşüyordu.
+  const esc = k.replace(/([%_\\])/g, '\\$1')
   const { data, error } = await supabase
     .from('musteri_cihazlari').select('*')
-    .ilike('seri_no', String(seriNo).trim())
+    .ilike('seri_no', esc)
+    .limit(1)
     .maybeSingle()
-  if (error) { console.warn('[cihazGetirSeriNo]', error.message); return null }
-  return data ? toCamel(data) : null
+  if (error) console.warn('[cihazGetirSeriNo]', error.message)
+  if (data) return toCamel(data)
+
+  // Normalize eşleşme (mig 321): tire/boşluk/kasa farkını yutar — webde
+  // /arizali-urunler'den girilen SN telefonda birebir okunamayınca
+  // "kayıtlı değil" görünüyordu.
+  try {
+    const { data: rpc, error: rpcHata } = await supabase.rpc('stok_sn_ara', { p_kod: k })
+    if (rpcHata) console.warn('[cihazGetirSeriNo] stok_sn_ara:', rpcHata.message)
+    if (rpc?.kaynak === 'cihaz' && rpc?.kayit) return toCamel(rpc.kayit)
+  } catch (e) {
+    console.warn('[cihazGetirSeriNo] stok_sn_ara beklenmedik:', e?.message)
+  }
+  return null
 }
 
 const hareketYaz = async (cihazId, tip, aciklama, yapan) => {
