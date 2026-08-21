@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
@@ -21,6 +22,7 @@ import {
 } from '../services/servisService'
 import { turBul, aciliyetBul, durumBul } from '../utils/servisConstants'
 import { tarihFormat } from '../utils/format'
+import { trIcerir } from '../utils/trSearch'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 
@@ -48,6 +50,7 @@ export default function ServisTalepleriScreen({ navigation, route }) {
   const [refreshing, setRefreshing] = useState(false)
   const [acikUyariGosterildi, setAcikUyariGosterildi] = useState(false)
   const [acikSayisi, setAcikSayisi] = useState(0)
+  const [arama, setArama] = useState('')
 
   // ⚠️ Hata YUTULMAZ. Eskiden try/catch yoktu: sorgu patlayınca setTalepler hiç
   // çağrılmıyor, ekran sessizce boş kalıyordu ve kullanıcı "yüklenmiyor" diyordu
@@ -124,6 +127,14 @@ export default function ServisTalepleriScreen({ navigation, route }) {
     setRefreshing(false)
   }
 
+  // Arama (21.08 saha isteği): "1 ay önce gittiğimiz lokasyonu tek tek inmeden
+  // bulmak" — lokasyon, firma, konu, talep no, atanan kişiyle süzer.
+  const filtreli = useMemo(() => {
+    if (!arama.trim()) return talepler
+    return talepler.filter((t) =>
+      trIcerir([t.talepNo, t.firmaAdi, t.musteriAd, t.konu, t.lokasyon, t.atananKullaniciAd], arama))
+  }, [talepler, arama])
+
   return (
     <ScreenContainer>
       <View style={styles.tabWrap}>
@@ -154,18 +165,49 @@ export default function ServisTalepleriScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* Arama — lokasyon / firma / konu / talep no / atanan (21.08) */}
+      <View style={[styles.aramaKutu, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Feather name="search" size={16} color={colors.textMuted} />
+        <TextInput
+          style={[styles.aramaInput, { color: colors.textPrimary }]}
+          placeholder="Lokasyon, firma, konu, talep no…"
+          placeholderTextColor={colors.textMuted}
+          value={arama}
+          onChangeText={setArama}
+          autoCorrect={false}
+        />
+        {!!arama && (
+          <TouchableOpacity onPress={() => setArama('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Feather name="x" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
+      {!!arama.trim() && !loading && (
+        <Text style={[styles.aramaSayac, { color: colors.textMuted }]}>
+          {filtreli.length} sonuç ({talepler.length} kayıt içinde)
+        </Text>
+      )}
+
       {loading ? (
         <LoadingState />
       ) : (
         <FlatList
-          data={talepler}
+          data={filtreli}
           keyExtractor={(t) => String(t.id)}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.textPrimary} />
           }
           ListEmptyComponent={
-            hata ? (
+            arama.trim() ? (
+              // Arama eşleşmedi — "servis yok" başlıkları yanıltmasın
+              // (sayaç ↔ liste kapsam kuralı)
+              <EmptyState
+                ikon="search"
+                baslik="Aramaya uyan servis yok"
+                mesaj={`"${arama.trim()}" için bu sekmede sonuç bulunamadı. Tüm kayıtlarda aramak için "Tümü" sekmesine geçin.`}
+              />
+            ) : hata ? (
               // Boş liste ile HATA ayrı şeyler — kullanıcı "kayıt yok" mu
               // "yüklenemedi" mi bilmeli. Aşağı çekince tekrar denenir.
               <EmptyState
@@ -302,6 +344,14 @@ const styles = StyleSheet.create({
   firma: { color: '#fff', fontSize: 14, fontWeight: '700', marginTop: 4 },
   konu: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
   lokasyon: { fontSize: 11.5, marginTop: 2 },
+  aramaKutu: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 9,
+    borderRadius: 10, borderWidth: 1,
+    marginHorizontal: 16, marginBottom: 4,
+  },
+  aramaInput: { flex: 1, fontSize: 14, paddingVertical: 2 },
+  aramaSayac: { fontSize: 11.5, fontWeight: '600', paddingHorizontal: 18, marginBottom: 2 },
   altMeta: { color: '#64748b', fontSize: 11, marginTop: 4 },
 
   empty: { color: '#64748b', textAlign: 'center', marginTop: 40 },
