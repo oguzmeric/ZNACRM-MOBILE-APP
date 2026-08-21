@@ -16,6 +16,9 @@ const IKONLAR = {
   'Sohbet':    'message-circle',
   'Tara':      'maximize',
   'Profil':    'user',
+  // Müşteri portalı sekmeleri (MusteriTabs)
+  'Taleplerim': 'inbox',
+  'Cihazlarım': 'hard-drive',
 }
 
 const INDICATOR_BOYUT = 40        // yuvarlak indicator çapı (Reel'deki gibi, icon'u kapsayan boy)

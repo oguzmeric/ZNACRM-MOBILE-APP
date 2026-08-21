@@ -89,9 +89,38 @@ import AdminAktivitelerScreen from '../screens/admin/AdminAktivitelerScreen'
 import AdminPersonelStokScreen from '../screens/admin/AdminPersonelStokScreen'
 import { yonetimPaneliErisimi } from '../utils/yetki'
 import MagicTabBar from '../components/MagicTabBar'
+import MusteriAnaScreen from '../screens/musteri/MusteriAnaScreen'
+import MusteriTaleplerimScreen from '../screens/musteri/MusteriTaleplerimScreen'
+import MusteriTalepDetayScreen from '../screens/musteri/MusteriTalepDetayScreen'
+import MusteriYeniTalepScreen from '../screens/musteri/MusteriYeniTalepScreen'
+import MusteriCihazlarimScreen from '../screens/musteri/MusteriCihazlarimScreen'
+import MusteriTeklifIsteScreen from '../screens/musteri/MusteriTeklifIsteScreen'
 
 const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
+
+// Müşteri portalı sekmeleri — portal hesabı (tip='musteri') PERSONEL
+// arayüzünü GÖRMEZ; webdeki MusteriLayout menüsünün mobil karşılığı.
+function MusteriTabs() {
+  const { colors } = useTheme()
+  return (
+    <Tab.Navigator
+      tabBar={(props) => <MagicTabBar {...props} />}
+      screenOptions={() => ({
+        headerShown: false,
+        freezeOnBlur: true,   // TeknisyenTabs ile aynı gerekçe (19.08 perf)
+        headerStyle: { backgroundColor: colors.bg },
+        headerTitleStyle: { color: colors.textPrimary, fontWeight: '700' },
+        headerTintColor: colors.textPrimary,
+      })}
+    >
+      <Tab.Screen name="Ana Sayfa" component={MusteriAnaScreen} />
+      <Tab.Screen name="Taleplerim" component={MusteriTaleplerimScreen} options={{ headerShown: true, title: 'Taleplerim' }} />
+      <Tab.Screen name="Cihazlarım" component={MusteriCihazlarimScreen} options={{ headerShown: true, title: 'Cihazlarım' }} />
+      <Tab.Screen name="Profil" component={ProfilScreen} />
+    </Tab.Navigator>
+  )
+}
 
 function TeknisyenTabs() {
   const { colors } = useTheme()
@@ -131,6 +160,10 @@ export default function RootNavigator() {
   const { kullanici, loading, mod } = useAuth()
   const { colors } = useTheme()
   const adminModu = mod === 'admin' && yonetimPaneliErisimi(kullanici)
+  // Müşteri portalı hesabı (tip='musteri') — web App.jsx ile aynı ayrım.
+  // Eskiden özel dal yoktu: portal hesabı TEKNİSYEN arayüzüne düşüyor,
+  // depo/stok/görev gibi personel ekranlarını görüyordu (21.08 bildirimi).
+  const musteriModu = kullanici?.tip === 'musteri'
 
   const navTheme = {
     ...DefaultTheme,
@@ -158,7 +191,7 @@ export default function RootNavigator() {
   // açılış. Ayrıntı ve gerekçe: src/components/AcilisEkrani.js
   if (loading) return <AcilisEkrani />
 
-  const navKey = !kullanici ? 'auth' : adminModu ? 'admin' : 'teknisyen'
+  const navKey = !kullanici ? 'auth' : musteriModu ? 'musteri' : adminModu ? 'admin' : 'teknisyen'
 
   return (
     // Zorunlu sözleşme onayı (mig 264/265): onaylamamış PERSONEL uygulamayı
@@ -171,6 +204,28 @@ export default function RootNavigator() {
             <Stack.Screen name="Giriş" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Kayıt" component={KayitScreen} options={{ title: 'Hesap Oluştur' }} />
             <Stack.Screen name="SifreSifirla" component={SifreSifirlaScreen} options={{ title: 'Şifre Sıfırla' }} />
+          </>
+        ) : musteriModu ? (
+          <>
+            {/* ── MÜŞTERİ PORTALI ── webdeki 5 menünün mobil karşılığı.
+                'ServisDetay' adı BİLEREK korunur: push bildirimi
+                (/servis-talepleri/<id> → ServisDetay) portal hesabında da
+                doğru ekrana düşer (bildirimLink.js değişmeden). */}
+            <Stack.Screen name="MusteriAna" component={MusteriTabs} options={{ headerShown: false }} />
+            <Stack.Screen name="ServisDetay" component={MusteriTalepDetayScreen} options={{ title: 'Talep Detayı' }} />
+            <Stack.Screen name="YeniTalep" component={MusteriYeniTalepScreen} options={{ title: 'Yeni Talep' }} />
+            <Stack.Screen name="TeklifIste" component={MusteriTeklifIsteScreen} options={{ title: 'Teklif İste' }} />
+            {/* 'Taleplerim' ve 'Cihazlarım' SEKMEDE kayıtlı — stack'e İKİNCİ
+                kez kaydetme (aynı ad iki navigator'da = navigate yanlış
+                kopyayı bulur; SohbetDetay dersi). */}
+            <Stack.Screen name="Bildirimler" component={BildirimlerScreen} options={{ title: 'Bildirimler' }} />
+            {/* ProfilScreen'in navigate hedefleri (tip='musteri' görünümünde) */}
+            <Stack.Screen name="DestekListe" component={DestekListeScreen} options={{ title: 'Destek Taleplerim' }} />
+            <Stack.Screen name="YeniDestek" component={YeniDestekScreen} options={{ title: 'Yeni Destek Talebi' }} />
+            <Stack.Screen name="DestekDetay" component={DestekDetayScreen} options={{ title: 'Talep Detayı' }} />
+            <Stack.Screen name="GizlilikPolitikasi" component={GizlilikPolitikasiScreen} options={{ title: 'Gizlilik Politikası' }} />
+            <Stack.Screen name="KullanimKosullari" component={KullanimKosullariScreen} options={{ title: 'Kullanım Koşulları' }} />
+            <Stack.Screen name="HesabiSil" component={HesabiSilScreen} options={{ title: 'Hesabı Sil' }} />
           </>
         ) : adminModu ? (
           <>
