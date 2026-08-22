@@ -10,6 +10,8 @@ import {
   RefreshControl,
 } from 'react-native'
 import { Feather } from '@expo/vector-icons'
+import { useFocusEffect } from '@react-navigation/native'
+import { useAuth } from '../../context/AuthContext'
 import ScreenContainer from '../../components/ScreenContainer'
 import { useTheme } from '../../context/ThemeContext'
 import { teknisyenStoktariniGetir, teknisyeninTaktiklari } from '../../services/stokKalemiService'
@@ -20,7 +22,11 @@ import { tarihFormat } from '../../utils/format'
 // teknisyenin kendi "Depom" kartından (kisisel: true) — kişi üzerindeki
 // S/N'li kalemleri ('teknisyende' + 'arizada') listeler.
 export default function AdminPersonelStokScreen({ route, navigation }) {
-  const { kullaniciId, ad, kisisel } = route.params ?? {}
+  const { kullaniciId: paramId, ad, kisisel } = route.params ?? {}
+  const { kullanici } = useAuth()
+  // Kişisel kapıda (Depom) id oturumdan: param oturum yüklenmeden geçilmişse
+  // undefined kalıyor, sorgu sessizce boş liste döndürüyordu.
+  const kullaniciId = paramId ?? (kisisel ? kullanici?.id : undefined)
   const { colors } = useTheme()
   const [stok, setStok] = useState([])
   const [taktiklar, setTaktiklar] = useState(null)   // null = henüz çekilmedi (lazy)
@@ -34,12 +40,15 @@ export default function AdminPersonelStokScreen({ route, navigation }) {
   }, [navigation, ad, kisisel])
 
   const yukle = useCallback(async () => {
+    if (!kullaniciId) { setStok([]); setLoading(false); return }
     const veri = await teknisyenStoktariniGetir(kullaniciId)
     setStok(veri ?? [])
     setLoading(false)
   }, [kullaniciId])
 
-  useEffect(() => { yukle() }, [yukle])
+  // ODAKTA YENİLE: CihazDetay'da depoya çek / tak / sil yapıp geri gelince
+  // liste bayat kalıyordu (yalnız mount'ta yükleniyordu).
+  useFocusEffect(useCallback(() => { yukle() }, [yukle]))
 
   // Taktıklarım LAZY: sekme ilk açıldığında çekilir (üzerimde listesini bekletmez)
   useEffect(() => {
