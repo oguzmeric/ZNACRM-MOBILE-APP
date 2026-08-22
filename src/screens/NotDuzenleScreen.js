@@ -27,6 +27,7 @@ import { musterileriGetir } from '../services/musteriService'
 import CizimYapModal from '../components/CizimYapModal'
 import TarihSaatSec from '../components/TarihSaatSec'
 import { hatirlaticiZamanla, hatirlaticiKaldir } from '../lib/notHatirlatici'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 export default function NotDuzenleScreen({ route, navigation }) {
   const { id } = route.params ?? {}
@@ -34,6 +35,8 @@ export default function NotDuzenleScreen({ route, navigation }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
+  // Kaydedilmemiş değişiklik varken çıkış sorulur (beforeRemove)
+  const kirliRef = useKaydedilmemisUyari(navigation)
   const [cizimViewerUrl, setCizimViewerUrl] = useState(null)  // tam ekran çizim önizleme
   const [cizimModalAcik, setCizimModalAcik] = useState(false)  // çizim yapma modal
 
@@ -84,6 +87,8 @@ export default function NotDuzenleScreen({ route, navigation }) {
   // Modal'dan çizim kaydedilince çağrılır — state'e ekle + DB'ye yansıt
   const cizimEklendi = (yeniCizim) => {
     if (!yeniCizim?.path) return
+    // Düzenlemede çizim DB'ye anında yazılır — yalnız yeni notta kirli sayılır
+    if (!editMode) kirliRef.current = true
     setCizimler((prev) => {
       if (prev.some((c) => c.path === yeniCizim.path)) return prev
       const yeniListe = [...prev, yeniCizim]
@@ -141,6 +146,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
         }
       }
       // Başarılı — listeye dön
+      kirliRef.current = false
       navigation.goBack()
     } catch (e) {
       Alert.alert('Hata', 'Kayıt sırasında bir şey ters gitti: ' + (e?.message ?? 'bilinmeyen'))
@@ -158,6 +164,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
           try {
             await notSil(id)
             await hatirlaticiKaldir(id)
+            kirliRef.current = false
             navigation.goBack()
           } catch (e) {
             Alert.alert('Hata', 'Silinemedi: ' + (e?.message ?? 'bilinmeyen'))
@@ -170,6 +177,8 @@ export default function NotDuzenleScreen({ route, navigation }) {
   // Ek (foto/belge) ekle akışları
   const ekleEklendi = (yeniEk) => {
     if (!yeniEk) return
+    // Düzenlemede ek DB'ye anında yazılır — yalnız yeni notta kirli sayılır
+    if (!editMode) kirliRef.current = true
     setEkler((prev) => {
       const yeniListe = [...prev, yeniEk]
       if (editMode && id) {
@@ -272,6 +281,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
         text: 'Sil', style: 'destructive',
         onPress: async () => {
           await ekSil(ek.path)
+          if (!editMode) kirliRef.current = true
           setEkler((prev) => {
             const yeniListe = prev.filter((e) => e.path !== ek.path)
             if (editMode && id) {
@@ -315,6 +325,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
         text: 'Sil', style: 'destructive',
         onPress: async () => {
           await cizimSil(cizim.path)
+          if (!editMode) kirliRef.current = true
           setCizimler((prev) => {
             const yeniListe = prev.filter((_, i) => i !== index)
             // Mevcut not düzenleniyor ise DB'yi anında güncelle
@@ -355,7 +366,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
         <Text style={[styles.label, { color: colors.textMuted }]}>BAŞLIK</Text>
         <TextInput
           value={baslik}
-          onChangeText={setBaslik}
+          onChangeText={(t) => { kirliRef.current = true; setBaslik(t) }}
           placeholder="Notun başlığı…"
           placeholderTextColor={colors.textFaded}
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
@@ -368,7 +379,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
             return (
               <TouchableOpacity
                 key={k.id}
-                onPress={() => setKategori(k.id)}
+                onPress={() => { kirliRef.current = true; setKategori(k.id) }}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 5,
                   paddingHorizontal: 12, paddingVertical: 8,
@@ -396,7 +407,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
             {musteri?.firma || (musteri ? `${musteri.ad ?? ''} ${musteri.soyad ?? ''}`.trim() : 'Müşteri seç…')}
           </Text>
           {musteri && (
-            <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); setMusteriId(null); setMusteri(null) }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={(e) => { e.stopPropagation?.(); kirliRef.current = true; setMusteriId(null); setMusteri(null) }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Feather name="x" size={14} color={colors.textMuted} />
             </TouchableOpacity>
           )}
@@ -436,7 +447,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
         ) : (
           <TextInput
             value={icerik}
-            onChangeText={setIcerik}
+            onChangeText={(t) => { kirliRef.current = true; setIcerik(t) }}
             placeholder="Notunu buraya yaz… Markdown destekli."
             placeholderTextColor={colors.textFaded}
             multiline
@@ -452,7 +463,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
           </Text>
           <TarihSaatSec
             value={hatirlatmaTarihi}
-            onChange={setHatirlatmaTarihi}
+            onChange={(v) => { kirliRef.current = true; setHatirlatmaTarihi(v) }}
             placeholder="Hatırlatma zamanı seç"
             minDate={new Date()}
           />
@@ -596,6 +607,7 @@ export default function NotDuzenleScreen({ route, navigation }) {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   onPress={() => {
+                    kirliRef.current = true
                     setMusteriId(item.id)
                     setMusteri(item)
                     setMusteriPickerAcik(false)

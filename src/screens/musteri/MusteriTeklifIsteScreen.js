@@ -18,6 +18,7 @@ import {
 import { trIcerir } from '../../utils/trSearch'
 import EmptyState from '../../components/EmptyState'
 import LoadingState from '../../components/LoadingState'
+import { useKaydedilmemisUyari } from '../../hooks/useKaydedilmemisUyari'
 
 // Kategori düğümü + tüm alt dalları (web dalIdleri ile aynı)
 const dalIdleri = (kategoriler, id) => {
@@ -51,6 +52,10 @@ export default function MusteriTeklifIsteScreen({ navigation }) {
   const [iletisimKisi, setIletisimKisi] = useState(kullanici?.ad || '')
   const [telefon, setTelefon] = useState('')
   const [gonderiliyor, setGonderiliyor] = useState(false)
+
+  // Kaydedilmemiş değişiklik koruması (22.08): sepet/form kullanıcı eliyle değişince kirli;
+  // arama/kategori FİLTREDİR, kirli sayılmaz. Gönderim başarılıysa çıkıştan önce temizlenir.
+  const kirliRef = useKaydedilmemisUyari(navigation)
 
   const yukle = useCallback(async () => {
     try {
@@ -98,6 +103,7 @@ export default function MusteriTeklifIsteScreen({ navigation }) {
   const sepetteki = (urunId) => sepet.find((s) => s.urun.id === urunId)
 
   const sepeteEkle = (urun) => {
+    kirliRef.current = true
     setSepet((prev) => {
       const v = prev.find((s) => s.urun.id === urun.id)
       if (v) return prev.map((s) => (s.urun.id === urun.id ? { ...s, adet: s.adet + 1 } : s))
@@ -106,6 +112,7 @@ export default function MusteriTeklifIsteScreen({ navigation }) {
   }
 
   const adetGuncelle = (urunId, adet) => {
+    kirliRef.current = true
     if (adet <= 0) setSepet((prev) => prev.filter((s) => s.urun.id !== urunId))
     else setSepet((prev) => prev.map((s) => (s.urun.id === urunId ? { ...s, adet } : s)))
   }
@@ -132,10 +139,11 @@ export default function MusteriTeklifIsteScreen({ navigation }) {
         telefon: telefon.trim(),
         durum: 'bekliyor',
       })
+      kirliRef.current = false // gönderildi — uyarı dışına dokunulup kapatılsa da çıkışta sorulmasın
       Alert.alert(
         'Teklif Talebiniz Alındı ✅',
         'Satış ekibimiz seçtiğiniz ürünleri inceleyip en kısa sürede size teklif hazırlayacaktır.',
-        [{ text: 'Tamam', onPress: () => navigation.goBack() }]
+        [{ text: 'Tamam', onPress: () => { kirliRef.current = false; navigation.goBack() } }]
       )
     } catch (e) {
       Alert.alert('Gönderilemedi', e?.message || 'Talebiniz gönderilemedi, lütfen tekrar deneyin.')
@@ -199,7 +207,7 @@ export default function MusteriTeklifIsteScreen({ navigation }) {
             placeholder="Kullanım amacı, kurulum yeri, özel istekler…"
             placeholderTextColor={colors.textMuted}
             value={aciklama}
-            onChangeText={setAciklama}
+            onChangeText={(v) => { kirliRef.current = true; setAciklama(v) }}
             multiline
           />
           <Text style={[styles.etiket, { color: colors.textMuted }]}>BÜTÇE (İSTEĞE BAĞLI)</Text>
@@ -208,13 +216,13 @@ export default function MusteriTeklifIsteScreen({ navigation }) {
             placeholder="Örn: 50.000 TL"
             placeholderTextColor={colors.textMuted}
             value={butce}
-            onChangeText={setButce}
+            onChangeText={(v) => { kirliRef.current = true; setButce(v) }}
           />
           <Text style={[styles.etiket, { color: colors.textMuted }]}>İLGİLİ KİŞİ</Text>
           <TextInput
             style={[styles.girdi, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface }]}
             value={iletisimKisi}
-            onChangeText={setIletisimKisi}
+            onChangeText={(v) => { kirliRef.current = true; setIletisimKisi(v) }}
             placeholderTextColor={colors.textMuted}
           />
           <Text style={[styles.etiket, { color: colors.textMuted }]}>TELEFON</Text>
@@ -223,7 +231,7 @@ export default function MusteriTeklifIsteScreen({ navigation }) {
             placeholder="0xxx xxx xx xx"
             placeholderTextColor={colors.textMuted}
             value={telefon}
-            onChangeText={setTelefon}
+            onChangeText={(v) => { kirliRef.current = true; setTelefon(v) }}
             keyboardType="phone-pad"
           />
 

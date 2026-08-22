@@ -20,6 +20,7 @@ import {
   musteriKisiSil,
 } from '../services/musteriKisiService'
 import { useTheme } from '../context/ThemeContext'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 export default function KisiFormScreen({ route, navigation }) {
   const { musteriId, kisiId } = route.params ?? {}
@@ -36,6 +37,14 @@ export default function KisiFormScreen({ route, navigation }) {
   const [anaKisi, setAnaKisi] = useState(false)
   const [yukleniyor, setYukleniyor] = useState(editMode)
   const [kaydediliyor, setKaydediliyor] = useState(false)
+
+  // Kaydedilmemiş değişiklik koruması: kullanıcı alan değiştirince kirli,
+  // kaydet/sil başarılı olunca goBack'ten önce temiz. İlk yükleme kirletmez.
+  const kirliRef = useKaydedilmemisUyari(navigation)
+  const kirlet = (setter) => (deger) => {
+    kirliRef.current = true
+    setter(deger)
+  }
 
   useEffect(() => {
     navigation.setOptions({ title: editMode ? 'Kişiyi Düzenle' : 'Yeni İlgili Kişi' })
@@ -86,6 +95,7 @@ export default function KisiFormScreen({ route, navigation }) {
       Alert.alert('Hata', editMode ? 'Kişi güncellenemedi.' : 'Kişi eklenemedi.')
       return
     }
+    kirliRef.current = false
     navigation.goBack()
   }
 
@@ -98,6 +108,7 @@ export default function KisiFormScreen({ route, navigation }) {
         onPress: async () => {
           try {
             await musteriKisiSil(kisiId)
+            kirliRef.current = false
             navigation.goBack()
           } catch (e) {
             Alert.alert('Hata', 'Kişi silinemedi: ' + (e?.message ?? 'bilinmeyen'))
@@ -128,19 +139,19 @@ export default function KisiFormScreen({ route, navigation }) {
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         <Text style={[styles.label, { color: colors.textMuted }]}>Ad *</Text>
-        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={ad} onChangeText={setAd} placeholder="Ahmet" placeholderTextColor={colors.textFaded} />
+        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={ad} onChangeText={kirlet(setAd)} placeholder="Ahmet" placeholderTextColor={colors.textFaded} />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Soyad</Text>
-        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={soyad} onChangeText={setSoyad} placeholder="Yılmaz" placeholderTextColor={colors.textFaded} />
+        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={soyad} onChangeText={kirlet(setSoyad)} placeholder="Yılmaz" placeholderTextColor={colors.textFaded} />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Ünvan / Departman</Text>
-        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={unvan} onChangeText={setUnvan} placeholder="Satın Alma Müdürü" placeholderTextColor={colors.textFaded} />
+        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={unvan} onChangeText={kirlet(setUnvan)} placeholder="Satın Alma Müdürü" placeholderTextColor={colors.textFaded} />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Telefon</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={telefon}
-          onChangeText={setTelefon}
+          onChangeText={kirlet(setTelefon)}
           keyboardType="phone-pad"
           placeholder="0555 123 45 67"
           placeholderTextColor={colors.textFaded}
@@ -150,7 +161,7 @@ export default function KisiFormScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={emailAdres}
-          onChangeText={setEmailAdres}
+          onChangeText={kirlet(setEmailAdres)}
           autoCapitalize="none"
           keyboardType="email-address"
           placeholder="ornek@firma.com"
@@ -161,7 +172,7 @@ export default function KisiFormScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { height: 80, textAlignVertical: 'top', backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={notlar}
-          onChangeText={setNotlar}
+          onChangeText={kirlet(setNotlar)}
           multiline
           placeholder="Bu kişiyle ilgili notlar..."
           placeholderTextColor={colors.textFaded}
@@ -174,7 +185,7 @@ export default function KisiFormScreen({ route, navigation }) {
           </View>
           <Switch
             value={anaKisi}
-            onValueChange={setAnaKisi}
+            onValueChange={kirlet(setAnaKisi)}
             trackColor={{ false: '#334155', true: '#2563eb' }}
             thumbColor="#fff"
           />

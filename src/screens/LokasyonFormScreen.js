@@ -21,12 +21,15 @@ import {
   musteriLokasyonSil,
 } from '../services/musteriLokasyonService'
 import { useTheme } from '../context/ThemeContext'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 export default function LokasyonFormScreen({ route, navigation }) {
   const { musteriId, lokasyonId } = route.params ?? {}
   const editMode = !!lokasyonId
   const headerHeight = useHeaderHeight()
   const { colors } = useTheme()
+  // Kaydedilmemiş değişiklik koruması (beforeRemove): form kirliyse çıkış sorulur
+  const kirliRef = useKaydedilmemisUyari(navigation)
 
   const [ad, setAd] = useState('')
   const [adres, setAdres] = useState('')
@@ -37,6 +40,13 @@ export default function LokasyonFormScreen({ route, navigation }) {
   const [yukleniyor, setYukleniyor] = useState(editMode)
   const [kaydediliyor, setKaydediliyor] = useState(false)
   const [konumAliniyor, setKonumAliniyor] = useState(false)
+
+  // Kullanıcı etkileşimiyle alan değişince kirli işaretle.
+  // Düzenleme modundaki ilk yükleme (useEffect) setX'i doğrudan çağırır → kirli SAYILMAZ.
+  const kirliYap = (setter) => (v) => {
+    kirliRef.current = true
+    setter(v)
+  }
 
   useEffect(() => {
     navigation.setOptions({ title: editMode ? 'Lokasyonu Düzenle' : 'Yeni Lokasyon' })
@@ -69,6 +79,7 @@ export default function LokasyonFormScreen({ route, navigation }) {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
       setEnlem(loc.coords.latitude.toFixed(6))
       setBoylam(loc.coords.longitude.toFixed(6))
+      kirliRef.current = true // kullanıcı butona basarak koordinatları değiştirdi
       Alert.alert('Konum alındı', 'Şu anki konum doğruluk: ' + Math.round(loc.coords.accuracy) + 'm')
     } catch (e) {
       Alert.alert('Hata', 'Konum alınamadı: ' + e.message)
@@ -106,6 +117,7 @@ export default function LokasyonFormScreen({ route, navigation }) {
       Alert.alert('Hata', 'Lokasyon kaydedilemedi.')
       return
     }
+    kirliRef.current = false // kayıt başarılı → çıkışta sorma
     navigation.goBack()
   }
 
@@ -118,6 +130,7 @@ export default function LokasyonFormScreen({ route, navigation }) {
         onPress: async () => {
           try {
             await musteriLokasyonSil(lokasyonId)
+            kirliRef.current = false // silme başarılı → çıkışta sorma
             navigation.goBack()
           } catch (e) {
             Alert.alert('Hata', 'Lokasyon silinemedi: ' + (e?.message ?? 'bilinmeyen'))
@@ -151,7 +164,7 @@ export default function LokasyonFormScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={ad}
-          onChangeText={setAd}
+          onChangeText={kirliYap(setAd)}
           placeholder="Otopark Doğu, Sistem Odası, Lobi..."
           placeholderTextColor={colors.textFaded}
         />
@@ -160,7 +173,7 @@ export default function LokasyonFormScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { height: 70, textAlignVertical: 'top', backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={adres}
-          onChangeText={setAdres}
+          onChangeText={kirliYap(setAdres)}
           multiline
           placeholder="Atatürk Cad. No:12, Kat 3..."
           placeholderTextColor={colors.textFaded}
@@ -171,7 +184,7 @@ export default function LokasyonFormScreen({ route, navigation }) {
           <TextInput
             style={[styles.input, { flex: 1, backgroundColor: colors.surface, color: colors.textPrimary }]}
             value={enlem}
-            onChangeText={setEnlem}
+            onChangeText={kirliYap(setEnlem)}
             placeholder="Enlem"
             placeholderTextColor={colors.textFaded}
             keyboardType="numbers-and-punctuation"
@@ -179,7 +192,7 @@ export default function LokasyonFormScreen({ route, navigation }) {
           <TextInput
             style={[styles.input, { flex: 1, backgroundColor: colors.surface, color: colors.textPrimary }]}
             value={boylam}
-            onChangeText={setBoylam}
+            onChangeText={kirliYap(setBoylam)}
             placeholder="Boylam"
             placeholderTextColor={colors.textFaded}
             keyboardType="numbers-and-punctuation"
@@ -199,7 +212,7 @@ export default function LokasyonFormScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { height: 80, textAlignVertical: 'top', backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={notlar}
-          onChangeText={setNotlar}
+          onChangeText={kirliYap(setNotlar)}
           multiline
           placeholder="Erişim notları, kontak kişi, anahtarlar vs."
           placeholderTextColor={colors.textFaded}
@@ -212,7 +225,7 @@ export default function LokasyonFormScreen({ route, navigation }) {
           </View>
           <Switch
             value={aktif}
-            onValueChange={setAktif}
+            onValueChange={kirliYap(setAktif)}
             trackColor={{ false: '#334155', true: '#2563eb' }}
             thumbColor="#fff"
           />

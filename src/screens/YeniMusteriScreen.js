@@ -20,6 +20,7 @@ import {
 } from '../services/musteriService'
 import { musteriKisiEkle } from '../services/musteriKisiService'
 import { useTheme } from '../context/ThemeContext'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 const DURUMLAR = [
   { id: 'lead', label: 'Lead' },
@@ -32,6 +33,10 @@ export default function YeniMusteriScreen({ route, navigation }) {
   const editMode = !!editId
   const headerHeight = useHeaderHeight()
   const { colors } = useTheme()
+  // Kaydedilmemiş değişiklik koruması: beforeRemove ile çıkışta sorar
+  const kirliRef = useKaydedilmemisUyari(navigation)
+  // Kirli işaretleme yalnız kullanıcı etkileşiminde (edit modundaki ilk yükleme setX'leri DEĞİL)
+  const kirliSet = (setter) => (v) => { kirliRef.current = true; setter(v) }
 
   const [ad, setAd] = useState('')
   const [soyad, setSoyad] = useState('')
@@ -123,6 +128,8 @@ export default function YeniMusteriScreen({ route, navigation }) {
       Alert.alert('Hata', editMode ? 'Müşteri güncellenemedi.' : 'Müşteri eklenemedi. Müşteri kodu çakışmış olabilir.')
       return
     }
+    // Kayıt başarılı: çıkış koruması sormasın
+    kirliRef.current = false
     // ERP standardı: yeni müşteri kartının DETAYINA git; düzenlemede geri (detay odakta yenilenir)
     if (!editMode && sonuc?.id) { navigation.replace('MüşteriDetay', { id: sonuc.id }); return }
     navigation.goBack()
@@ -153,22 +160,22 @@ export default function YeniMusteriScreen({ route, navigation }) {
         </Text>
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Ad *</Text>
-        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={ad} onChangeText={setAd} placeholder="Ahmet" placeholderTextColor={colors.textFaded} />
+        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={ad} onChangeText={kirliSet(setAd)} placeholder="Ahmet" placeholderTextColor={colors.textFaded} />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Soyad *</Text>
-        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={soyad} onChangeText={setSoyad} placeholder="Yılmaz" placeholderTextColor={colors.textFaded} />
+        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={soyad} onChangeText={kirliSet(setSoyad)} placeholder="Yılmaz" placeholderTextColor={colors.textFaded} />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Firma *</Text>
-        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={firma} onChangeText={setFirma} placeholder="Şirket Adı" placeholderTextColor={colors.textFaded} />
+        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={firma} onChangeText={kirliSet(setFirma)} placeholder="Şirket Adı" placeholderTextColor={colors.textFaded} />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Ünvan</Text>
-        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={unvan} onChangeText={setUnvan} placeholder="Genel Müdür" placeholderTextColor={colors.textFaded} />
+        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={unvan} onChangeText={kirliSet(setUnvan)} placeholder="Genel Müdür" placeholderTextColor={colors.textFaded} />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Telefon *</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={telefon}
-          onChangeText={setTelefon}
+          onChangeText={kirliSet(setTelefon)}
           keyboardType="phone-pad"
           placeholder="0555 123 45 67"
           placeholderTextColor={colors.textFaded}
@@ -178,7 +185,7 @@ export default function YeniMusteriScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={emailAdres}
-          onChangeText={setEmailAdres}
+          onChangeText={kirliSet(setEmailAdres)}
           autoCapitalize="none"
           keyboardType="email-address"
           placeholder="ornek@firma.com"
@@ -186,13 +193,13 @@ export default function YeniMusteriScreen({ route, navigation }) {
         />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Şehir</Text>
-        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={sehir} onChangeText={setSehir} placeholder="İstanbul" placeholderTextColor={colors.textFaded} />
+        <TextInput style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]} value={sehir} onChangeText={kirliSet(setSehir)} placeholder="İstanbul" placeholderTextColor={colors.textFaded} />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Vergi No</Text>
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={vergiNo}
-          onChangeText={setVergiNo}
+          onChangeText={kirliSet(setVergiNo)}
           keyboardType="number-pad"
           placeholder="1234567890"
           placeholderTextColor={colors.textFaded}
@@ -204,7 +211,7 @@ export default function YeniMusteriScreen({ route, navigation }) {
             <TouchableOpacity
               key={d.id}
               style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.borderStrong }, durum === d.id && styles.chipActive]}
-              onPress={() => setDurum(d.id)}
+              onPress={() => { kirliRef.current = true; setDurum(d.id) }}
             >
               <Text style={[styles.chipText, { color: colors.textSecondary }, durum === d.id && { color: '#fff' }]}>{d.label}</Text>
             </TouchableOpacity>
@@ -215,7 +222,7 @@ export default function YeniMusteriScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { height: 90, textAlignVertical: 'top', backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={notlar}
-          onChangeText={setNotlar}
+          onChangeText={kirliSet(setNotlar)}
           multiline
           placeholder="Ek bilgiler..."
           placeholderTextColor={colors.textFaded}

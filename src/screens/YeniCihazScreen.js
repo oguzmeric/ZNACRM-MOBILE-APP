@@ -15,12 +15,15 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { stokKalemEkle, hareketEkle } from '../services/stokKalemiService'
 import EtiketTarayici from '../components/EtiketTarayici'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 export default function YeniCihazScreen({ route, navigation }) {
   const { onaySeriNo } = route.params ?? {}
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
+  // Kaydedilmemiş form koruması: alan değişince kirli, kayıt başarılıysa temiz.
+  const kirliRef = useKaydedilmemisUyari(navigation)
 
   const [seriNo, setSeriNo] = useState(onaySeriNo ?? '')
   const [barkod, setBarkod] = useState('')
@@ -36,6 +39,8 @@ export default function YeniCihazScreen({ route, navigation }) {
   }, [navigation])
 
   const onTaramaTamam = (atamalar) => {
+    // Tarayıcıdan alan ataması = kullanıcı etkileşimi → kirli
+    if (atamalar.seriNo || atamalar.barkod || atamalar.model || atamalar.stokKodu) kirliRef.current = true
     if (atamalar.seriNo) setSeriNo(atamalar.seriNo)
     if (atamalar.barkod) setBarkod(atamalar.barkod)
     if (atamalar.model) setModel(atamalar.model)
@@ -91,6 +96,7 @@ export default function YeniCihazScreen({ route, navigation }) {
       Alert.alert('Hata', 'Kaydedilemedi. Bu seri no zaten kayıtlı olabilir.')
       return
     }
+    kirliRef.current = false // kayıt başarılı → çıkışta sorma
     navigation.replace('CihazDetay', { id: yeni.id })
   }
 
@@ -123,7 +129,7 @@ export default function YeniCihazScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={seriNo}
-          onChangeText={setSeriNo}
+          onChangeText={(v) => { kirliRef.current = true; setSeriNo(v) }}
           placeholder="Üretici S/N"
           placeholderTextColor={colors.textFaded}
           autoCapitalize="characters"
@@ -134,7 +140,7 @@ export default function YeniCihazScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={barkod}
-          onChangeText={setBarkod}
+          onChangeText={(v) => { kirliRef.current = true; setBarkod(v) }}
           placeholder="Ek barkod (opsiyonel)"
           placeholderTextColor={colors.textFaded}
           autoCapitalize="characters"
@@ -147,7 +153,7 @@ export default function YeniCihazScreen({ route, navigation }) {
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
               value={marka}
-              onChangeText={setMarka}
+              onChangeText={(v) => { kirliRef.current = true; setMarka(v) }}
               placeholder="Hyrbone, Hikvision..."
               placeholderTextColor={colors.textFaded}
             />
@@ -157,7 +163,7 @@ export default function YeniCihazScreen({ route, navigation }) {
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
               value={model}
-              onChangeText={setModel}
+              onChangeText={(v) => { kirliRef.current = true; setModel(v) }}
               placeholder="DS-2CD2143..."
               placeholderTextColor={colors.textFaded}
               autoCapitalize="characters"
@@ -169,7 +175,7 @@ export default function YeniCihazScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={stokKodu}
-          onChangeText={setStokKodu}
+          onChangeText={(v) => { kirliRef.current = true; setStokKodu(v) }}
           placeholder="Web kataloğundaki kod (boşsa otomatik üretilir)"
           placeholderTextColor={colors.textFaded}
           autoCapitalize="characters"
@@ -183,7 +189,7 @@ export default function YeniCihazScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { height: 80, textAlignVertical: 'top', backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={notlar}
-          onChangeText={setNotlar}
+          onChangeText={(v) => { kirliRef.current = true; setNotlar(v) }}
           multiline
           placeholder="Garanti süresi, alış faturası, vb."
           placeholderTextColor={colors.textFaded}

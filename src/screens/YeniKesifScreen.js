@@ -15,11 +15,14 @@ import { kesifEkle, KESIF_ONCELIKLERI } from '../services/kesifService'
 import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import SecimPicker from '../components/SecimPicker'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 export default function YeniKesifScreen({ navigation }) {
   const { colors } = useTheme()
   const { kullanici } = useAuth()
   const headerHeight = useHeaderHeight()
+  // Kaydedilmemiş değişiklik koruması — kullanıcı alan değiştirince kirli, kayıt başarılıysa temiz
+  const kirliRef = useKaydedilmemisUyari(navigation)
 
   // Müşteri DB listesinden seçilir (yazdıkça süzülen arama)
   const [musteriler, setMusteriler] = useState([])
@@ -82,6 +85,7 @@ export default function YeniKesifScreen({ navigation }) {
     })
     setKaydediliyor(false)
     if (!yeni) { Alert.alert('Hata', 'Keşif oluşturulamadı, tekrar deneyin.'); return }
+    kirliRef.current = false // kayıt başarılı — çıkışta sorma
     navigation.replace('KesifDetay', { kesifId: yeni.id })
   }
 
@@ -104,7 +108,7 @@ export default function YeniKesifScreen({ navigation }) {
               <Text style={{ flex: 1, color: colors.textPrimary, fontWeight: '600', fontSize: 15 }} numberOfLines={1}>
                 {seciliMusteri.ad}
               </Text>
-              <TouchableOpacity onPress={() => { setSeciliMusteri(null); setMusteriArama('') }} hitSlop={8}>
+              <TouchableOpacity onPress={() => { kirliRef.current = true; setSeciliMusteri(null); setMusteriArama('') }} hitSlop={8}>
                 <Feather name="x" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
@@ -126,6 +130,7 @@ export default function YeniKesifScreen({ navigation }) {
                     <TouchableOpacity
                       key={m.id}
                       onPress={() => {
+                        kirliRef.current = true
                         setSeciliMusteri({ id: m.id, ad: musteriAdiYap(m) })
                         setMusteriArama('')
                       }}
@@ -152,7 +157,7 @@ export default function YeniKesifScreen({ navigation }) {
           )}
 
           <Text style={labelStil}>Keşif Başlığı</Text>
-          <TextInput value={kesifBasligi} onChangeText={setKesifBasligi} placeholder="örn. Fabrika çevre kamera keşfi"
+          <TextInput value={kesifBasligi} onChangeText={(t) => { kirliRef.current = true; setKesifBasligi(t) }} placeholder="örn. Fabrika çevre kamera keşfi"
             placeholderTextColor={colors.textMuted} style={inputStil} />
 
           {/* Alt lokasyon — seçilirse müşteri detayındaki lokasyon dökümüne
@@ -163,6 +168,7 @@ export default function YeniKesifScreen({ navigation }) {
               <SecimPicker
                 deger={lokasyonId}
                 onSec={(secilen) => {
+                  kirliRef.current = true
                   setLokasyonId(secilen)
                   const l = lokasyonlar.find(x => String(x.id) === String(secilen))
                   if (l && !lokasyon.trim()) setLokasyon(l.adres?.trim() || l.ad || '')
@@ -174,7 +180,7 @@ export default function YeniKesifScreen({ navigation }) {
           )}
 
           <Text style={labelStil}>Keşif Adresi</Text>
-          <TextInput value={lokasyon} onChangeText={setLokasyon} placeholder="Saha adresi"
+          <TextInput value={lokasyon} onChangeText={(t) => { kirliRef.current = true; setLokasyon(t) }} placeholder="Saha adresi"
             placeholderTextColor={colors.textMuted} style={inputStil} />
 
           <Text style={labelStil}>Öncelik</Text>
@@ -184,7 +190,7 @@ export default function YeniKesifScreen({ navigation }) {
               return (
                 <TouchableOpacity
                   key={o.id}
-                  onPress={() => setOncelik(o.id)}
+                  onPress={() => { kirliRef.current = true; setOncelik(o.id) }}
                   style={{
                     paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20,
                     backgroundColor: aktif ? o.renk : colors.surface,
@@ -199,7 +205,7 @@ export default function YeniKesifScreen({ navigation }) {
 
           <Text style={labelStil}>Keşif Açıklaması</Text>
           <TextInput
-            value={genelNot} onChangeText={setGenelNot}
+            value={genelNot} onChangeText={(t) => { kirliRef.current = true; setGenelNot(t) }}
             placeholder="Saha gözlemleri, müşteri talepleri…"
             placeholderTextColor={colors.textMuted}
             multiline numberOfLines={5} textAlignVertical="top"

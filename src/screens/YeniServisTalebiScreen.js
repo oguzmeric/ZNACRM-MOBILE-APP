@@ -37,11 +37,14 @@ import {
   ACILIYET_SEVIYELERI,
   turPrefix,
 } from '../utils/servisConstants'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 export default function YeniServisTalebiScreen({ navigation, route }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
+  // Kaydedilmemiş değişiklik koruması: kullanıcı etkileşiminde kirli, kaydet başarılıysa temiz
+  const kirliRef = useKaydedilmemisUyari(navigation)
   const duzenle = route?.params?.duzenlenecekTalep || null   // varsa edit mode
 
   const [talepNo, setTalepNo] = useState(duzenle?.talepNo || '')
@@ -278,6 +281,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       const guncel = await servisTalepGuncelle(duzenle.id, ortakPayload)
       setKaydediliyor(false)
       if (!guncel) { Alert.alert('Hata', 'Talep güncellenemedi.'); return }
+      kirliRef.current = false
       navigation.goBack()
       return
     }
@@ -345,6 +349,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
     }
 
     setKaydediliyor(false)
+    kirliRef.current = false
     // ERP standardı: oluşturulan talebin DETAYINA git (talep no görünsün); liste odakta yenilenir
     if (yeni?.id) { navigation.replace('ServisDetay', { id: yeni.id }); return }
     navigation.goBack()
@@ -379,7 +384,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
             </Text>
           </TouchableOpacity>
           {!!musteri && (
-            <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => setMusteri(null)}>
+            <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => { kirliRef.current = true; setMusteri(null) }}>
               <Text style={styles.clearText}>×</Text>
             </TouchableOpacity>
           )}
@@ -404,7 +409,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 </Text>
               </TouchableOpacity>
               {!!kisi && (
-                <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => setKisi(null)}>
+                <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => { kirliRef.current = true; setKisi(null) }}>
                   <Text style={styles.clearText}>×</Text>
                 </TouchableOpacity>
               )}
@@ -423,7 +428,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 { backgroundColor: colors.surface, borderColor: colors.borderStrong },
                 anaTur === t.id && { backgroundColor: t.renk, borderColor: t.renk },
               ]}
-              onPress={() => setAnaTur(t.id)}
+              onPress={() => { kirliRef.current = true; setAnaTur(t.id) }}
             >
               <Text style={[styles.chipText, { color: colors.textSecondary }, anaTur === t.id && { color: '#fff' }]}>
                 {t.ikon} {t.isim}
@@ -459,7 +464,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 { backgroundColor: colors.surface, borderColor: colors.borderStrong },
                 konu === k.ad && { backgroundColor: '#2563eb', borderColor: '#2563eb' },
               ]}
-              onPress={() => setKonu(k.ad)}
+              onPress={() => { kirliRef.current = true; setKonu(k.ad) }}
             >
               <Text style={[styles.chipText, { color: colors.textSecondary }, konu === k.ad && { color: '#fff' }]}>
                 {k.ad}
@@ -482,7 +487,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
         <TextInput
           style={[styles.input, { height: 100, textAlignVertical: 'top', backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={aciklama}
-          onChangeText={setAciklama}
+          onChangeText={(t) => { kirliRef.current = true; setAciklama(t) }}
           multiline
           placeholder="Detaylı açıklama..."
           placeholderTextColor={colors.textFaded}
@@ -496,7 +501,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
         <TextInput
           style={[styles.input, { height: 80, textAlignVertical: 'top', backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={kullanilacakMalzemeler}
-          onChangeText={setKullanilacakMalzemeler}
+          onChangeText={(t) => { kirliRef.current = true; setKullanilacakMalzemeler(t) }}
           multiline
           placeholder="Örn: 2× Dahua dome, 1× NVR, 50m CAT6…"
           placeholderTextColor={colors.textFaded}
@@ -519,7 +524,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
               </Text>
             </TouchableOpacity>
             {!!lokasyonSecili && (
-              <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => setLokasyonSecili(null)}>
+              <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => { kirliRef.current = true; setLokasyonSecili(null) }}>
                 <Text style={styles.clearText}>×</Text>
               </TouchableOpacity>
             )}
@@ -528,7 +533,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
           <TextInput
             style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
             value={lokasyon}
-            onChangeText={setLokasyon}
+            onChangeText={(t) => { kirliRef.current = true; setLokasyon(t) }}
             placeholder={musteri ? 'Müşteriye lokasyon eklenmemiş, serbest yaz...' : 'Ana bina, oda 3...'}
             placeholderTextColor={colors.textFaded}
           />
@@ -550,7 +555,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
               </Text>
             </TouchableOpacity>
             {!!cihazSecili && (
-              <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => setCihazSecili(null)}>
+              <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => { kirliRef.current = true; setCihazSecili(null) }}>
                 <Text style={styles.clearText}>×</Text>
               </TouchableOpacity>
             )}
@@ -559,7 +564,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
           <TextInput
             style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
             value={cihazTuru}
-            onChangeText={setCihazTuru}
+            onChangeText={(t) => { kirliRef.current = true; setCihazTuru(t) }}
             placeholder={musteri ? 'Müşteride cihaz kaydı yok, serbest yaz...' : 'NVR, kamera...'}
             placeholderTextColor={colors.textFaded}
           />
@@ -568,7 +573,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
         {/* Malzeme Gerekli mi? */}
         <TouchableOpacity
           style={[styles.checkRow, { backgroundColor: colors.surface }]}
-          onPress={() => setMalzemeGerekli((v) => !v)}
+          onPress={() => { kirliRef.current = true; setMalzemeGerekli((v) => !v) }}
           activeOpacity={0.7}
         >
           <View style={[styles.checkBox, malzemeGerekli && styles.checkBoxAktif]}>
@@ -614,6 +619,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                   <TouchableOpacity
                     onPress={(e) => {
                       e.stopPropagation?.()
+                      kirliRef.current = true
                       setMalzemeler((prev) => prev.filter((_, idx) => idx !== i))
                     }}
                     hitSlop={10}
@@ -629,7 +635,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
         {/* Periyodik İş */}
         <TouchableOpacity
           style={[styles.checkRow, { backgroundColor: colors.surface }]}
-          onPress={() => setPeriyodikMi((v) => !v)}
+          onPress={() => { kirliRef.current = true; setPeriyodikMi((v) => !v) }}
           activeOpacity={0.7}
         >
           <View style={[styles.checkBox, periyodikMi && styles.checkBoxAktif]}>
@@ -653,7 +659,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                   { backgroundColor: colors.surface, borderColor: colors.borderStrong },
                   periyodikAraligi === p.id && { backgroundColor: '#2563eb', borderColor: '#2563eb' },
                 ]}
-                onPress={() => setPeriyodikAraligi(p.id)}
+                onPress={() => { kirliRef.current = true; setPeriyodikAraligi(p.id) }}
               >
                 <Text style={[styles.chipText, { color: colors.textSecondary }, periyodikAraligi === p.id && { color: '#fff' }]}>
                   {p.isim}
@@ -672,7 +678,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
               const izin = await ImagePicker.requestCameraPermissionsAsync()
               if (!izin.granted) return Alert.alert('İzin Gerekli', 'Kameraya erişim izni ver.')
               const s = await ImagePicker.launchCameraAsync({ quality: 0.7 })
-              if (!s.canceled) setEkler((p) => [...p, s.assets[0].uri].slice(0, 10))
+              if (!s.canceled) { kirliRef.current = true; setEkler((p) => [...p, s.assets[0].uri].slice(0, 10)) }
             }}
           >
             <Feather name="camera" size={16} color="#60a5fa" />
@@ -691,6 +697,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
               })
               if (!s.canceled) {
                 const uris = s.assets.map((a) => a.uri)
+                kirliRef.current = true
                 setEkler((p) => [...p, ...uris].slice(0, 10))
               }
             }}
@@ -711,7 +718,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 <Image source={{ uri }} style={styles.ekThumb} />
                 <TouchableOpacity
                   style={styles.ekSilBtn}
-                  onPress={() => setEkler((p) => p.filter((u) => u !== uri))}
+                  onPress={() => { kirliRef.current = true; setEkler((p) => p.filter((u) => u !== uri)) }}
                 >
                   <Feather name="x" size={12} color="#fff" />
                 </TouchableOpacity>
@@ -731,7 +738,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 { backgroundColor: colors.surface, borderColor: colors.borderStrong },
                 aciliyet === a.id && { backgroundColor: a.renk, borderColor: a.renk },
               ]}
-              onPress={() => setAciliyet(a.id)}
+              onPress={() => { kirliRef.current = true; setAciliyet(a.id) }}
             >
               <Text style={[styles.chipText, { color: colors.textSecondary }, aciliyet === a.id && { color: '#fff' }]}>
                 {a.ikon} {a.isim}
@@ -752,7 +759,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
             {uygunZaman || 'Saat seç...'}
           </Text>
           {!!uygunZaman && (
-            <TouchableOpacity onPress={() => setUygunZaman('')}>
+            <TouchableOpacity onPress={() => { kirliRef.current = true; setUygunZaman('') }}>
               <Feather name="x" size={18} color="#ef4444" />
             </TouchableOpacity>
           )}
@@ -761,7 +768,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
         {/* Planlı tarih — TarihSec wrapper */}
         <TarihSec
           value={planliTarih}
-          onChange={(iso) => setPlanliTarih(iso || '')}
+          onChange={(iso) => { kirliRef.current = true; setPlanliTarih(iso || '') }}
           label="Planlı Tarih"
           placeholder="Tarih seç..."
           title="Planlı Tarih Seç"
@@ -780,6 +787,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
               onChange={(e, selected) => {
                 if (Platform.OS !== 'ios') setZamanPickerOpen(false)
                 if (e.type === 'set' && selected) {
+                  kirliRef.current = true
                   setUygunZaman(dateToZaman(selected))
                 }
               }}
@@ -809,7 +817,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
             </Text>
           </TouchableOpacity>
           {!!atanan && (
-            <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => setAtanan(null)}>
+            <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => { kirliRef.current = true; setAtanan(null) }}>
               <Text style={styles.clearText}>×</Text>
             </TouchableOpacity>
           )}
@@ -854,6 +862,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.surface }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setMusteri(item)
                     setMusteriPickerOpen(false)
                     setMusteriArama('')
@@ -916,6 +925,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.surface }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setKisi(item)
                     setKisiPickerOpen(false)
                   }}
@@ -951,6 +961,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.surface }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setAltKategori(item.id)
                     setAltKategoriPickerOpen(false)
                   }}
@@ -980,6 +991,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.surface }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setAtanan(item)
                     setKullaniciPickerOpen(false)
                   }}
@@ -1012,6 +1024,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.surface }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setLokasyonSecili(item)
                     setLokasyonPickerOpen(false)
                   }}
@@ -1048,6 +1061,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.surface }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setCihazSecili(item)
                     setCihazPickerOpen(false)
                   }}
@@ -1075,6 +1089,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
         kullaniciId={kullanici?.id}
         initial={duzenlenenMalzemeIdx != null ? malzemeler[duzenlenenMalzemeIdx] : null}
         onSave={(yeni) => {
+          kirliRef.current = true
           setMalzemeler((prev) => {
             if (duzenlenenMalzemeIdx != null) {
               const kopya = [...prev]

@@ -23,6 +23,7 @@ import { servisTalepEkle, aktifKonulariGetir } from '../../services/servisServic
 import { musteriLokasyonlariniGetir } from '../../services/musteriLokasyonService'
 import { PORTAL_TUR_IDLERI, talepEkiYukle, talepDosyaEkle } from '../../services/portalService'
 import { ANA_TURLER, ALT_KATEGORILER, ACILIYET_SEVIYELERI } from '../../utils/servisConstants'
+import { useKaydedilmemisUyari } from '../../hooks/useKaydedilmemisUyari'
 
 const TUR_ACIKLAMA = {
   ariza: 'Mevcut bir sorun ya da kesinti bildirimi',
@@ -36,6 +37,9 @@ const SAAT_SECENEKLERI = ['09:00', '11:00', '13:00', '15:00', '17:00']
 export default function MusteriYeniTalepScreen({ navigation }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
+  // Kaydedilmemiş değişiklik koruması — yalnız kullanıcı etkileşiminde kirlenir
+  const kirliRef = useKaydedilmemisUyari(navigation)
+  const kirlet = (setter) => (v) => { kirliRef.current = true; setter(v) }
 
   const portalTurleri = ANA_TURLER.filter((t) => PORTAL_TUR_IDLERI.includes(t.id))
 
@@ -91,7 +95,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
       }
       if (sonuc?.canceled) return
       const yeniler = (sonuc?.assets || []).map((a) => ({ uri: a.uri }))
-      if (yeniler.length) setDosyalar((prev) => [...prev, ...yeniler].slice(0, 8))
+      if (yeniler.length) { kirliRef.current = true; setDosyalar((prev) => [...prev, ...yeniler].slice(0, 8)) }
     } catch (e) {
       Alert.alert('Hata', e?.message || 'Dosya seçilemedi.')
     }
@@ -173,7 +177,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
         ? `Talebiniz alındı (${yeni.talepNo || ''}). ${ekHata} dosya yüklenemedi — detaydan tekrar deneyebilir ya da ekibimize iletebilirsiniz.`
         : `Talebiniz alındı${yeni.talepNo ? ` (${yeni.talepNo})` : ''}. En kısa sürede ekibimiz sizinle iletişime geçecektir.`
       Alert.alert('Talebiniz Alındı ✅', mesaj, [
-        { text: 'Tamam', onPress: () => navigation.replace('ServisDetay', { id: yeni.id }) },
+        { text: 'Tamam', onPress: () => { kirliRef.current = false; navigation.replace('ServisDetay', { id: yeni.id }) } },
       ])
     } catch (e) {
       Alert.alert('Gönderilemedi', e?.message || 'Talep oluşturulamadı, lütfen tekrar deneyin.')
@@ -222,7 +226,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
                     borderColor: secili ? t.renk : colors.border,
                   },
                 ]}
-                onPress={() => { setAnaTur(t.id); setAltKategori('') }}
+                onPress={() => { kirliRef.current = true; setAnaTur(t.id); setAltKategori('') }}
                 activeOpacity={0.8}
               >
                 <Text style={styles.turIkon}>{t.ikon}</Text>
@@ -241,7 +245,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
             <Text style={[styles.etiket, { color: colors.textMuted }]}>ALT KATEGORİ *</Text>
             <SecimPicker
               deger={altKategori}
-              onSec={setAltKategori}
+              onSec={kirlet(setAltKategori)}
               secenekler={altKategoriler.map((k) => ({ id: k.id, isim: k.isim }))}
               placeholder="Alt kategori seçin…"
             />
@@ -252,7 +256,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
         <Text style={[styles.etiket, { color: colors.textMuted }]}>KONU BAŞLIĞI *</Text>
         <SecimPicker
           deger={konu}
-          onSec={setKonu}
+          onSec={kirlet(setKonu)}
           secenekler={konular.map((k) => k.ad)}
           placeholder="Konu seçin…"
           ekstraSecenek={{ etiket: 'Diğer — elle yaz', deger: '__manuel', ikon: 'edit-2' }}
@@ -263,7 +267,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
             placeholder="Konu başlığını yazın…"
             placeholderTextColor={colors.textMuted}
             value={konuManuel}
-            onChangeText={setKonuManuel}
+            onChangeText={kirlet(setKonuManuel)}
           />
         )}
 
@@ -274,7 +278,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
           placeholder="Sorunu ya da talebinizi ayrıntılı açıklayınız…"
           placeholderTextColor={colors.textMuted}
           value={aciklama}
-          onChangeText={setAciklama}
+          onChangeText={kirlet(setAciklama)}
           multiline
         />
 
@@ -284,7 +288,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
         {lokasyonlar.length > 0 ? (
           <SecimPicker
             deger={lokasyonId != null ? String(lokasyonId) : ''}
-            onSec={(v) => setLokasyonId(v === '' ? null : v)}
+            onSec={(v) => { kirliRef.current = true; setLokasyonId(v === '' ? null : v) }}
             secenekler={[
               { id: '', isim: '— Lokasyon belirtmeden gönder —' },
               ...lokasyonlar.map((l) => ({ id: String(l.id), isim: l.ad })),
@@ -297,7 +301,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
             placeholder="Bina, kat, oda…"
             placeholderTextColor={colors.textMuted}
             value={lokasyonMetin}
-            onChangeText={setLokasyonMetin}
+            onChangeText={kirlet(setLokasyonMetin)}
           />
         )}
         <TextInput
@@ -305,7 +309,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
           placeholder="Bina / kat / oda detayı (isteğe bağlı)"
           placeholderTextColor={colors.textMuted}
           value={altLokasyon}
-          onChangeText={setAltLokasyon}
+          onChangeText={kirlet(setAltLokasyon)}
         />
 
         {/* Cihaz türü */}
@@ -315,14 +319,14 @@ export default function MusteriYeniTalepScreen({ navigation }) {
           placeholder="Kamera, NVR, PDKS…"
           placeholderTextColor={colors.textMuted}
           value={cihazTuru}
-          onChangeText={setCihazTuru}
+          onChangeText={kirlet(setCihazTuru)}
         />
 
         {/* Aciliyet */}
         <Text style={[styles.etiket, { color: colors.textMuted }]}>ACİLİYET</Text>
         <View style={styles.cipSarma}>
           {ACILIYET_SEVIYELERI.map((a) => (
-            <TouchableOpacity key={a.id} style={cipStil(aciliyet === a.id)} onPress={() => setAciliyet(a.id)} activeOpacity={0.8}>
+            <TouchableOpacity key={a.id} style={cipStil(aciliyet === a.id)} onPress={() => { kirliRef.current = true; setAciliyet(a.id) }} activeOpacity={0.8}>
               <Text style={cipYazi(aciliyet === a.id)}>{a.ikon} {a.isim}</Text>
             </TouchableOpacity>
           ))}
@@ -333,7 +337,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
         <TextInput
           style={[styles.girdi, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface }]}
           value={ilgiliKisi}
-          onChangeText={setIlgiliKisi}
+          onChangeText={kirlet(setIlgiliKisi)}
           placeholder="Ad Soyad"
           placeholderTextColor={colors.textMuted}
         />
@@ -341,7 +345,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
         <TextInput
           style={[styles.girdi, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface }]}
           value={telefon}
-          onChangeText={setTelefon}
+          onChangeText={kirlet(setTelefon)}
           placeholder="0xxx xxx xx xx"
           placeholderTextColor={colors.textMuted}
           keyboardType="phone-pad"
@@ -351,7 +355,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
         <Text style={[styles.etiket, { color: colors.textMuted }]}>TALEP EDİLEN ZİYARET TARİHİ</Text>
         <TarihSec
           value={ziyaretTarih}
-          onChange={(iso) => setZiyaretTarih(iso || null)}
+          onChange={(iso) => { kirliRef.current = true; setZiyaretTarih(iso || null) }}
           placeholder="Tarih seçin (isteğe bağlı)"
           title="Ziyaret Tarihi"
         />
@@ -361,7 +365,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
               <TouchableOpacity
                 key={s}
                 style={cipStil(ziyaretSaat === s)}
-                onPress={() => setZiyaretSaat(ziyaretSaat === s ? '' : s)}
+                onPress={() => { kirliRef.current = true; setZiyaretSaat(ziyaretSaat === s ? '' : s) }}
                 activeOpacity={0.8}
               >
                 <Text style={cipYazi(ziyaretSaat === s)}>{s}</Text>
@@ -400,7 +404,7 @@ export default function MusteriYeniTalepScreen({ navigation }) {
                 <Image source={{ uri: d.uri }} style={styles.fotoKucuk} />
                 <TouchableOpacity
                   style={[styles.fotoSil, { backgroundColor: colors.danger }]}
-                  onPress={() => setDosyalar((prev) => prev.filter((_, x) => x !== i))}
+                  onPress={() => { kirliRef.current = true; setDosyalar((prev) => prev.filter((_, x) => x !== i)) }}
                 >
                   <Feather name="x" size={11} color="#fff" />
                 </TouchableOpacity>

@@ -20,11 +20,14 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { destekTalepEkle } from '../services/destekService'
 import { servisEkiYukle } from '../services/servisEkService'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 export default function YeniDestekScreen({ navigation }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
+  // Kaydedilmemiş değişiklik koruması: kullanıcı alan değiştirince kirli, gönderim başarılı olunca temiz
+  const kirliRef = useKaydedilmemisUyari(navigation)
   const [mesaj, setMesaj] = useState('')
   const [fotoUri, setFotoUri] = useState(null)
   const [kaydediliyor, setKaydediliyor] = useState(false)
@@ -43,7 +46,10 @@ export default function YeniDestekScreen({ navigation }) {
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           quality: 0.7,
         })
-    if (!sonuc.canceled) setFotoUri(sonuc.assets[0].uri)
+    if (!sonuc.canceled) {
+      setFotoUri(sonuc.assets[0].uri)
+      kirliRef.current = true
+    }
   }
 
   const gonder = async () => {
@@ -69,8 +75,9 @@ export default function YeniDestekScreen({ navigation }) {
       Alert.alert('Hata', 'Talep gönderilemedi.')
       return
     }
+    kirliRef.current = false   // kayıt yazıldı — Alert dışına dokunulup kapatılsa da çıkışta sorma (22.08)
     Alert.alert('Gönderildi', 'Destek talebin alındı. En kısa sürede dönüş yapılacak.', [
-      { text: 'Tamam', onPress: () => navigation.goBack() },
+      { text: 'Tamam', onPress: () => { kirliRef.current = false; navigation.goBack() } },
     ])
   }
 
@@ -89,7 +96,7 @@ export default function YeniDestekScreen({ navigation }) {
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, minHeight: 160, textAlignVertical: 'top' }]}
           value={mesaj}
-          onChangeText={setMesaj}
+          onChangeText={(t) => { setMesaj(t); kirliRef.current = true }}
           multiline
           placeholder="Ne oldu? Hangi ekranda? Hata mesajı varsa yaz..."
           placeholderTextColor={colors.textFaded}
@@ -110,7 +117,7 @@ export default function YeniDestekScreen({ navigation }) {
         {!!fotoUri && (
           <View style={styles.fotoPreview}>
             <Image source={{ uri: fotoUri }} style={styles.fotoThumb} />
-            <TouchableOpacity style={styles.fotoSilBtn} onPress={() => setFotoUri(null)}>
+            <TouchableOpacity style={styles.fotoSilBtn} onPress={() => { setFotoUri(null); kirliRef.current = true }}>
               <Feather name="x" size={14} color="#fff" />
             </TouchableOpacity>
           </View>

@@ -16,6 +16,7 @@ import { useHeaderHeight } from '@react-navigation/elements'
 import ScreenContainer from '../../components/ScreenContainer'
 import { useTheme } from '../../context/ThemeContext'
 import { kullaniciEkle } from '../../services/kullaniciService'
+import { useKaydedilmemisUyari } from '../../hooks/useKaydedilmemisUyari'
 
 const UNVAN_SECENEKLER = [
   'Teknisyen',
@@ -38,6 +39,9 @@ export default function AdminYeniPersonelScreen({ navigation }) {
   const [telefon, setTelefon] = useState('')
   const [email, setEmail] = useState('')
   const [kaydediliyor, setKaydediliyor] = useState(false)
+  // Kaydedilmemiş değişiklik koruması: kullanıcı alan değiştirince kirli, kayıt başarılı olunca temiz.
+  const kirliRef = useKaydedilmemisUyari(navigation)
+  const kirle = (setter) => (v) => { kirliRef.current = true; setter(v) }
 
   const kaydet = async () => {
     if (!ad.trim()) return Alert.alert('Eksik', 'Ad Soyad zorunlu.')
@@ -60,10 +64,11 @@ export default function AdminYeniPersonelScreen({ navigation }) {
       return
     }
 
+    kirliRef.current = false   // kayıt yazıldı — Alert dışına dokunulup kapatılsa da çıkışta sorma (22.08)
     Alert.alert(
       '✅ Personel Eklendi',
       `${ad} başarıyla oluşturuldu.\n\nKullanıcı adı: ${kullaniciAdi}\nGeçici şifre: ${sifre}\n\nKullanıcıya bu bilgileri iletin, ilk girişten sonra profilden değiştirebilir.`,
-      [{ text: 'Tamam', onPress: () => navigation.goBack() }]
+      [{ text: 'Tamam', onPress: () => { kirliRef.current = false; navigation.goBack() } }]
     )
   }
 
@@ -82,11 +87,11 @@ export default function AdminYeniPersonelScreen({ navigation }) {
             Yeni saha personeli veya çalışan ekle. İlk girişten sonra şifresini değiştirmesi önerilir.
           </Text>
 
-          <Alan label="Ad Soyad *" deger={ad} setter={setAd} placeholder="Mehmet Yılmaz" colors={colors} />
+          <Alan label="Ad Soyad *" deger={ad} setter={kirle(setAd)} placeholder="Mehmet Yılmaz" colors={colors} />
           <Alan
             label="Kullanıcı Adı *"
             deger={kullaniciAdi}
-            setter={setKullaniciAdi}
+            setter={kirle(setKullaniciAdi)}
             placeholder="mehmetyilmaz"
             colors={colors}
             autoCap="none"
@@ -94,7 +99,7 @@ export default function AdminYeniPersonelScreen({ navigation }) {
           <Alan
             label="Geçici Şifre *"
             deger={sifre}
-            setter={setSifre}
+            setter={kirle(setSifre)}
             placeholder="En az 4 karakter"
             colors={colors}
             autoCap="none"
@@ -110,7 +115,7 @@ export default function AdminYeniPersonelScreen({ navigation }) {
                   { backgroundColor: colors.surface, borderColor: colors.borderStrong },
                   unvan === u && { backgroundColor: colors.primary, borderColor: colors.primary },
                 ]}
-                onPress={() => setUnvan(u)}
+                onPress={() => kirle(setUnvan)(u)}
                 activeOpacity={0.8}
               >
                 <Text
@@ -129,7 +134,7 @@ export default function AdminYeniPersonelScreen({ navigation }) {
           <Alan
             label="Telefon"
             deger={telefon}
-            setter={setTelefon}
+            setter={kirle(setTelefon)}
             placeholder="05xx xxx xx xx"
             colors={colors}
             keyboard="phone-pad"
@@ -137,7 +142,7 @@ export default function AdminYeniPersonelScreen({ navigation }) {
           <Alan
             label="E-posta"
             deger={email}
-            setter={setEmail}
+            setter={kirle(setEmail)}
             placeholder="kisi@zna.com.tr"
             colors={colors}
             keyboard="email-address"

@@ -33,6 +33,7 @@ import LokasyonPicker from '../components/LokasyonPicker'
 import SecimPicker from '../components/SecimPicker'
 import TarihSaatSec from '../components/TarihSaatSec'
 import { supabase } from '../lib/supabase'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 const ONCELIKLER = [
   { id: 'dusuk', label: 'Düşük' },
@@ -44,6 +45,8 @@ export default function YeniGorevScreen({ navigation, route }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
+  // Kaydedilmemiş değişiklik koruması: yalnız kullanıcı etkileşiminde kirlenir, kayıt başarılı olunca temizlenir
+  const kirliRef = useKaydedilmemisUyari(navigation)
   const baslangic = route?.params || {}
   const duzenle = baslangic.duzenlenecekGorev || null   // varsa edit mode
   const [baslik, setBaslik] = useState(duzenle?.baslik || baslangic.baslangicBaslik || '')
@@ -60,7 +63,7 @@ export default function YeniGorevScreen({ navigation, route }) {
           const izin = await ImagePicker.requestCameraPermissionsAsync()
           if (!izin.granted) { Alert.alert('İzin Gerekli', 'Kamera izni verin.'); return }
           const s = await ImagePicker.launchCameraAsync({ quality: 0.7 })
-          if (!s.canceled) setEkler(p => [...p, { uri: s.assets[0].uri, name: s.assets[0].fileName || null, mimeType: s.assets[0].mimeType || 'image/jpeg', size: s.assets[0].fileSize ?? null }])
+          if (!s.canceled) { kirliRef.current = true; setEkler(p => [...p, { uri: s.assets[0].uri, name: s.assets[0].fileName || null, mimeType: s.assets[0].mimeType || 'image/jpeg', size: s.assets[0].fileSize ?? null }]) }
         },
       },
       {
@@ -72,7 +75,7 @@ export default function YeniGorevScreen({ navigation, route }) {
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             quality: 0.7, allowsMultipleSelection: true, selectionLimit: 5,
           })
-          if (!s.canceled) setEkler(p => [...p, ...s.assets.map(a => ({ uri: a.uri, name: a.fileName || null, mimeType: a.mimeType || 'image/jpeg', size: a.fileSize ?? null }))])
+          if (!s.canceled) { kirliRef.current = true; setEkler(p => [...p, ...s.assets.map(a => ({ uri: a.uri, name: a.fileName || null, mimeType: a.mimeType || 'image/jpeg', size: a.fileSize ?? null }))]) }
         },
       },
       {
@@ -80,6 +83,7 @@ export default function YeniGorevScreen({ navigation, route }) {
         onPress: async () => {
           const s = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true })
           if (s.canceled) return
+          kirliRef.current = true
           setEkler(p => [...p, ...(s.assets || []).map(a => ({ uri: a.uri, name: a.name || null, mimeType: a.mimeType || null, size: a.size ?? null }))])
         },
       },
@@ -258,6 +262,7 @@ export default function YeniGorevScreen({ navigation, route }) {
         Alert.alert('Hata', 'Görev güncellenemedi.')
         return
       }
+      kirliRef.current = false // kaydedildi — çıkışta sorma
       navigation.goBack()
       return
     }
@@ -338,6 +343,7 @@ export default function YeniGorevScreen({ navigation, route }) {
         const servisTalebi = await talepOlusturGorevden(yeni, kullanici)
         setKaydediliyor(false)
         if (servisTalebi) {
+          kirliRef.current = false // görev + servis talebi kaydedildi — çıkışta sorma
           navigation.replace('ServisDetay', { id: servisTalebi.id })
           return
         }
@@ -351,6 +357,7 @@ export default function YeniGorevScreen({ navigation, route }) {
       setKaydediliyor(false)
     }
     // ERP standardı: oluşturulan kaydın DETAYINA git (görev no görünsün); liste odakta yenilenir
+    kirliRef.current = false // görev kaydedildi — çıkışta sorma
     if (yeni?.id) { navigation.replace('GörevDetay', { id: yeni.id }); return }
     navigation.goBack()
   }
@@ -375,7 +382,7 @@ export default function YeniGorevScreen({ navigation, route }) {
           placeholder="Görev başlığı"
           placeholderTextColor={colors.textFaded}
           value={baslik}
-          onChangeText={setBaslik}
+          onChangeText={(t) => { kirliRef.current = true; setBaslik(t) }}
         />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Açıklama</Text>
@@ -385,7 +392,7 @@ export default function YeniGorevScreen({ navigation, route }) {
           placeholderTextColor={colors.textFaded}
           multiline
           value={aciklama}
-          onChangeText={setAciklama}
+          onChangeText={(t) => { kirliRef.current = true; setAciklama(t) }}
         />
 
         <Text style={[styles.label, { color: colors.textMuted }]}>Atanacak Kullanıcı (birincil) *</Text>
@@ -407,7 +414,7 @@ export default function YeniGorevScreen({ navigation, route }) {
             return (
               <View key={uid} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.primary }}>
                 <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{uye.ad}</Text>
-                <TouchableOpacity onPress={() => setEkip((prev) => prev.filter((x) => String(x) !== String(uid)))}>
+                <TouchableOpacity onPress={() => { kirliRef.current = true; setEkip((prev) => prev.filter((x) => String(x) !== String(uid))) }}>
                   <Text style={{ color: '#fff', fontSize: 16, lineHeight: 16 }}>×</Text>
                 </TouchableOpacity>
               </View>
@@ -438,7 +445,7 @@ export default function YeniGorevScreen({ navigation, route }) {
             </Text>
           </TouchableOpacity>
           {!!musteri && (
-            <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => setMusteri(null)}>
+            <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => { kirliRef.current = true; setMusteri(null) }}>
               <Text style={styles.clearText}>×</Text>
             </TouchableOpacity>
           )}
@@ -453,7 +460,7 @@ export default function YeniGorevScreen({ navigation, route }) {
               lokasyonlar={musteriLokasyonlari}
               onLokasyonlarChange={setMusteriLokasyonlari}
               secili={lokasyonSecili}
-              onSeciliChange={setLokasyonSecili}
+              onSeciliChange={(l) => { kirliRef.current = true; setLokasyonSecili(l) }}
             />
           </>
         )}
@@ -465,7 +472,7 @@ export default function YeniGorevScreen({ navigation, route }) {
             {gorusmeler.length > 0 ? (
               <SecimPicker
                 deger={gorusmeSecili}
-                onSec={(v) => setGorusmeSecili(v || null)}
+                onSec={(v) => { kirliRef.current = true; setGorusmeSecili(v || null) }}
                 secenekler={gorusmeler.map((g) => ({
                   id: String(g.id),
                   isim: `${g.akt_no || `G-${g.id}`} — ${g.konu || '—'}${g.tarih ? ` · ${g.tarih}` : ''}`,
@@ -484,7 +491,7 @@ export default function YeniGorevScreen({ navigation, route }) {
         {/* Servis talebi de oluştur toggle — sadece yeni görev + müşteri seçiliyse */}
         {!duzenle && musteri?.id && (
           <TouchableOpacity
-            onPress={() => setServisTalebiOlustur((v) => !v)}
+            onPress={() => { kirliRef.current = true; setServisTalebiOlustur((v) => !v) }}
             activeOpacity={0.7}
             style={{
               marginTop: 16,
@@ -525,7 +532,7 @@ export default function YeniGorevScreen({ navigation, route }) {
             <TouchableOpacity
               key={o.id}
               style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.borderStrong }, oncelik === o.id && styles.chipActive]}
-              onPress={() => setOncelik(o.id)}
+              onPress={() => { kirliRef.current = true; setOncelik(o.id) }}
             >
               <Text style={[styles.chipText, { color: colors.textSecondary }, oncelik === o.id && { color: '#fff' }]}>
                 {o.label}
@@ -536,14 +543,14 @@ export default function YeniGorevScreen({ navigation, route }) {
 
         <TarihSaatSec
           value={baslamaTarih}
-          onChange={(iso) => setBaslamaTarih(iso || null)}
+          onChange={(iso) => { kirliRef.current = true; setBaslamaTarih(iso || null) }}
           label="Başlama Tarihi"
           placeholder="Tarih ve saat seç (opsiyonel)"
         />
 
         <TarihSaatSec
           value={bitisTarih}
-          onChange={(iso) => setBitisTarih(iso || null)}
+          onChange={(iso) => { kirliRef.current = true; setBitisTarih(iso || null) }}
           label="Bitiş Tarihi *"
           placeholder="Tarih ve saat seç"
         />
@@ -591,7 +598,7 @@ export default function YeniGorevScreen({ navigation, route }) {
                       <Text style={{ flex: 1, color: colors.textPrimary, fontSize: 12 }} numberOfLines={1}>
                         {ek.name || 'fotoğraf'}{ek.size ? `  ·  ${Math.round(ek.size / 1024)} KB` : ''}
                       </Text>
-                      <TouchableOpacity onPress={() => setEkler(p => p.filter((_, j) => j !== i))} hitSlop={8}>
+                      <TouchableOpacity onPress={() => { kirliRef.current = true; setEkler(p => p.filter((_, j) => j !== i)) }} hitSlop={8}>
                         <Feather name="x" size={14} color={colors.textMuted} />
                       </TouchableOpacity>
                     </View>
@@ -630,6 +637,7 @@ export default function YeniGorevScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.surface }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setAtanan(item)
                     setKullaniciPickerOpen(false)
                   }}
@@ -669,6 +677,7 @@ export default function YeniGorevScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.surface }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setEkip((prev) => [...prev, Number(item.id)])
                     setEkipPickerOpen(false)
                   }}
@@ -721,6 +730,7 @@ export default function YeniGorevScreen({ navigation, route }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.surface }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setMusteri(item)
                     setMusteriPickerOpen(false)
                     setMusteriArama('')

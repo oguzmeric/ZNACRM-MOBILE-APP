@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons'
 import ScreenContainer from '../components/ScreenContainer'
 import { useTheme } from '../context/ThemeContext'
 import { demoCihazEkle, demoCihazGuncelle, demoCihazGetir } from '../services/demoService'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 const KATEGORILER = ['NVR', 'DVR', 'IP Kamera', 'Analog Kamera', 'Switch', 'Server', 'Santral', 'Telefon', 'Diğer']
 
@@ -15,6 +16,8 @@ export default function YeniDemoCihazScreen({ navigation, route }) {
   const [form, setForm] = useState({ ad: '', marka: '', model: '', seriNo: '', kategori: '', notlar: '' })
   const [kaydediliyor, setKaydediliyor] = useState(false)
   const [yukleniyor, setYukleniyor] = useState(!!editId)
+  // Kaydedilmemiş değişiklik koruması (beforeRemove); kirlilik yalnız setAlan'da işaretlenir
+  const kirliRef = useKaydedilmemisUyari(navigation)
 
   useEffect(() => {
     if (editId) {
@@ -35,7 +38,7 @@ export default function YeniDemoCihazScreen({ navigation, route }) {
     }
   }, [editId, navigation])
 
-  const setAlan = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  const setAlan = (k, v) => { kirliRef.current = true; setForm(p => ({ ...p, [k]: v })) }
 
   const kaydet = async (zimmeteGec = false) => {
     if (!form.ad.trim()) { Alert.alert('Eksik', 'Cihaz adı gerekli.'); return }
@@ -53,6 +56,7 @@ export default function YeniDemoCihazScreen({ navigation, route }) {
       : await demoCihazEkle(payload)
     setKaydediliyor(false)
     if (!sonuc) { Alert.alert('Hata', 'Cihaz kaydedilemedi.'); return }
+    kirliRef.current = false // kayıt başarılı: çıkışta sorma
     if (zimmeteGec && !editId) {
       navigation.replace('YeniDemoZimmet', { cihazId: sonuc.id })
     } else {

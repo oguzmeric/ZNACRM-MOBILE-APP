@@ -22,6 +22,7 @@ import { musterileriGetir } from '../services/musteriService'
 import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { kullanicilariGetir } from '../services/kullaniciService'
 import { BAKIM_KALEMLERI } from '../lib/bakimSablon'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 const ONCELIKLER = [
   { id: 'dusuk', isim: 'Düşük' },
@@ -40,6 +41,8 @@ const trTarih = (s) => s ? new Date(s + 'T00:00:00').toLocaleDateString('tr-TR')
 export default function YeniTopluBakimScreen({ navigation }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
+  // Kaydedilmemiş değişiklik koruması (beforeRemove) — kirlilik ref'te tutulur
+  const kirliRef = useKaydedilmemisUyari(navigation)
 
   const [musteriler, setMusteriler] = useState([])
   const [personel, setPersonel] = useState([])
@@ -64,7 +67,7 @@ export default function YeniTopluBakimScreen({ navigation }) {
     oncelik: 'normal',
   })
   const [secilenKalemler, setSecilenKalemler] = useState([])
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  const set = (k, v) => { kirliRef.current = true; setForm((f) => ({ ...f, [k]: v })) }
 
   useFocusEffect(useCallback(() => {
     let iptal = false
@@ -81,6 +84,7 @@ export default function YeniTopluBakimScreen({ navigation }) {
 
   // Müşteri değişince lokasyonları tazele — eski müşterinin lokasyonu seçili kalmasın
   const musteriSec = async (mid) => {
+    kirliRef.current = true
     setForm((f) => ({ ...f, musteriId: mid, lokasyonId: null, lokasyonAdres: '' }))
     setLokasyonlar([])
     if (!mid) return
@@ -94,12 +98,15 @@ export default function YeniTopluBakimScreen({ navigation }) {
   )
 
   const lokasyonSec = (lid) => {
+    kirliRef.current = true
     const l = lokasyonlar.find((x) => String(x.id) === String(lid))
     setForm((f) => ({ ...f, lokasyonId: lid, lokasyonAdres: l?.adres || '' }))
   }
 
-  const kalemToggle = (tip) =>
+  const kalemToggle = (tip) => {
+    kirliRef.current = true
     setSecilenKalemler((p) => p.includes(tip) ? p.filter((t) => t !== tip) : [...p, tip])
+  }
 
   const kaydet = async () => {
     // Web ile BİREBİR aynı kurallar (lokasyon opsiyonel — 24.07 kararı)
@@ -130,8 +137,9 @@ export default function YeniTopluBakimScreen({ navigation }) {
     })
     setKaydediliyor(false)
     if (sonuc?.hata) { Alert.alert('Kaydedilemedi', sonuc.hata); return }
+    kirliRef.current = false   // kayıt yazıldı — Alert dışına dokunulup kapatılsa da çıkışta sorma (22.08)
     Alert.alert('Oluşturuldu', `Toplu bakım açıldı: ${sonuc.tbNo}`, [
-      { text: 'Tamam', onPress: () => navigation.replace('BakimYap', { id: sonuc.id }) },
+      { text: 'Tamam', onPress: () => { kirliRef.current = false; navigation.replace('BakimYap', { id: sonuc.id }) } },
     ])
   }
 

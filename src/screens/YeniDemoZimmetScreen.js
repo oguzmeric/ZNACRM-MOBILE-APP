@@ -11,6 +11,7 @@ import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { trIcerir } from '../utils/trSearch'
 import TarihSec from '../components/TarihSec'
 import SecimPicker from '../components/SecimPicker'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 const SURELER = [7, 14, 30]
 
@@ -25,6 +26,7 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
+  const kirliRef = useKaydedilmemisUyari(navigation) // kaydedilmemiş değişiklik çıkış koruması
 
   const [cihaz, setCihaz] = useState(null)
   const [musteriler, setMusteriler] = useState([])
@@ -78,6 +80,7 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
       'Teslim Tutanağı Hazır',
       `Zimmet açıldı.\nTutanak No: ${sonuc.tutanakNo || '—'}\n\nCihaz sayfasından tutanağı müşteriye gönderebilir, imzalatıp fotoğrafını yükleyebilirsin.`,
     )
+    kirliRef.current = false // kaydedildi, çıkış koruması kalkar
     navigation.replace('DemoCihazDetay', { id: cihazId })
   }
 
@@ -104,7 +107,7 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
               <View style={{ marginTop: 4 }}>
                 <SecimPicker
                   deger={lokasyonId ?? 0}
-                  onSec={(v) => setLokasyonId(v === 0 ? null : v)}
+                  onSec={(v) => { kirliRef.current = true; setLokasyonId(v === 0 ? null : v) }}
                   secenekler={[
                     { id: 0, isim: '— Lokasyon yok —' },
                     ...lokasyonlar.map(l => ({ id: l.id, isim: l.ad })),
@@ -119,7 +122,7 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
             <View style={{ flex: 1 }}>
               <TarihSec
                 value={verisTarihi}
-                onChange={(iso) => setVerisTarihi(iso || '')}
+                onChange={(iso) => { kirliRef.current = true; setVerisTarihi(iso || '') }}
                 label="VERİLİŞ"
                 title="Veriliş Tarihi"
               />
@@ -127,7 +130,7 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
             <View style={{ flex: 1 }}>
               <TarihSec
                 value={iadeTarihi}
-                onChange={(iso) => setIadeTarihi(iso || '')}
+                onChange={(iso) => { kirliRef.current = true; setIadeTarihi(iso || '') }}
                 label="BEKLENEN İADE *"
                 title="Beklenen İade Tarihi"
               />
@@ -136,7 +139,7 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
 
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
             {SURELER.map(g => (
-              <TouchableOpacity key={g} onPress={() => setIadeTarihi(ekleGun(g))}
+              <TouchableOpacity key={g} onPress={() => { kirliRef.current = true; setIadeTarihi(ekleGun(g)) }}
                 style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                 <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '600' }}>{g} gün</Text>
               </TouchableOpacity>
@@ -144,7 +147,7 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
           </View>
 
           <Text style={[styles.label, { color: colors.textMuted, marginTop: 12 }]}>NOTLAR</Text>
-          <TextInput value={notlar} onChangeText={setNotlar}
+          <TextInput value={notlar} onChangeText={(t) => { kirliRef.current = true; setNotlar(t) }}
             style={{ marginTop: 4, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.textPrimary, marginBottom: 16 }} />
 
           <TouchableOpacity onPress={kaydet} disabled={kaydediliyor}
@@ -168,7 +171,7 @@ export default function YeniDemoZimmetScreen({ route, navigation }) {
             </View>
             <ScrollView keyboardShouldPersistTaps="handled">
               {filtreliMusteriler.map(m => (
-                <TouchableOpacity key={m.id} onPress={() => { setMusteri(m); setMusteriPickerOpen(false); setMusteriArama('') }}
+                <TouchableOpacity key={m.id} onPress={() => { kirliRef.current = true; setMusteri(m); setMusteriPickerOpen(false); setMusteriArama('') }}
                   style={{ padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                   <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>
                     {m.firma || `${m.ad ?? ''} ${m.soyad ?? ''}`.trim()}

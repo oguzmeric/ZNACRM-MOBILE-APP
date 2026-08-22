@@ -37,6 +37,7 @@ import { trIcerir } from '../utils/trSearch'
 import { tumStokUrunleriniGetir } from '../services/stokUrunService'
 import { teklifGorebilirMi } from '../services/menuYetkiService'
 import { teklifOnayaDustuBildir } from '../services/teklifOnayService'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 const PARA_BIRIMLERI = ['TL', 'USD', 'EUR']
 const ODEME_SECENEKLERI = ['Peşin', '30 Gün', '60 Gün', 'Havale/EFT', 'Çek', 'Diğer']
@@ -73,6 +74,8 @@ export default function YeniTeklifScreen({ route, navigation }) {
 
   const [kaydediliyor, setKaydediliyor] = useState(false)
   const [mevcutRevizyon, setMevcutRevizyon] = useState(0)
+  // Kaydedilmemiş değişiklik koruması — yalnız kullanıcı etkileşiminde kirlenir (ilk yükleme/ön doldurma değil)
+  const kirliRef = useKaydedilmemisUyari(navigation)
 
   useEffect(() => {
     navigation.setOptions({ title: editMode ? 'Teklifi Revize Et' : 'Yeni Teklif' })
@@ -181,10 +184,12 @@ export default function YeniTeklifScreen({ route, navigation }) {
   }
 
   const satirSil = (index) => {
+    kirliRef.current = true
     setSatirlar((prev) => prev.filter((_, i) => i !== index))
   }
 
   const satirKaydet = (satir) => {
+    kirliRef.current = true
     if (satirEditIndex == null) {
       setSatirlar((prev) => [...prev, satir])
     } else {
@@ -287,6 +292,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
     if (!sonuc) return Alert.alert('Hata', editMode ? 'Revize edilemedi.' : 'Teklif oluşturulamadı.')
     if (editMode) {
       Alert.alert('Revize Edildi', `Revizyon ${mevcutRevizyon + 1} olarak kaydedildi.`)
+      kirliRef.current = false // kayıt başarılı — çıkışta sorma
       navigation.goBack()
     } else {
       // Onay yetkililerine bildirim + SMS — web ile aynı davranış.
@@ -296,6 +302,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
         gonderenAd: kullanici?.ad,
         gonderenId: kullanici?.id,
       }).catch(() => {})
+      kirliRef.current = false // kayıt başarılı — çıkışta sorma
       navigation.replace('TeklifDetay', { id: sonuc.id })
     }
   }
@@ -343,7 +350,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
             </Text>
           </TouchableOpacity>
           {!!musteri && (
-            <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => setMusteri(null)}>
+            <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => { kirliRef.current = true; setMusteri(null) }}>
               <Feather name="x" size={18} color={colors.danger} />
             </TouchableOpacity>
           )}
@@ -367,7 +374,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
                 </Text>
               </TouchableOpacity>
               {!!kisi && (
-                <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => setKisi(null)}>
+                <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.surface, borderColor: colors.borderStrong }]} onPress={() => { kirliRef.current = true; setKisi(null) }}>
                   <Feather name="x" size={18} color={colors.danger} />
                 </TouchableOpacity>
               )}
@@ -380,7 +387,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
           value={konu}
-          onChangeText={setKonu}
+          onChangeText={(t) => { kirliRef.current = true; setKonu(t) }}
           placeholder="Teklif konusu"
           placeholderTextColor={colors.textFaded}
         />
@@ -390,7 +397,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
           <View style={{ flex: 1 }}>
             <TarihSec
               value={tarih}
-              onChange={(iso) => setTarih(iso || '')}
+              onChange={(iso) => { kirliRef.current = true; setTarih(iso || '') }}
               label="Tarih"
               placeholder="Seç"
               title="Teklif Tarihi"
@@ -399,7 +406,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
           <View style={{ flex: 1 }}>
             <TarihSec
               value={gecerlilikTarihi}
-              onChange={(iso) => setGecerlilikTarihi(iso || '')}
+              onChange={(iso) => { kirliRef.current = true; setGecerlilikTarihi(iso || '') }}
               label="Geçerlilik"
               placeholder="Seç"
               title="Geçerlilik Tarihi"
@@ -418,7 +425,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
                 { backgroundColor: colors.surface, borderColor: colors.borderStrong },
                 paraBirimi === p && { backgroundColor: colors.primary, borderColor: colors.primary },
               ]}
-              onPress={() => setParaBirimi(p)}
+              onPress={() => { kirliRef.current = true; setParaBirimi(p) }}
             >
               <Text style={[styles.chipText, { color: colors.textSecondary }, paraBirimi === p && { color: '#fff' }]}>{p}</Text>
             </TouchableOpacity>
@@ -440,7 +447,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
         <TextInput
           style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary, height: 80, textAlignVertical: 'top' }]}
           value={aciklama}
-          onChangeText={setAciklama}
+          onChangeText={(t) => { kirliRef.current = true; setAciklama(t) }}
           multiline
           placeholder="Ek notlar..."
           placeholderTextColor={colors.textFaded}
@@ -497,7 +504,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
             <TextInput
               style={[styles.input, { backgroundColor: colors.surface, color: colors.textPrimary }]}
               value={genelIskonto}
-              onChangeText={setGenelIskonto}
+              onChangeText={(t) => { kirliRef.current = true; setGenelIskonto(t) }}
               keyboardType="numeric"
               placeholder="0"
               placeholderTextColor={colors.textFaded}
@@ -583,6 +590,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.border }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setMusteri(item)
                     setMusteriPickerOpen(false)
                     setMusteriArama('')
@@ -615,6 +623,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
                 <TouchableOpacity
                   style={[styles.pickerItem, { borderBottomColor: colors.border }]}
                   onPress={() => {
+                    kirliRef.current = true
                     setKisi(item)
                     setKisiPickerOpen(false)
                   }}
@@ -647,6 +656,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
                 key={o}
                 style={[styles.pickerItem, { borderBottomColor: colors.border }]}
                 onPress={() => {
+                  kirliRef.current = true
                   setOdeme(o)
                   setOdemePickerOpen(false)
                 }}

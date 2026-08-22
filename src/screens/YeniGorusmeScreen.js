@@ -29,6 +29,7 @@ import { musteriLokasyonlariniGetir } from '../services/musteriLokasyonService'
 import { trIcerir } from '../utils/trSearch'
 import LokasyonPicker from '../components/LokasyonPicker'
 import SecimPicker from '../components/SecimPicker'
+import { useKaydedilmemisUyari } from '../hooks/useKaydedilmemisUyari'
 
 // Web ile aynı listeler
 const VARSAYILAN_KONULAR = [
@@ -52,6 +53,8 @@ export default function YeniGorusmeScreen({ navigation, route }) {
   const { colors } = useTheme()
   const headerHeight = useHeaderHeight()
   const baslangicMusteri = route?.params?.musteri
+  // Kaydedilmemis degisiklik korumasi — alan degisince kirliRef.current = true, kaydet basarili olunca false
+  const kirliRef = useKaydedilmemisUyari(navigation)
 
   const [firmaAdi, setFirmaAdi] = useState(baslangicMusteri?.firma ?? '')
   const [musteriId, setMusteriId] = useState(baslangicMusteri?.id ?? null)
@@ -88,6 +91,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
       type: a.mimeType || 'image/jpeg',
       size: a.fileSize ?? null,
     }))
+    kirliRef.current = true
     setDosyalar((p) => [...p, ...yeni])
   }
 
@@ -100,10 +104,11 @@ export default function YeniGorusmeScreen({ navigation, route }) {
       type: a.mimeType || null,
       size: a.size ?? null,
     }))
+    kirliRef.current = true
     setDosyalar((p) => [...p, ...yeni])
   }
 
-  const dosyaCikar = (idx) => setDosyalar((p) => p.filter((_, i) => i !== idx))
+  const dosyaCikar = (idx) => { kirliRef.current = true; setDosyalar((p) => p.filter((_, i) => i !== idx)) }
 
   // Müşteri autocomplete
   const [musteriler, setMusteriler] = useState([])
@@ -139,6 +144,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
   }, [musteriler, firmaAdi, oneriGoster])
 
   const musteriSec = (m) => {
+    kirliRef.current = true
     setFirmaAdi(m.firma ?? '')
     setMusteriId(m.id)
     if (m.musteriAdi && !muhatapAd.trim()) setMuhatapAd(m.musteriAdi)
@@ -204,13 +210,15 @@ export default function YeniGorusmeScreen({ navigation, route }) {
     }
 
     if (dosyaHatalari.length) {
+      kirliRef.current = false   // kayıt yazıldı — Alert dışına dokunulup kapatılsa da çıkışta sorma (22.08)
       Alert.alert(
         'Kısmi yükleme',
         `Görüşme kaydedildi ancak bazı dosyalar yüklenemedi:\n${dosyaHatalari.join('\n')}`,
-        [{ text: 'Tamam', onPress: () => navigation.goBack() }],
+        [{ text: 'Tamam', onPress: () => { kirliRef.current = false; navigation.goBack() } }],
       )
       return
     }
+    kirliRef.current = false
     navigation.goBack()
   }
 
@@ -226,7 +234,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
           <Text style={[styles.label, { color: colors.textMuted }]}>Müşteri Adı *</Text>
           <TextInput
             value={firmaAdi}
-            onChangeText={(t) => { setFirmaAdi(t); setOneriGoster(true); setMusteriId(null) }}
+            onChangeText={(t) => { kirliRef.current = true; setFirmaAdi(t); setOneriGoster(true); setMusteriId(null) }}
             onFocus={() => setOneriGoster(true)}
             placeholder="Müşteri seçmek için dokun veya yaz"
             placeholderTextColor={colors.textMuted}
@@ -279,7 +287,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
                 lokasyonlar={musteriLokasyonlari}
                 onLokasyonlarChange={setMusteriLokasyonlari}
                 secili={lokasyonSecili}
-                onSeciliChange={setLokasyonSecili}
+                onSeciliChange={(l) => { kirliRef.current = true; setLokasyonSecili(l) }}
               />
             </>
           )}
@@ -288,7 +296,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
           <Text style={[styles.label, { color: colors.textMuted }]}>Muhatap (yetkili)</Text>
           <TextInput
             value={muhatapAd}
-            onChangeText={setMuhatapAd}
+            onChangeText={(t) => { kirliRef.current = true; setMuhatapAd(t) }}
             placeholder="Konuştuğun kişi"
             placeholderTextColor={colors.textMuted}
             style={[styles.input, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface }]}
@@ -299,6 +307,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
           <SecimPicker
             deger={manuelKonuAcik ? '__manuel__' : konu}
             onSec={(v) => {
+              kirliRef.current = true
               if (v === '__manuel__') { setManuelKonuAcik(true); return }
               setKonu(v); setManuelKonuAcik(false)
             }}
@@ -309,7 +318,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
           {manuelKonuAcik && (
             <TextInput
               value={manuelKonu}
-              onChangeText={setManuelKonu}
+              onChangeText={(t) => { kirliRef.current = true; setManuelKonu(t) }}
               placeholder="Konu yaz…"
               placeholderTextColor={colors.textMuted}
               style={[styles.input, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surface, marginTop: 8 }]}
@@ -320,7 +329,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
           <Text style={[styles.label, { color: colors.textMuted }]}>İrtibat Şekli</Text>
           <SecimPicker
             deger={irtibatSekli}
-            onSec={setIrtibatSekli}
+            onSec={(v) => { kirliRef.current = true; setIrtibatSekli(v) }}
             secenekler={IRTIBAT_SEKILLERI}
             placeholder="İrtibat şekli seç"
           />
@@ -333,7 +342,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
               return (
                 <TouchableOpacity
                   key={d.id}
-                  onPress={() => setDurum(d.id)}
+                  onPress={() => { kirliRef.current = true; setDurum(d.id) }}
                   activeOpacity={0.85}
                   style={[styles.chip, { borderColor: colors.border, backgroundColor: aktif ? colors.primary : colors.surface }]}
                 >
@@ -347,7 +356,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
           <Text style={[styles.label, { color: colors.textMuted }]}>Görüşme Açıklaması</Text>
           <MentionInput
             value={notlar}
-            onChangeText={setNotlar}
+            onChangeText={(t) => { kirliRef.current = true; setNotlar(t) }}
             kullanicilar={personeller}
             placeholder="Görüşme detayları… @ ile arkadaşını etiketle"
             inputProps={{ numberOfLines: 5, textAlignVertical: 'top' }}
@@ -358,7 +367,7 @@ export default function YeniGorusmeScreen({ navigation, route }) {
           <Text style={[styles.label, { color: colors.textMuted }]}>Görüşme Sonucu</Text>
           <TextInput
             value={gorusmeSonucu}
-            onChangeText={setGorusmeSonucu}
+            onChangeText={(t) => { kirliRef.current = true; setGorusmeSonucu(t) }}
             placeholder="Görüşme neticesi — varılan karar, anlaşılan adımlar…"
             placeholderTextColor={colors.textFaded}
             multiline
