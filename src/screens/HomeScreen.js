@@ -29,8 +29,10 @@ import DuyuruBanner from '../components/DuyuruBanner'
 import MesaiKarti from '../components/MesaiKarti'
 import { mesaiTakipVarMi } from '../services/mesaiService'
 import { aracFotoModulVarMi } from '../services/aracFotoService'
+import { useCiftGeriCikis } from '../hooks/useCiftGeriCikis'
 
 export default function HomeScreen({ navigation }) {
+  useCiftGeriCikis(navigation)   // Android: kökte tek basışta çıkma (22.08)
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()

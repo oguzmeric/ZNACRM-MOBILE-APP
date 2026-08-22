@@ -338,7 +338,7 @@ export default function YeniGorevScreen({ navigation, route }) {
         const servisTalebi = await talepOlusturGorevden(yeni, kullanici)
         setKaydediliyor(false)
         if (servisTalebi) {
-          navigation.replace('ServisTalebiDetay', { id: servisTalebi.id })
+          navigation.replace('ServisDetay', { id: servisTalebi.id })
           return
         }
         Alert.alert('Bilgi', 'Görev oluşturuldu fakat servis talebi oluşturulamadı.')
@@ -350,6 +350,8 @@ export default function YeniGorevScreen({ navigation, route }) {
     } else {
       setKaydediliyor(false)
     }
+    // ERP standardı: oluşturulan kaydın DETAYINA git (görev no görünsün); liste odakta yenilenir
+    if (yeni?.id) { navigation.replace('GörevDetay', { id: yeni.id }); return }
     navigation.goBack()
   }
 

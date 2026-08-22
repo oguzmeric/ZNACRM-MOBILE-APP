@@ -276,6 +276,16 @@ export default function RootNavigator() {
             <Stack.Screen name="YeniTopluBakim" component={YeniTopluBakimScreen} options={{ title: 'Yeni Toplu Bakım' }} />
             <Stack.Screen name="IzinBordro" component={IzinBordroScreen} options={{ title: 'İzin & Bordro' }} />
             <Stack.Screen name="BulkDetay" component={BulkDetayScreen} options={{ title: 'Stok Detayı' }} />
+            {/* 22.08 denetimi: admin dalında KAYITLI DEĞİLDİ — Üzerindeki Stok/Kronik Arıza/Müşteri Detayı/Stok Raporu
+                ve bildirim hedefleri (görüşme/teklif/sözleşme) yönetici modunda sessizce açılmıyordu. */}
+            <Stack.Screen name="CihazDetay" component={CihazDetayScreen} options={{ title: 'Cihaz Detayı' }} />
+            <Stack.Screen name="ArizaliCihaz" component={ArizaliCihazScreen} options={{ title: 'Müşteri Cihazı (SN)' }} />
+            <Stack.Screen name="ModelDetay" component={ModelDetayScreen} options={{ title: 'Model Detayı' }} />
+            <Stack.Screen name="SeriTara" component={SeriTaraScreen} options={{ title: 'Seri Tara' }} />
+            <Stack.Screen name="GorusmeDetay" component={GorusmeDetayScreen} options={{ title: 'Görüşme Detayı' }} />
+            <Stack.Screen name="TeklifDetay" component={TeklifDetayScreen} options={{ title: 'Teklif Detayı' }} />
+            <Stack.Screen name="KullaniciSozlesmesi" component={SozlesmeEkrani} options={{ title: 'Kullanıcı Sözleşmesi', headerShown: true }} />
+            <Stack.Screen name="MalzemeKullan" component={MalzemeKullanScreen} options={{ title: 'Sahada Kullan' }} />
             <Stack.Screen name="Bildirimler" component={BildirimlerScreen} options={{ title: 'Bildirimler' }} />
             {/* Sohbet LİSTESİ alt sekmede (BottomTabs) — burada kayıtlı değil:
                 useBottomTabBarHeight() sekme bağlamı olmadan hata verir. */}

@@ -8,8 +8,10 @@ import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { adminKpiGetir, aktiviteFeed } from '../../services/adminStatsService'
 import { tarihSaatFormat } from '../../utils/format'
+import { useCiftGeriCikis } from '../../hooks/useCiftGeriCikis'
 
 export default function AdminDashboardScreen({ navigation }) {
+  useCiftGeriCikis(navigation)   // Android: kökte tek basışta çıkma (22.08)
   const { kullanici, modDegistir } = useAuth()
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()

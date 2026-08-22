@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import {
   View,
   Text,
@@ -72,6 +72,7 @@ import {
   altGorevVerebilirMi,
   bugunStr,
 } from '../lib/gorevSabitleri'
+import { useFocusEffect } from '@react-navigation/native'
 
 const DURUM_SECENEKLERI = [
   { id: 'bekliyor',         label: 'Atandı' },
@@ -231,16 +232,10 @@ export default function GorevDetayScreen({ route, navigation }) {
     }
   }
 
-  useEffect(() => {
-    yukle()
-  }, [id])
-
-  // Ekrana dönüldüğünde (örn. YeniGorev düzenlemeden geri gelinince) yeniden yükle
-  useEffect(() => {
-    const unsub = navigation.addListener('focus', () => { if (!loading) yukle() })
-    return unsub
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigation])
+  // Ekrana her dönüşte yükle (mount dahil). Eski 'focus' dinleyicisi bayat
+  // `loading` kapanışı yüzünden HİÇ çalışmıyordu (22.08 denetimi) — tazelik
+  // yalnız realtime'a kalıyordu; zayıf ağda düzenleme sonrası eski veri görünüyordu.
+  useFocusEffect(useCallback(() => { yukle() }, [id]))
 
   // Realtime: web ile fark tazelikteydi — webden yazılan yorum/not/durum artık
   // ekran açıkken de anında düşer (web GorevDetay'daki kanalın mobil karşılığı).

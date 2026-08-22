@@ -14,10 +14,12 @@ import { useTheme } from '../../context/ThemeContext'
 import { servisTalepleriniGetir } from '../../services/servisService'
 import { durumBul } from '../../utils/servisConstants'
 import { tarihFormat } from '../../utils/format'
+import { useCiftGeriCikis } from '../../hooks/useCiftGeriCikis'
 
 const ACIK_DISI = ['tamamlandi', 'onaylandi', 'iptal']
 
 export default function MusteriAnaScreen({ navigation }) {
+  useCiftGeriCikis(navigation)   // Android: kökte tek basışta çıkma (22.08)
   const { kullanici } = useAuth()
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()

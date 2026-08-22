@@ -271,7 +271,7 @@ export default function AdminPersonelDetayScreen({ route, navigation }) {
             <TouchableOpacity
               key={s.id}
               style={[styles.malzemeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              onPress={() => navigation.navigate('CihazDetay', { kalemId: s.id })}
+              onPress={() => navigation.navigate('CihazDetay', { id: s.id })}
               activeOpacity={0.8}
             >
               <View style={{ flex: 1 }}>

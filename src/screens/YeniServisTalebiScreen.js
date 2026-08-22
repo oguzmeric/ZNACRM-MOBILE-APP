@@ -345,6 +345,8 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
     }
 
     setKaydediliyor(false)
+    // ERP standardı: oluşturulan talebin DETAYINA git (talep no görünsün); liste odakta yenilenir
+    if (yeni?.id) { navigation.replace('ServisDetay', { id: yeni.id }); return }
     navigation.goBack()
   }
 

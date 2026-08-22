@@ -123,6 +123,8 @@ export default function YeniMusteriScreen({ route, navigation }) {
       Alert.alert('Hata', editMode ? 'Müşteri güncellenemedi.' : 'Müşteri eklenemedi. Müşteri kodu çakışmış olabilir.')
       return
     }
+    // ERP standardı: yeni müşteri kartının DETAYINA git; düzenlemede geri (detay odakta yenilenir)
+    if (!editMode && sonuc?.id) { navigation.replace('MüşteriDetay', { id: sonuc.id }); return }
     navigation.goBack()
   }
 
