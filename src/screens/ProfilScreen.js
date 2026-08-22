@@ -24,7 +24,6 @@ import {
   sifreDegistir,
   profilFotosuYukle,
   profilFotosuKaldir,
-  kullaniciUnvanGuncelle,
   imzaGuncelle,
   imzaKaldir,
 } from '../services/kullaniciService'
@@ -46,9 +45,6 @@ export default function ProfilScreen({ navigation }) {
   try { tabBarHeight = useBottomTabBarHeight() } catch (_) {}
   const [sifreModalOpen, setSifreModalOpen] = useState(false)
   const [fotoYukleniyor, setFotoYukleniyor] = useState(false)
-  const [unvanModalOpen, setUnvanModalOpen] = useState(false)
-  const [unvanInput, setUnvanInput] = useState('')
-  const [unvanKaydediliyor, setUnvanKaydediliyor] = useState(false)
   const [imzaModalOpen, setImzaModalOpen] = useState(false)
 
   const personel = kullanici?.tip !== 'musteri'
@@ -80,26 +76,6 @@ export default function ProfilScreen({ navigation }) {
         },
       },
     ])
-  }
-
-  const UNVAN_SECENEK = ['Teknisyen', 'Saha Teknisyeni', 'Mühendis', 'Depo Sorumlusu', 'Müşteri Temsilcisi']
-
-  const unvanModalAc = () => {
-    setUnvanInput(kullanici?.unvan ?? '')
-    setUnvanModalOpen(true)
-  }
-
-  const unvanKaydet = async () => {
-    if (!kullanici?.id) return
-    setUnvanKaydediliyor(true)
-    const ok = await kullaniciUnvanGuncelle(kullanici.id, unvanInput.trim())
-    setUnvanKaydediliyor(false)
-    if (!ok) {
-      Alert.alert('Kaydedilemedi', 'Unvan güncellenemedi. Tekrar deneyin.')
-      return
-    }
-    await kullaniciyiTazele()
-    setUnvanModalOpen(false)
   }
 
   const cikisOnayi = () => {
@@ -199,22 +175,24 @@ export default function ProfilScreen({ navigation }) {
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <InfoRow ikon="user" label="Ad Soyad" deger={kullanici?.ad} />
           <InfoRow ikon="at-sign" label="Kullanıcı Adı" deger={kullanici?.kullaniciAdi} />
-          <TouchableOpacity
-            onPress={unvanModalAc}
-            activeOpacity={0.7}
-            style={[styles.row, styles.rowBorder, { borderBottomColor: colors.border }]}
-          >
+          {/* 🔒 22.08: unvan artık kişinin kendi değiştirebileceği alan DEĞİL.
+              Eskiden yetki taşıyordu (yönetim paneli + şifre sıfırlama RPC'si unvana
+              bakıyordu) ve buradan serbestçe yazılabiliyordu — yetki yükseltme yolu.
+              Artık İK etiketi: yönetici atar (mig 323 koruma trigger'ı). */}
+          <View style={[styles.row, styles.rowBorder, { borderBottomColor: colors.border }]}>
             <View style={[styles.rowIkon, { backgroundColor: colors.primary + '26' }]}>
               <Feather name="briefcase" size={16} color={colors.primaryLight} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowLabel, { color: colors.textMuted }]}>Unvan</Text>
-              <Text style={[styles.rowDeger, { color: kullanici?.unvan ? colors.textSecondary : '#f59e0b' }]}>
-                {kullanici?.unvan ?? 'Belirtilmemiş — düzenle'}
+              <Text style={[styles.rowDeger, { color: kullanici?.unvan ? colors.textSecondary : colors.textMuted }]}>
+                {kullanici?.unvan ?? 'Belirtilmemiş'}
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
+                Unvanı yönetici belirler
               </Text>
             </View>
-            <Feather name="edit-2" size={14} color={colors.primary} />
-          </TouchableOpacity>
+          </View>
           {!!kullanici?.firmaAdi && (
             <InfoRow ikon="home" label="Firma" deger={kullanici.firmaAdi} son />
           )}
@@ -400,77 +378,6 @@ export default function ProfilScreen({ navigation }) {
         baslik="İmzam"
       />
 
-      <Modal visible={unvanModalOpen} animationType="slide" transparent onRequestClose={() => setUnvanModalOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
-          <View style={{ padding: 20, borderTopLeftRadius: 18, borderTopRightRadius: 18, backgroundColor: colors.surface, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.border }}>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>Unvan</Text>
-            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
-              Hızlı seçeneklerden birini seç veya yaz.
-            </Text>
-
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
-              {UNVAN_SECENEK.map((u) => {
-                const aktif = unvanInput === u
-                return (
-                  <TouchableOpacity
-                    key={u}
-                    onPress={() => setUnvanInput(u)}
-                    activeOpacity={0.8}
-                    style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      backgroundColor: aktif ? colors.primary : colors.surfaceDark,
-                      borderColor: aktif ? colors.primary : colors.border,
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: aktif ? '#fff' : colors.textPrimary }}>{u}</Text>
-                  </TouchableOpacity>
-                )
-              })}
-            </View>
-
-            <TextInput
-              value={unvanInput}
-              onChangeText={setUnvanInput}
-              placeholder="Veya özel unvan yaz…"
-              placeholderTextColor={colors.textMuted}
-              style={{
-                marginTop: 14,
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: 10,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                fontSize: 14,
-                color: colors.textPrimary,
-                backgroundColor: colors.surfaceDark,
-              }}
-            />
-
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-              <TouchableOpacity
-                onPress={() => setUnvanModalOpen(false)}
-                activeOpacity={0.8}
-                style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.textMuted }}>Vazgeç</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={unvanKaydet}
-                activeOpacity={0.8}
-                disabled={unvanKaydediliyor}
-                style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, backgroundColor: colors.primary, borderColor: colors.primary, alignItems: 'center' }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
-                  {unvanKaydediliyor ? 'Kaydediliyor…' : 'Kaydet'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </ScreenContainer>
   )
 }
