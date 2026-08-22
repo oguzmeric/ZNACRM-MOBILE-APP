@@ -806,7 +806,7 @@ function TakModal({ visible, onClose, kalem, kullanici, onDone }) {
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.modalBg}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -879,7 +879,7 @@ function TakModal({ visible, onClose, kalem, kullanici, onDone }) {
           </ScrollView>
 
           {/* İç müşteri picker */}
-          <Modal visible={musteriPickerOpen} transparent animationType="fade">
+          <Modal visible={musteriPickerOpen} transparent animationType="fade" onRequestClose={() => setMusteriPickerOpen(false)}>
             <View style={styles.modalBg}>
               <View style={[styles.modalSheetBig, { backgroundColor: colors.bg }]}>
                 <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
@@ -920,7 +920,7 @@ function TakModal({ visible, onClose, kalem, kullanici, onDone }) {
           </Modal>
 
           {/* İç lokasyon picker */}
-          <Modal visible={lokasyonPickerOpen} transparent animationType="fade">
+          <Modal visible={lokasyonPickerOpen} transparent animationType="fade" onRequestClose={() => setLokasyonPickerOpen(false)}>
             <View style={styles.modalBg}>
               <View style={[styles.modalSheetBig, { backgroundColor: colors.bg }]}>
                 <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
@@ -1016,7 +1016,7 @@ function TransferModal({ visible, onClose, kalem, kullanici, onDone }) {
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.modalBg}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -1135,7 +1135,7 @@ function SokModal({ visible, onClose, kalem, kullanici, onDone }) {
   ]
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalBg}>
         <View style={[styles.modalSheetBig, { backgroundColor: colors.bg }]}>
           <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>

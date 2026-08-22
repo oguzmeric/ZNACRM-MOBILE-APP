@@ -553,7 +553,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
       </ScrollView>
 
       {/* Müşteri seçici */}
-      <Modal visible={musteriPickerOpen} animationType="slide" transparent>
+      <Modal visible={musteriPickerOpen} animationType="slide" transparent onRequestClose={() => setMusteriPickerOpen(false)}>
         <KeyboardAvoidingView
           style={styles.modalBg}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -599,7 +599,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
       </Modal>
 
       {/* Kişi seçici */}
-      <Modal visible={kisiPickerOpen} animationType="slide" transparent>
+      <Modal visible={kisiPickerOpen} animationType="slide" transparent onRequestClose={() => setKisiPickerOpen(false)}>
         <View style={styles.modalBg}>
           <View style={[styles.modalSheet, { backgroundColor: colors.bgDark }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
@@ -633,7 +633,7 @@ export default function YeniTeklifScreen({ route, navigation }) {
       </Modal>
 
       {/* Ödeme seçici */}
-      <Modal visible={odemePickerOpen} animationType="slide" transparent>
+      <Modal visible={odemePickerOpen} animationType="slide" transparent onRequestClose={() => setOdemePickerOpen(false)}>
         <View style={styles.modalBg}>
           <View style={[styles.modalSheet, { backgroundColor: colors.bgDark }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
@@ -747,7 +747,7 @@ function SatirModal({ visible, onClose, initial, onSave, paraBirimi }) {
   }).netTutar
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.modalBg}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

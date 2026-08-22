@@ -548,7 +548,7 @@ function SifreDegistirModal({ visible, onClose, kullaniciId }) {
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.modalBg}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

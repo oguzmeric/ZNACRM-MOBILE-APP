@@ -612,7 +612,7 @@ export default function YeniGorevScreen({ navigation, route }) {
       </ScrollView>
 
       {/* Kullanıcı seçici */}
-      <Modal visible={kullaniciPickerOpen} animationType="slide" transparent>
+      <Modal visible={kullaniciPickerOpen} animationType="slide" transparent onRequestClose={() => setKullaniciPickerOpen(false)}>
         <View style={styles.modalBg}>
           <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
@@ -644,7 +644,7 @@ export default function YeniGorevScreen({ navigation, route }) {
       </Modal>
 
       {/* Ekip seçici — birden fazla eklenebilir */}
-      <Modal visible={ekipPickerOpen} animationType="slide" transparent>
+      <Modal visible={ekipPickerOpen} animationType="slide" transparent onRequestClose={() => setEkipPickerOpen(false)}>
         <View style={styles.modalBg}>
           <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
@@ -683,7 +683,7 @@ export default function YeniGorevScreen({ navigation, route }) {
       </Modal>
 
       {/* Müşteri seçici (aramalı) */}
-      <Modal visible={musteriPickerOpen} animationType="slide" transparent>
+      <Modal visible={musteriPickerOpen} animationType="slide" transparent onRequestClose={() => setMusteriPickerOpen(false)}>
         <KeyboardAvoidingView
           style={styles.modalBg}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

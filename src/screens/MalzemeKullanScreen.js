@@ -301,7 +301,7 @@ export default function MalzemeKullanScreen({ route, navigation }) {
       />
 
       {/* Bulk kullanım modal */}
-      <Modal visible={!!bulkModalPlan} animationType="slide" transparent>
+      <Modal visible={!!bulkModalPlan} animationType="slide" transparent onRequestClose={() => setBulkModalPlan(null)}>
         <KeyboardAvoidingView
           style={styles.modalBg}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}

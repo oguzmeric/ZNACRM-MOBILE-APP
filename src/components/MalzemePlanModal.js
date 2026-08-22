@@ -219,7 +219,7 @@ export default function MalzemePlanModal({ visible, onClose, initial, onSave, ku
           </View>
 
           {/* Ürün picker (aramalı) */}
-          <Modal visible={urunPickerOpen} animationType="slide" transparent>
+          <Modal visible={urunPickerOpen} animationType="slide" transparent onRequestClose={() => setUrunPickerOpen(false)}>
             <View style={styles.bg}>
               <View style={styles.sheet}>
                 <View style={styles.header}>

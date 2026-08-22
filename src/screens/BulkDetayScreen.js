@@ -292,7 +292,7 @@ function IslemModal({ visible, islem, urun, kullanici, onClose, onDone }) {
     : `Miktar (${islem.id === 'giris' ? 'eklenecek' : 'düşülecek'})`
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.modalBg}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -365,7 +365,7 @@ function IslemModal({ visible, islem, urun, kullanici, onClose, onDone }) {
             </TouchableOpacity>
           </ScrollView>
 
-          <Modal visible={musteriPickerOpen} transparent animationType="fade">
+          <Modal visible={musteriPickerOpen} transparent animationType="fade" onRequestClose={() => setMusteriPickerOpen(false)}>
             <View style={styles.modalBg}>
               <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
                 <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>

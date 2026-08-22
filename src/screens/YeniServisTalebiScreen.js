@@ -825,7 +825,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       </ScrollView>
 
       {/* Müşteri seçici */}
-      <Modal visible={musteriPickerOpen} animationType="slide" transparent>
+      <Modal visible={musteriPickerOpen} animationType="slide" transparent onRequestClose={() => setMusteriPickerOpen(false)}>
         <View style={styles.modalBg}>
           <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
@@ -871,7 +871,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       </Modal>
 
       {/* Kişi seçici */}
-      <Modal visible={kisiPickerOpen} animationType="slide" transparent>
+      <Modal visible={kisiPickerOpen} animationType="slide" transparent onRequestClose={() => setKisiPickerOpen(false)}>
         <View style={styles.modalBg}>
           <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
@@ -933,7 +933,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       </Modal>
 
       {/* Alt kategori seçici */}
-      <Modal visible={altKategoriPickerOpen} animationType="slide" transparent>
+      <Modal visible={altKategoriPickerOpen} animationType="slide" transparent onRequestClose={() => setAltKategoriPickerOpen(false)}>
         <View style={styles.modalBg}>
           <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
@@ -962,7 +962,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       </Modal>
 
       {/* Kullanıcı seçici */}
-      <Modal visible={kullaniciPickerOpen} animationType="slide" transparent>
+      <Modal visible={kullaniciPickerOpen} animationType="slide" transparent onRequestClose={() => setKullaniciPickerOpen(false)}>
         <View style={styles.modalBg}>
           <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
@@ -994,7 +994,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       </Modal>
 
       {/* Lokasyon seçici */}
-      <Modal visible={lokasyonPickerOpen} animationType="slide" transparent>
+      <Modal visible={lokasyonPickerOpen} animationType="slide" transparent onRequestClose={() => setLokasyonPickerOpen(false)}>
         <View style={styles.modalBg}>
           <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>
@@ -1030,7 +1030,7 @@ export default function YeniServisTalebiScreen({ navigation, route }) {
       </Modal>
 
       {/* Cihaz seçici */}
-      <Modal visible={cihazPickerOpen} animationType="slide" transparent>
+      <Modal visible={cihazPickerOpen} animationType="slide" transparent onRequestClose={() => setCihazPickerOpen(false)}>
         <View style={styles.modalBg}>
           <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
             <View style={[styles.modalHeader, { borderBottomColor: colors.surface }]}>

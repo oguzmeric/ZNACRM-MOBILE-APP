@@ -30,7 +30,7 @@ LocaleConfig.defaultLocale = 'tr'
 
 export default function TakvimPicker({ visible, onClose, secili, onSelect, title = 'Tarih Seç' }) {
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalBg}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHeader}>
